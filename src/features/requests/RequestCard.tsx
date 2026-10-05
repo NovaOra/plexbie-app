@@ -1,4 +1,3 @@
-import { Image } from "expo-image";
 import { memo } from "react";
 import { StyleSheet, View } from "react-native";
 import Animated, { cubicBezier, useReducedMotion } from "react-native-reanimated";
@@ -7,9 +6,9 @@ import { PressableScale } from "../../ui/Pressable";
 import { Text } from "../../ui/Text";
 import { useLargeText } from "../../ui/useColumns";
 import { color, font, radius, space } from "../../ui/theme";
-import { useArt } from "../art";
 import { formatSlot, isLive, since, stageHelp, stageLabel } from "./stage";
 import { GlassFill, glass } from "../../ui/Glass";
+import { Poster } from "../../ui/Poster";
 
 const KIND: Record<string, string | undefined> = { movie: "Film", tv: "TV", audiobook: "Audiobook", ebook: "Ebook" };
 const EASE = cubicBezier(0.23, 1, 0.32, 1);
@@ -22,7 +21,6 @@ function seasonsText(s: AppRequest["seasons"]) {
 
 /** One request, as its "slot" on the schedule: number, poster, title, where it is now. */
 export const RequestCard = memo(function RequestCard({ request: r, onPress }: { request: AppRequest; onPress?: (slot: number) => void }) {
-  const art = useArt()(r.title.poster, "w185");
   const live = isLive(r.stage);
   const done = r.stage === "available";
   const muted = r.stage === "declined" || r.stage === "closed";
@@ -37,12 +35,7 @@ export const RequestCard = memo(function RequestCard({ request: r, onPress }: { 
   const card = (
     <View style={[styles.card, glass.surface, live && styles.cardLive]} accessible={!onPress} accessibilityLabel={onPress ? undefined : label}>
       <GlassFill radius={radius.m} />
-      <View style={styles.poster}>
-        {art ? <Image source={art} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} recyclingKey={r.title.id}
-            cachePolicy={art.headers ? "memory" : "memory-disk"} /> : (
-          <Text variant="eyebrow" style={styles.posterText} numberOfLines={3}>{r.title.title}</Text>
-        )}
-      </View>
+      <Poster poster={r.title.poster} title={r.title.title} id={r.title.id} style={styles.poster} />
       <View style={styles.body}>
         <Text variant="eyebrow" numberOfLines={large ? undefined : 1}>{eyebrow}</Text>
         <Text variant="title" numberOfLines={large ? undefined : 2} style={muted && styles.mutedTitle}>{r.title.title}</Text>
@@ -76,11 +69,7 @@ const styles = StyleSheet.create({
     backgroundColor: color.panel, borderRadius: radius.m, borderWidth: StyleSheet.hairlineWidth, borderColor: color.rule,
   },
   cardLive: { borderColor: "rgba(255, 92, 147, 0.45)" },
-  poster: {
-    width: 72, height: 108, borderRadius: radius.s, overflow: "hidden", backgroundColor: color.panelRaised,
-    justifyContent: "flex-end", padding: space.s,
-  },
-  posterText: { color: color.slateInk },
+  poster: { width: 72 },
   body: { flex: 1, gap: 4, minWidth: 0 },
   mutedTitle: { color: color.slateInk },
   strap: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 },
