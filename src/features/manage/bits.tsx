@@ -1,0 +1,58 @@
+// Small pieces Manage's sections share: a section heading with a count, an "all clear"
+// note, a status pill, and an initial in a circle.
+import { StyleSheet, View } from "react-native";
+import { Text } from "../../ui/Text";
+import { color, font, radius, space } from "../../ui/theme";
+
+export function Heading({ title, count }: { title: string; count?: number }) {
+  return (
+    <Text variant="eyebrow" accessibilityRole="header" style={styles.heading}>
+      {title}{typeof count === "number" ? ` · ${count}` : ""}
+    </Text>
+  );
+}
+
+export function AllClear({ title, children }: { title: string; children: string }) {
+  return (
+    <View style={styles.clear}>
+      <Text variant="title">{title}</Text>
+      <Text variant="meta">{children}</Text>
+    </View>
+  );
+}
+
+export function Pill({ label, tone = "plain" }: { label: string; tone?: "plain" | "safe" | "bad" | "ok" }) {
+  return <Text style={[styles.pill, styles[tone]]}>{label}</Text>;
+}
+
+export function Initial({ name }: { name: string }) {
+  return (
+    <View style={styles.initial} importantForAccessibility="no" accessibilityElementsHidden>
+      <Text style={styles.initialText}>{(name.trim()[0] ?? "?").toUpperCase()}</Text>
+    </View>
+  );
+}
+
+export const card = StyleSheet.create({
+  box: {
+    gap: space.m, padding: space.m, borderRadius: radius.m, backgroundColor: color.panel,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: color.rule,
+  },
+  top: { flexDirection: "row", gap: space.m },
+  body: { flex: 1, gap: 4, minWidth: 0 },
+  actions: { flexDirection: "row", gap: space.m },
+  grow: { flex: 1 },
+  pills: { flexDirection: "row", flexWrap: "wrap", gap: space.xs },
+});
+
+const styles = StyleSheet.create({
+  heading: { marginTop: space.l, marginBottom: space.xs },
+  clear: { gap: space.xs, padding: space.l, borderRadius: radius.m, borderWidth: 1, borderStyle: "dashed", borderColor: color.rule },
+  pill: { alignSelf: "flex-start", fontSize: 12, lineHeight: 16, paddingHorizontal: space.s, paddingVertical: 2, borderRadius: radius.pill, overflow: "hidden", fontFamily: font.semibold },
+  plain: { backgroundColor: color.panelRaised, color: color.slateInk },
+  safe: { backgroundColor: "rgba(255, 209, 228, 0.16)", color: color.screen },
+  ok: { backgroundColor: color.screen, color: color.onScreen },
+  bad: { backgroundColor: "rgba(255, 92, 147, 0.10)", color: color.tally },
+  initial: { width: 44, height: 44, borderRadius: 22, backgroundColor: color.panelRaised, alignItems: "center", justifyContent: "center" },
+  initialText: { fontFamily: font.bold, fontSize: 17, color: color.screen },
+});

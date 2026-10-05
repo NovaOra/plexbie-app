@@ -1,0 +1,4 @@
+// lintVitalAnalyzeRelease crashes inside lint itself on these libraries; skip it for this build.
+allprojects {
+    tasks.configureEach { if (name.startsWith("lintVital")) enabled = false }
+}

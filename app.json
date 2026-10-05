@@ -1,0 +1,87 @@
+{
+  "expo": {
+    "name": "Plexbie",
+    "slug": "plexbie",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/brand/icon-1024.png",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.plexbie.app",
+      "infoPlist": {
+        "CADisableMinimumFrameDurationOnPhone": true,
+        "ITSAppUsesNonExemptEncryption": false,
+        "LSApplicationQueriesSchemes": [
+          "sidestore",
+          "altstore"
+        ]
+      },
+      "buildNumber": "19"
+    },
+    "android": {
+      "package": "com.plexbie.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/brand/adaptive-foreground.png",
+        "backgroundColor": "#7d7fa8",
+        "monochromeImage": "./assets/brand/adaptive-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "allowBackup": false,
+      "googleServicesFile": "./google-services.json",
+      "versionCode": 19,
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/brand/splash-rounded.png",
+          "imageWidth": 120,
+          "backgroundColor": "#10172b"
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/brand/notification-96.png",
+          "color": "#ffd1e4"
+        }
+      ],
+      "expo-web-browser",
+      "expo-font",
+      "expo-image",
+      "expo-status-bar",
+      [
+        "expo-dev-client",
+        {
+          "addGeneratedScheme": false
+        }
+      ]
+    ],
+    "scheme": [
+      "com.plexbie.app"
+    ],
+    "backgroundColor": "#10172b",
+    "experiments": {
+      "typedRoutes": true
+    },
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "10a707e3-259f-45c7-9af1-81afd9078d6f"
+      }
+    },
+    "owner": "novaora"
+  }
+}
