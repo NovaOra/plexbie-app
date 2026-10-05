@@ -156,6 +156,13 @@ They need a free Expo account (`npx eas-cli login`). They're optional; everythin
 - **Look** (`src/ui`): the website's "On Air" tokens, Archivo, press feedback (scale 0.97, 120 ms, one haptic), 48dp targets, reduced-motion aware.
 - **Types:** copied from the bot (`scripts/sync-types.mjs`); the bot is the source of truth for `/api`.
 
+## How it's built (AI use)
+
+A one-person project, like [Plexbie](https://github.com/NovaOra/plexbie#how-plexbie-is-built-ai-use)
+itself: most of the app's code and docs were written with an AI assistant (Anthropic's
+Claude), working from my direction. I decide what it does and how it should feel, and
+use it on my own Android phone and iPhone.
+
 ## Licence
 
 Plexbie's app is free software under the GNU Affero General Public License, version 3 or later
