@@ -356,6 +356,8 @@ export const HealthSchema = rowsOf(z.looseObject({ name: z.string(), ok: z.boole
 
 /** Discord tools (GET /api/admin/discord): channels to post in, who brought whom, a live watch party. */
 export const DiscordOverviewSchema = z.looseObject({
+  /** DMs to Plexbie: whether it answers them itself, and what it lacks to keep a thread per person. */
+  inbox: z.looseObject({ autoreply: z.boolean().catch(true), threadsMissing: z.string().nullable().catch(null) }).nullable().optional().catch(null),
   channels: rowsOf(z.looseObject({ id: z.string(), name: z.string() })).catch([]),
   joins: rowsOf(z.looseObject({
     who: z.string(), by: z.string().catch(""), via: z.string().catch("discord"), code: z.string().nullable().catch(null),
@@ -375,11 +377,19 @@ export const MessagePeopleSchema = rowsOf(z.looseObject({
   via: z.array(z.string()).catch([]),
   last: z.looseObject({ at: z.string().catch(""), text: z.string().catch(""), channel: z.string().catch("none"), delivered: z.boolean().catch(true),
     direction: z.string().catch("out") }),
+  /** Their messages no admin has marked done. */
+  unread: z.number().catch(0),
+  /** Who marked the conversation done, and when (the history stays). */
+  done: z.looseObject({ at: z.string().catch(""), by: z.string().nullable().catch(null) }).nullable().optional().catch(null),
+  /** Their open ticket, for "Add to their ticket". */
+  ticket: z.looseObject({ id: z.string(), title: z.string().catch(""), slot: z.number().catch(0) }).nullable().optional().catch(null),
 }));
 export type AppMessagePerson = z.infer<typeof MessagePeopleSchema>[number];
 /** One person's messages with Plexbie (GET /api/admin/messages/{who}); "in" ones they sent. */
 export const ConversationSchema = rowsOf(z.looseObject({
   id: z.string(), at: z.string(), direction: z.string().catch("out"), channel: z.string().catch("none"), delivered: z.boolean().catch(true),
+  /** The admin who wrote it; and for one they sent, the ticket an admin put it on. */
+  by: z.string().nullable().optional().catch(null), ticket: z.string().nullable().optional().catch(null),
   title: z.string().nullable().catch(null), text: z.string().catch(""), context: z.string().catch(""), error: z.string().nullable().catch(null),
 }));
 export type AppLoggedMessage = z.infer<typeof ConversationSchema>[number];

@@ -29,3 +29,15 @@ export function useScrollToField() {
   }, []);
   return { scroll, onLayout, onFocus };
 }
+
+/** For a field at the very end of a page (a reply box): once the keyboard is up, scroll to the end. */
+export function useScrollToEnd() {
+  const scroll = useRef<ScrollView>(null);
+  const onFocus = useCallback(() => {
+    const go = () => scroll.current?.scrollToEnd({ animated: true });
+    if (Keyboard.isVisible()) { setTimeout(go, 60); return; }
+    const shown = Keyboard.addListener("keyboardDidShow", () => { shown.remove(); setTimeout(go, 60); });
+    setTimeout(() => shown.remove(), 1500);
+  }, []);
+  return { scroll, onFocus };
+}

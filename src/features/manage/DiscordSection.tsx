@@ -60,6 +60,34 @@ export function DiscordSection() {
         </View>
       ) : <Text variant="meta">No watch party right now. One starts on its own when someone streams Plex in the Watch Party voice channel.</Text>}
 
+      <Heading title="DMs to Plexbie" />
+
+      <Text variant="meta">When someone DMs Plexbie, admins get an alert and it lands in Messages, and in their own thread under the admin channel. Reply from Messages, or in the thread with Reply or /reply.</Text>
+
+      {d.inbox ? (
+
+        <SwitchRow label="Answer DMs automatically" value={d.inbox.autoreply}
+
+          onValueChange={(on) => void act(null, () => client.inboxSettings(on), { failText: "Not saved", refresh: ["discord"] })}>
+
+          <View style={{ flex: 1, gap: 2 }}>
+
+            <Text variant="body" style={styles.ink}>Answer DMs automatically</Text>
+
+            <Text variant="meta">On someone’s first DM in 12 hours: “Thanks! The admins have your message and will reply here.”</Text>
+
+          </View>
+
+        </SwitchRow>
+
+      ) : null}
+
+      {d.inbox?.threadsMissing ? (
+
+        <Text variant="meta" style={styles.warn}>⚠︎ Plexbie can’t make threads in the admin channel, so DMs are posted in the channel itself. Give Plexbie’s role {d.inbox.threadsMissing} there.</Text>
+
+      ) : null}
+
       <Heading title="Say something as Plexbie" />
       <View style={[card.box, glass.surface]}>
         <GlassFill radius={radius.m} />
@@ -100,6 +128,8 @@ export function DiscordSection() {
 }
 
 const styles = StyleSheet.create({
+  ink: { color: color.ink },
+  warn: { color: color.tally },
   party: { borderColor: color.tally },
   liveText: { color: color.tally },
   chips: { gap: space.s, paddingVertical: space.xs },

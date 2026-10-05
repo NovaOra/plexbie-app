@@ -1,9 +1,10 @@
 // Manage, for admins: everything the website's Manage page does. A section dropdown (like
 // the Request and Library pages' pickers) that says what's waiting, then that section.
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useState } from "react";
+import { useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import { KeyboardAvoidingView, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
-import { KEYBOARD_BEHAVIOR } from "../../ui/keyboard";
+import { KEYBOARD_BEHAVIOR, useScrollToEnd } from "../../ui/keyboard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSession } from "../../auth/session";
 import { PickerPill } from "../../ui/PickerSheet";
@@ -15,7 +16,7 @@ import { CleanupSection } from "./CleanupSection";
 import { DiscordSection } from "./DiscordSection";
 import { HealthSection } from "./HealthSection";
 import { InvitesSection } from "./InvitesSection";
-import { MessagesSection } from "./MessagesSection";
+import { MessagesSection, useMessagePeople } from "./MessagesSection";
 import { JoinsSection, useJoins } from "./JoinsSection";
 import { PeopleSection } from "./PeopleSection";
 import { RequestsSection, useRequestsCount } from "./RequestsSection";
@@ -24,13 +25,23 @@ import { TicketsSection, useTickets } from "./TicketsSection";
 import { Ambient, TAB_BAR_CLEARANCE } from "../../ui/Glass";
 
 type Tab = "requests" | "tickets" | "all" | "joins" | "people" | "invites" | "cleanup" | "messages" | "health" | "discord";
+const TAB_IDS: Tab[] = ["requests", "tickets", "all", "joins", "people", "invites", "cleanup", "messages", "health", "discord"];
 
 export function ManageScreen() {
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
   const { state } = useSession();
   const server = state.phase === "signedIn" ? state.server : "";
+  // An alert can open a section (and, for a DM, the conversation): /manage?tab=messages&who=d123.
+  const params = useLocalSearchParams<{ tab?: string; who?: string }>();
   const [tab, setTab] = useState<Tab>("requests");
+  const [who, setWho] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    if (params.tab && TAB_IDS.includes(params.tab as Tab)) setTab(params.tab as Tab);
+    if (params.who) setWho(params.who);
+  }, [params.tab, params.who]);
+  const end = useScrollToEnd();
+  const newMessages = useMessagePeople().data?.filter((p) => p.unread > 0).length ?? 0;
   const { waiting } = useRequestsCount();
   const joins = useJoins();
   const joinsWaiting = joins.data?.filter((j) => j.status === "pending").length ?? 0;
@@ -43,7 +54,7 @@ export function ManageScreen() {
   }, [qc, server]);
 
   /** "Requests · 4 waiting" (or "All requests · 2 stuck", "Tickets · 1 open"): the section, and what's waiting in it. */
-  const word = (id: Tab) => (id === "all" ? "stuck" : id === "tickets" ? "open" : "waiting");
+  const word = (id: Tab) => (id === "all" ? "stuck" : id === "tickets" ? "open" : id === "messages" ? "new" : "waiting");
   const sectionLabel = (id: Tab) => {
     const [, label, n] = tabs.find(([t]) => t === id)!;
     return n ? `${label} · ${n} ${word(id)}` : label;
@@ -51,13 +62,14 @@ export function ManageScreen() {
   const tabs: [Tab, string, number][] = [
     // The website's names and order.
     ["tickets", "Tickets", tickets], ["requests", "Requests", waiting], ["all", "All requests", stuck], ["joins", "Join requests", joinsWaiting], ["invites", "Invites", 0], ["people", "People", 0],
-    ["cleanup", "Cleanup", 0], ["discord", "Discord", 0], ["messages", "Messages", 0], ["health", "Health", 0],
+    ["cleanup", "Cleanup", 0], ["discord", "Discord", 0], ["messages", "Messages", newMessages], ["health", "Health", 0],
   ];
 
   return (
     <KeyboardAvoidingView style={styles.page} behavior={KEYBOARD_BEHAVIOR}>
       <Ambient />
       <ScrollView
+        ref={end.scroll}
         contentContainerStyle={[styles.content, { paddingTop: insets.top + space.l, paddingBottom: insets.bottom + space.xxl + TAB_BAR_CLEARANCE }]}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={pulling} onRefresh={onRefresh} tintColor={color.screen} colors={[color.onScreen]} progressBackgroundColor={color.screen} />}
@@ -75,7 +87,7 @@ export function ManageScreen() {
         </View>
         <View style={styles.section}>
           {tab === "tickets" ? <TicketsSection /> : tab === "requests" ? <RequestsSection /> : tab === "all" ? <AllRequestsSection /> : tab === "joins" ? <JoinsSection /> : tab === "people" ? <PeopleSection />
-            : tab === "invites" ? <InvitesSection /> : tab === "cleanup" ? <CleanupSection /> : tab === "messages" ? <MessagesSection />
+            : tab === "invites" ? <InvitesSection /> : tab === "cleanup" ? <CleanupSection /> : tab === "messages" ? <MessagesSection key={who ?? "all"} who={who} onComposerFocus={end.onFocus} />
             : tab === "health" ? <HealthSection /> : <DiscordSection />}
         </View>
       </ScrollView>

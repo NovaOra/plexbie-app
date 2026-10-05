@@ -2,6 +2,7 @@
 // /api/push/app), which sends request news, inactivity warnings and copies of its
 // Discord DMs through Expo's push service. Asked for only when someone wants alerts,
 // never on launch. The token is kept (in the Keychain/Keystore) only to remove it again.
+import type { Href } from "expo-router";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
@@ -75,10 +76,17 @@ export async function disablePush(client: Api | null): Promise<PushState> {
 }
 
 /** Where tapping an alert goes: the bot's website paths, mapped to the app's screens. The
- *  household's pages are at the site's root; alerts from older bots say /app/... */
-export function routeFor(url: unknown): "/requests" | "/manage" | "/home" {
+ *  household's pages are at the site's root; alerts from older bots say /app/...
+ *  "/manage?tab=tickets&ticket=…" opens that ticket; "/manage?tab=messages&who=…" that conversation. */
+export function routeFor(url: unknown): Href {
   const u = (typeof url === "string" ? url : "").replace(/^\/app(?=[/?]|$)/, "") || "/";
-  if (u.startsWith("/manage")) return "/manage";
+  if (u.startsWith("/manage")) {
+    const q = new URLSearchParams(u.split("?")[1] ?? "");
+    const ticket = q.get("ticket"), who = q.get("who"), tab = q.get("tab");
+    if (ticket && /^[0-9a-f]{12}$/.test(ticket)) return { pathname: "/manage-ticket/[id]", params: { id: ticket } };
+    if (tab === "messages" && who && /^[dp][\w .@+-]{1,120}$/.test(who)) return { pathname: "/manage", params: { tab, who } };
+    return tab && /^[a-z]{2,20}$/.test(tab) ? { pathname: "/manage", params: { tab } } : "/manage";
+  }
   if (u.startsWith("/schedule") || u.startsWith("/requests")) return "/requests";
   return "/home";
 }

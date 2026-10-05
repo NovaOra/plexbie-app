@@ -207,6 +207,14 @@ export function api(conn: Connection) {
     conversation: (who: string, signal?: AbortSignal) =>
       request(conn, `/api/admin/messages/${encodeURIComponent(who)}`, ConversationSchema, {}, signal),
     /** Alerts in this app on this phone: register its Expo push token with the bot, or remove it. */
+    /** Answer someone as Plexbie, signed with your name. */
+    messageReply: (who: string, text: string) =>
+      request(conn, `/api/admin/messages/${encodeURIComponent(who)}/reply`, AckSchema, json({ text })),
+    messageDone: (who: string, done: boolean) =>
+      request(conn, `/api/admin/messages/${encodeURIComponent(who)}/done`, AckSchema, json({ done })),
+    /** Put something they sent Plexbie on their open ticket. */
+    messageToTicket: (key: string) => request(conn, `/api/admin/message/${encodeURIComponent(key)}/to-ticket`, AckSchema, json({})),
+    inboxSettings: (autoreply: boolean) => request(conn, "/api/admin/inbox", AckSchema, json({ autoreply })),
     registerPush: (token: string, platform: string) => request(conn, "/api/push/app", NothingSchema, json({ token, platform })),
     unregisterPush: (token: string) => request(conn, "/api/push/app/remove", NothingSchema, json({ token })),
     /** Ends this session on the server too, so a copied token stops working. */

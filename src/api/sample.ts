@@ -230,6 +230,29 @@ const helpFor = (id: string) => {
   return h;
 };
 
+/** Manage → Messages: conversations with Plexbie, both ways. */
+type SampleMsg = { id: string; at: string; direction: string; channel: string; delivered: boolean; title: string | null; text: string;
+  context: string; error: string | null; by?: string | null; ticket?: string | null };
+let convos = 0;
+const convo = (minutes: number, channel: string, text: string, title: string | null, direction: "out" | "in",
+  more: Partial<SampleMsg> = {}): SampleMsg => ({ id: `20261005T1200000000${String(++convos).padStart(2, "0")}-abcdef`, at: ago(minutes), direction, channel,
+  delivered: true, title, text, context: direction === "in" ? (title ? "ticket answer" : "Discord DM") : "", error: null, ...more });
+const SAMPLE_NAMES: Record<string, string> = { dsample: "Alex Kim", p7: "Sam", pgrandad: "grandad" };
+const sampleConvos: Record<string, SampleMsg[]> = {
+  dsample: [
+    convo(60 * 5, "discord", "Good news! Severance is now ready to start on Plex.", null, "out"),
+    convo(40, "web", "Stuck downloading. It’s been at 62% since this morning.", "Something wrong with Severance", "in"),
+    convo(30, "discord", "Found a copy that works. Is the 4K version OK, or would you rather wait for 1080p?", "🛠️ About your request: Severance", "out"),
+    convo(22, "discord", "4K is great, thank you!", "Answer about Severance", "in"),
+    convo(6, "discord", "oh and the subtitles on episode 3 are out of sync", null, "in"),
+  ],
+  p7: [convo(60 * 5, "discord", "Severance season 2 is approved.", "Request approved", "out")],
+  pgrandad: [convo(60 * 24, "none", "Your Plex access is about to lapse.", "Heads up", "out",
+    { delivered: false, error: "No phone alerts turned on and no email to send to" })],
+};
+const sampleDone: Record<string, { at: string; by: string }> = { pgrandad: { at: ago(60 * 7), by: "Priya N." } };
+let sampleAutoreply = true;
+
 /** The sample "server": answers the same calls as api(), from the data above. */
 export const sampleApi: Api = {
   session: async () => sampleSession,
@@ -499,6 +522,7 @@ export const sampleApi: Api = {
   },
   adminDiscord: async () => ({
     channels: [{ id: "c1", name: "general" }, { id: "c2", name: "movie-night" }],
+    inbox: { autoreply: sampleAutoreply, threadsMissing: null },
     joins: [
       { who: "Rosa M", by: "Alex Kim", via: "plexbie", code: "Rosa", at: ago(60 * 24 * 8), role: null },
       { who: "Jordan", by: "Priya", via: "discord", code: "k3Xa9", at: ago(60 * 24 * 20), role: "Plex member" },
@@ -506,22 +530,41 @@ export const sampleApi: Api = {
     party: null,
   }),
   say: async () => { await pause(500); return ok("Posted in #general."); },
-  adminMessages: async () => [
-    { id: "dsample", name: "Alex Kim", count: 2, received: 2, failed: 0, via: ["discord", "web"],
-      last: { at: ago(22), text: "Answer about Severance", channel: "discord", delivered: true, direction: "in" } },
-    { id: "p7", name: "Sam", count: 1, received: 0, failed: 0, via: ["discord"],
-      last: { at: ago(60 * 5), text: "Severance season 2 is approved.", channel: "discord", delivered: true, direction: "out" } },
-    { id: "pgrandad", name: "grandad", count: 1, received: 0, failed: 1, via: ["none"],
-      last: { at: ago(60 * 24), text: "Your Plex access is about to lapse.", channel: "none", delivered: false, direction: "out" } },
-  ],
-  conversation: async (who) => (who === "dsample" ? [
-    { id: "m3", at: ago(60 * 5), direction: "out", channel: "discord", delivered: true, title: null, text: "Good news! Severance is now ready to start on Plex.", context: "arrival", error: null },
-    { id: "m4", at: ago(40), direction: "in", channel: "web", delivered: true, title: "Something wrong with Severance", text: "Stuck downloading. It’s been at 62% since this morning.", context: "Something wrong?", error: null },
-    { id: "m5", at: ago(30), direction: "out", channel: "discord", delivered: true, title: "🛠️ About your request: Severance", text: "Found a copy that works. Is the 4K version OK, or would you rather wait for 1080p?", context: "ticket reply", error: null },
-    { id: "m6", at: ago(22), direction: "in", channel: "discord", delivered: true, title: "Answer about Severance", text: "4K is great, thank you!", context: "ticket answer", error: null },
-  ] : who === "p7"
-    ? [{ id: "m1", at: ago(60 * 5), direction: "out", channel: "discord", delivered: true, title: "Request approved", text: "Severance season 2 is approved.", context: "decision", error: null }]
-    : [{ id: "m2", at: ago(60 * 24), direction: "out", channel: "none", delivered: false, title: "Heads up", text: "Your Plex access is about to lapse.", context: "warning", error: "No phone alerts turned on and no email to send to" }]),
+  adminMessages: async () => {
+    await pause(250);
+    return Object.entries(sampleConvos).map(([id, list]) => {
+      const last = list[list.length - 1];
+      const done = sampleDone[id] ?? null;
+      return {
+        id, name: SAMPLE_NAMES[id], count: list.filter((m) => m.direction === "out").length, received: list.filter((m) => m.direction === "in").length,
+        unread: list.filter((m) => m.direction === "in" && !(done && done.at >= m.at)).length, done,
+        ticket: id === "dsample" ? { id: "h1", title: "Severance", slot: 214 } : null,
+        failed: list.filter((m) => !m.delivered).length, via: [...new Set(list.map((m) => m.channel))],
+        last: { at: last.at, text: last.title ?? last.text, channel: last.channel, delivered: last.delivered, direction: last.direction },
+      };
+    }).sort((a, b) => b.last.at.localeCompare(a.last.at));
+  },
+  conversation: async (who) => { await pause(200); return (sampleConvos[who] ?? []).map((m) => ({ ...m })); },
+  messageReply: async (who, text) => {
+    await pause(450);
+    sampleConvos[who]?.push(convo(0, who.startsWith("d") ? "discord" : "web", `${text}\n— ${ME} (admin)`, null, "out", { by: ME, context: "reply from an admin" }));
+    sampleDone[who] = { at: new Date().toISOString(), by: ME };
+    return ok(`Sent to ${SAMPLE_NAMES[who]} as a ${who.startsWith("d") ? "Discord DM" : "phone alert"}.`);
+  },
+  messageDone: async (who, done) => {
+    await pause(250);
+    if (done) sampleDone[who] = { at: new Date().toISOString(), by: ME }; else delete sampleDone[who];
+    return ok(done ? "Marked done. It stays in the history." : "Marked unread.");
+  },
+  messageToTicket: async (key) => {
+    await pause(350);
+    const m = Object.values(sampleConvos).flat().find((x) => x.id === key);
+    if (!m) throw new ApiError(404, "That message isn’t one someone sent Plexbie.", "http");
+    m.ticket = "h1";
+    say("h1", "member", m.text, ME);
+    return ok("Added to their ticket on Severance.");
+  },
+  inboxSettings: async (autoreply) => { await pause(300); sampleAutoreply = autoreply; return ok(autoreply ? "Plexbie answers new DMs." : "Plexbie won’t answer DMs by itself."); },
   registerPush: async () => null,
   unregisterPush: async () => null,
   logout: async () => null,
