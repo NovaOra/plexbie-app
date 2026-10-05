@@ -1,7 +1,8 @@
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { useState } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { KEYBOARD_BEHAVIOR } from "../../ui/keyboard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DEFAULT_SERVER, SignInError, normalizeServer, useSession, type Via } from "../../auth/session";
 import { PressableScale } from "../../ui/Pressable";
@@ -53,7 +54,7 @@ export function SignInScreen() {
   try { shown = normalizeServer(server).replace(/^https:\/\//, ""); } catch { /* shown as typed */ }
 
   return (
-    <KeyboardAvoidingView style={styles.page} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <KeyboardAvoidingView style={styles.page} behavior={KEYBOARD_BEHAVIOR}>
       <Ambient />
       <ScrollView
         contentContainerStyle={[styles.content, { paddingTop: insets.top + space.xxl, paddingBottom: insets.bottom + space.xl }]}

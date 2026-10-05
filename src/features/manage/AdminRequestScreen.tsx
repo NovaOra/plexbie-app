@@ -4,7 +4,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { HelpSearch } from "../../api/client";
 import type { AppAdminRequestDetail, AppAdminTicket } from "../../api/schemas";
@@ -14,6 +14,8 @@ import { BackHeader } from "../../ui/BackHeader";
 import { Button } from "../../ui/Button";
 import { Ambient, GlassFill, glass } from "../../ui/Glass";
 import { Poster } from "../../ui/Poster";
+import { KEYBOARD_BEHAVIOR, useScrollToField } from "../../ui/keyboard";
+import { StatusBarScrim } from "../../ui/StatusBarScrim";
 import { SwitchRow } from "../../ui/SwitchRow";
 import { Text } from "../../ui/Text";
 import { color, font, radius, space, TOUCH } from "../../ui/theme";
@@ -48,6 +50,7 @@ export function AdminRequestScreen() {
   const [writing, setWriting] = useState(false);
   const [note, setNote] = useState("");
   const [tell, setTell] = useState(false);
+  const field = useScrollToField();
 
   const after = () => setTimeout(() => {
     void qc.invalidateQueries({ queryKey: detailKey });
@@ -95,9 +98,9 @@ export function AdminRequestScreen() {
   ].sort((a, b) => b.at.localeCompare(a.at));
 
   return (
-    <KeyboardAvoidingView style={styles.page} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <KeyboardAvoidingView style={styles.page} behavior={KEYBOARD_BEHAVIOR}>
       <Ambient />
-      <ScrollView contentContainerStyle={[styles.pad, { paddingTop: insets.top + 64, paddingBottom: insets.bottom + space.xxl }]}
+      <ScrollView ref={field.scroll} contentContainerStyle={[styles.pad, { paddingTop: insets.top + 64, paddingBottom: insets.bottom + space.xxl }]}
         keyboardShouldPersistTaps="handled">
         <View style={styles.head}>
           <Poster poster={r.title.poster} title={r.title.title} id={r.title.id} size="w342" style={styles.poster} />
@@ -140,10 +143,10 @@ export function AdminRequestScreen() {
             <Text variant="meta">Resolve it from Needs help, in the Requests section.</Text>
           </View>
         ) : writing ? (
-          <View style={[styles.box, glass.surface]}>
+          <View style={[styles.box, glass.surface]} onLayout={field.onLayout}>
             <GlassFill radius={radius.m} />
             <Text variant="label" nativeID="ticket-note">What’s wrong, or what you’ve found</Text>
-            <TextInput value={note} onChangeText={setNote} multiline maxLength={600} autoFocus
+            <TextInput value={note} onChangeText={setNote} multiline maxLength={600} autoFocus onFocus={field.onFocus}
               placeholder="For example: the indexer had nothing, trying another release" placeholderTextColor={color.faint}
               accessibilityLabel="What’s wrong, or what you’ve found" accessibilityLabelledBy="ticket-note" style={styles.input} />
             <SwitchRow label={`Let ${r.requester} know an admin is looking into it`} value={tell} onValueChange={setTell}>
@@ -169,6 +172,7 @@ export function AdminRequestScreen() {
           </View>
         ) : null}
       </ScrollView>
+      <StatusBarScrim />
       <BackHeader overlay />
     </KeyboardAvoidingView>
   );
@@ -177,7 +181,8 @@ export function AdminRequestScreen() {
 function Facts({ r }: { r: AppAdminRequestDetail }) {
   const rows = [
     r.approvedAt ? ["Approved", `${since(r.approvedAt)}${r.approvedBy ? ` by ${r.approvedBy}` : ""}`] : null,
-    r.stageSince && r.stage !== "available" ? [stageLabel(r.stage, r.title.kind), `since ${since(r.stageSince)}`] : null,
+    // How long it's been at its stage; at "approved" that's the row above, so it's left out.
+    r.stageSince && !["available", "approved"].includes(r.stage) ? [stageLabel(r.stage, r.title.kind), `since ${since(r.stageSince)}`] : null,
     r.finishedAt ? ["On Plex", `since ${since(r.finishedAt)}`] : null,
     r.seerrId ? ["Seerr", `request #${r.seerrId}`] : null,
   ].filter(Boolean) as [string, string][];

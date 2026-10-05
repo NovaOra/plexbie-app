@@ -4,7 +4,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { KEYBOARD_BEHAVIOR, useScrollToField } from "../../ui/keyboard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { AppRequest } from "../../api/schemas";
 import type { HelpReason } from "../../api/types";
@@ -39,6 +40,7 @@ export function HelpSheet() {
   const toast = useToast();
   const [reason, setReason] = useState<HelpReason | null>(null);
   const [note, setNote] = useState("");
+  const field = useScrollToField();
   const [problem, setProblem] = useState("");
 
   const ask = useMutation({
@@ -73,8 +75,8 @@ export function HelpSheet() {
   const seasons = seasonsText(r.seasons);
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <ScrollView contentContainerStyle={[styles.sheet, { paddingBottom: insets.bottom + space.l }]} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={KEYBOARD_BEHAVIOR}>
+      <ScrollView ref={field.scroll} contentContainerStyle={[styles.sheet, { paddingBottom: insets.bottom + space.l }]} keyboardShouldPersistTaps="handled">
         <Text variant="title" accessibilityRole="header" style={styles.heading}>What’s wrong with No. {formatSlot(r.slot)}?</Text>
         <Text variant="meta">{r.title.title}{seasons ? ` (${seasons})` : ""}. The admins get this straight away, with what Plexbie can see right now.</Text>
         <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel="What's wrong">
@@ -86,6 +88,8 @@ export function HelpSheet() {
         <TextInput
           value={note}
           onChangeText={setNote}
+          onLayout={field.onLayout}
+          onFocus={field.onFocus}
           multiline
           maxLength={600}
           placeholder="It’s been at 0% since this morning"

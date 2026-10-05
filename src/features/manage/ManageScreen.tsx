@@ -2,7 +2,8 @@
 // the Request and Library pages' pickers) that says what's waiting, then that section.
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
-import { KeyboardAvoidingView, Platform, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { KeyboardAvoidingView, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { KEYBOARD_BEHAVIOR } from "../../ui/keyboard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSession } from "../../auth/session";
 import { PickerPill } from "../../ui/PickerSheet";
@@ -52,7 +53,7 @@ export function ManageScreen() {
   ];
 
   return (
-    <KeyboardAvoidingView style={styles.page} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <KeyboardAvoidingView style={styles.page} behavior={KEYBOARD_BEHAVIOR}>
       <Ambient />
       <ScrollView
         contentContainerStyle={[styles.content, { paddingTop: insets.top + space.l, paddingBottom: insets.bottom + space.xxl + TAB_BAR_CLEARANCE }]}

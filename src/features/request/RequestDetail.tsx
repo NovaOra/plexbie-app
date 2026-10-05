@@ -14,6 +14,7 @@ import { formatSlot, since } from "../requests/stage";
 import { useRequests } from "../requests/useRequests";
 import { Ambient, GlassFill, glass } from "../../ui/Glass";
 import { SeasonsBox, StageBox } from "./StageBox";
+import { StatusBarScrim } from "../../ui/StatusBarScrim";
 
 const KIND: Record<string, string> = { movie: "Film", tv: "TV", audiobook: "Audiobook", ebook: "Ebook" };
 const HELP_REASON: Record<string, string> = {
@@ -92,6 +93,7 @@ export function RequestDetail() {
             onPress={() => router.push({ pathname: "/help/[slot]", params: { slot: String(r.slot) } })} />
         ) : null}
       </ScrollView>
+      <StatusBarScrim />
       <BackHeader overlay />
     </View>
   );

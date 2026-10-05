@@ -3,7 +3,8 @@
 // sign-in joins by invite link only; someone outside the Discord server is told why.
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { KEYBOARD_BEHAVIOR } from "../../ui/keyboard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { AppSession } from "../../api/schemas";
 import { useApi, useSession } from "../../auth/session";
@@ -50,7 +51,7 @@ export function JoinScreen({ me }: { me: AppSession }) {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.page} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <KeyboardAvoidingView style={styles.page} behavior={KEYBOARD_BEHAVIOR}>
       <Ambient />
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + space.xl, paddingBottom: insets.bottom + space.xxl }]}
         keyboardShouldPersistTaps="handled">
