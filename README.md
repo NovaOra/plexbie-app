@@ -90,7 +90,7 @@ npm run ios                  # prebuild, pod install, build, open the Simulator
 
 ### iPhone, for the household: SideStore or AltStore
 
-This is how members install it, no Mac needed: [docs/ios-sideload.md](docs/ios-sideload.md). Each release
+This is how members install it, Mac needed: [docs/ios-sideload.md](docs/ios-sideload.md). Each release
 (`scripts/release.sh`) builds an unsigned `.ipa`. SideStore or AltStore signs it on the phone with the member's
 own Apple ID, and the bot hands each member their own source address on the website's Alerts page.
 
