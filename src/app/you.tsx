@@ -25,7 +25,7 @@ export default function You() {
 
   let line: string;
   // The sample's posters are free films' own (Blender Foundation open movies, CC BY; public domain).
-  if (sample) line = "Invented people and shows. Film posters: Blender Foundation open movies (CC BY) and public-domain films. Nothing you do here is sent anywhere.";
+  if (sample) line = "Invented people. Posters and covers: Blender Foundation open movies and Pepper & Carrot by David Revoy (CC BY), and public-domain films, serials and books. Nothing you do here is sent anywhere.";
   else if (me.isPending) line = server ?? "";
   else if (!s) line = me.error ? "Couldn’t check your account just now." : "";
   else line = [s.user.via === "plex" ? "With Plex" : "With Discord", s.admin ? "admin" : null, server].filter(Boolean).join(" · ");

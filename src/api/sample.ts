@@ -19,15 +19,21 @@ export const sampleSession: AppSession = {
   admin: true,
 };
 
+const GLASS_OFFICE = "https://media.plexbie.com/posters/pepper-carrot-v1.jpg";   // David Revoy, CC BY 4.0
+const TEARS_OF_STEEL = "https://media.plexbie.com/posters/tears-of-steel-v1.jpg";   // Blender Foundation, CC BY 3.0
+const SINTEL = "https://media.plexbie.com/posters/sintel-v1.jpg";   // Blender Foundation, CC BY 3.0
+const INDIGO_BLADE = "https://media.plexbie.com/posters/zombies-of-the-stratosphere-v1.jpg";   // public domain
+const LONG_WAY = "https://media.plexbie.com/posters/war-of-the-worlds-v1.jpg";   // public domain
+
 export const sampleRequests: AppRequest[] = [
   {
     id: "5001", slot: 214, stage: "downloading", seasons: [2], requestedAt: ago(60 * 26), updatedAt: ago(14), help: { id: "h1", reason: "Stuck downloading" },
-    title: { id: "95396", kind: "tv", title: "Glass Office", year: "2022", poster: null },
+    title: { id: "95396", kind: "tv", title: "Pepper & Carrot", year: "2017", poster: GLASS_OFFICE },
     progress: { percent: 62, detail: "Season pack, 9 episodes, about 4 min left" },
   },
   {
     id: "5002", slot: 211, stage: "unpacking", format: "audiobook", requestedAt: ago(60 * 49), updatedAt: ago(60 * 3),
-    title: { id: "OL-hailmary", kind: "audiobook", title: "Long Way to Tau", year: "2021", poster: null },
+    title: { id: "OL-hailmary", kind: "audiobook", title: "The War of the Worlds", year: "1898", poster: LONG_WAY },
     progress: { percent: null, detail: "Unpacking in SABnzbd" },
   },
   {
@@ -45,34 +51,29 @@ export const sampleRequests: AppRequest[] = [
   },
   {
     slot: 188, stage: "declined", requestedAt: ago(60 * 24 * 12), updatedAt: ago(60 * 24 * 11),
-    note: "Season 2 isn't out yet. Ask again when it airs.",
-    title: { id: "225180", kind: "tv", title: "Indigo Blade", year: "2023", poster: null },
+    note: "Someone in the household already asked for this one.",
+    title: { id: "225180", kind: "tv", title: "Zombies of the Stratosphere", year: "1952", poster: INDIGO_BLADE },
   },
 ];
 
-const GLASS_OFFICE = null;        // invented show: a drawn cover
-const TEARS_OF_STEEL = "https://media.plexbie.com/posters/tears-of-steel-v1.jpg";   // Blender Foundation, CC BY 3.0
-const SINTEL = "https://media.plexbie.com/posters/sintel-v1.jpg";   // Blender Foundation, CC BY 3.0
-const INDIGO_BLADE = null;        // invented show: a drawn cover
-const LONG_WAY = null;            // invented book: a drawn cover
 
 /** What sample search and title pages know about. The descriptions are our own words. */
 const sampleTitles: AppTitle[] = [
-  { kind: "tv", id: "95396", title: "Glass Office", year: "2022", poster: GLASS_OFFICE, availability: "available", genres: ["Drama", "Mystery"],
-    overview: "A window cleaner forty floors up keeps finding notes taped to the outside of the glass, all addressed to her.",
+  { kind: "tv", id: "95396", title: "Pepper & Carrot", year: "2017", poster: GLASS_OFFICE, availability: "available", genres: ["Animation", "Fantasy", "Comedy"],
+    overview: "A young witch and her ginger cat stumble through potion contests, spell exams and a magic school that's never quite ready for them.",
     seasons: [{ n: 1, episodes: 9, status: "available" }, { n: 2, episodes: 10, status: "requested" }],
     yourRequest: { slot: 214, stage: "downloading" } },
-  { kind: "tv", id: "225180", title: "Indigo Blade", year: "2023", poster: INDIGO_BLADE, availability: "none", genres: ["Animation", "Action"],
-    overview: "A masked swordswoman hunts the four men who know where she came from.",
-    seasons: [{ n: 1, episodes: 8, status: "none" }, { n: 2, episodes: 0, status: "upcoming" }] },
+  { kind: "tv", id: "225180", title: "Zombies of the Stratosphere", year: "1952", poster: INDIGO_BLADE, availability: "none", genres: ["Science Fiction", "Action"],
+    overview: "A rocket-suited hero races to stop Martian invaders from blowing the Earth out of its orbit.",
+    seasons: [{ n: 1, episodes: 12, status: "none" }] },
   { kind: "movie", id: "693134", title: "Tears of Steel", year: "2012", poster: TEARS_OF_STEEL, availability: "requested", runtime: 12,
     genres: ["Science Fiction", "Action"], overview: "In a future Amsterdam, a band of scientists and fighters makes a last stand against giant robots, armed with a painful memory.", yourRequest: { slot: 209, stage: "requested" } },
   { kind: "movie", id: "1184918", title: "Sintel", year: "2010", poster: SINTEL, availability: "available", runtime: 15,
     genres: ["Animation", "Fantasy"], overview: "A young woman crosses a cold world looking for the baby dragon she once raised." },
-  { kind: "audiobook", id: "OL-hailmary", title: "Long Way to Tau", year: "2021", poster: LONG_WAY, availability: "none",
-    author: "R. Vale", overview: "A retired delivery drone volunteers for one last parcel, to a moon nobody has mapped." },
-  { kind: "ebook", id: "OL-hailmary", title: "Long Way to Tau", year: "2021", poster: LONG_WAY, availability: "none",
-    author: "R. Vale", overview: "A retired delivery drone volunteers for one last parcel, to a moon nobody has mapped." },
+  { kind: "audiobook", id: "OL-hailmary", title: "The War of the Worlds", year: "1898", poster: LONG_WAY, availability: "none",
+    author: "H. G. Wells", overview: "Cylinders fall on the English countryside, and what climbs out of them has no interest in talking." },
+  { kind: "ebook", id: "OL-hailmary", title: "The War of the Worlds", year: "1898", poster: LONG_WAY, availability: "none",
+    author: "H. G. Wells", overview: "Cylinders fall on the English countryside, and what climbs out of them has no interest in talking." },
   // Blender Foundation open movies (CC BY) and public-domain films, with their real posters.
   { kind: "movie", id: "900101", title: "Big Buck Bunny", year: "2008", poster: "https://media.plexbie.com/posters/big-buck-bunny-v1.jpg", availability: "available", runtime: 10,
     genres: ["Animation", "Comedy", "Family"], overview: "A gentle giant of a rabbit plans some very sweet revenge on three bullying rodents." },
@@ -98,7 +99,7 @@ const sampleTitles: AppTitle[] = [
 
 const sampleAdmin: AppAdminRequests = {
   pending: [
-    { id: "7001", slot: 216, title: "Indigo Blade", kind: "tv", poster: INDIGO_BLADE, seasons: [1], requester: "Sam", requestedAt: ago(35), status: "pending" },
+    { id: "7001", slot: 216, title: "Zombies of the Stratosphere", kind: "tv", poster: INDIGO_BLADE, seasons: [1], requester: "Sam", requestedAt: ago(35), status: "pending" },
     { id: "7002", slot: 215, title: "Sintel", kind: "movie", poster: SINTEL, seasons: null, requester: "Priya", requestedAt: ago(60 * 3), status: "pending" },
   ],
   older: [],
@@ -116,8 +117,8 @@ const sampleCleanup: AppAdminCleanup = {
   settings: { enabled: true, practice: true, inactivityDays: 90, warnDaysBefore: 7, excludedLibraries: ["Kids"], channelId: "c1" },
   libraries: ["Films", "TV", "Kids"],
   channels: [{ id: "c1", name: "general" }, { id: "c2", name: "movie-night" }],
-  warning: [{ ratingKey: "r1", title: "Old Documentary", type: "movie", daysLeft: 4, reason: "added", lastActivity: ago(60 * 24 * 86) }],
-  upcoming: [{ ratingKey: "r2", title: "Some Sitcom", type: "show", daysLeft: 23, reason: "watched", lastActivity: ago(60 * 24 * 67) }],
+  warning: [{ ratingKey: "r1", title: "Carnival of Souls", type: "movie", daysLeft: 4, reason: "added", lastActivity: ago(60 * 24 * 86) }],
+  upcoming: [{ ratingKey: "r2", title: "The Daily Dweebs", type: "show", daysLeft: 23, reason: "watched", lastActivity: ago(60 * 24 * 67) }],
   exempt: [{ ratingKey: "r3", title: "Sintel", type: "movie" }],
 };
 
@@ -127,7 +128,7 @@ let sampleJoins: AppAdminJoin[] = [
 ];
 let sampleLanguages: string[] = [];        // the language chips, remembered for the visit
 let sampleHelp: AppAdminHelp[] = [
-  { id: "h1", slot: 214, title: "Glass Office", kind: "tv", seasons: [2], who: "Alex Kim", reason: "Stuck downloading",
+  { id: "h1", slot: 214, title: "Pepper & Carrot", kind: "tv", seasons: [2], who: "Alex Kim", reason: "Stuck downloading",
     note: "It’s been at 62% since this morning.", status_then: "Downloading, 62%", status: "open", created_at: ago(40), actions: [] },
   { id: "h2", slot: 216, title: "Elephants Dream", kind: "movie", seasons: null, who: "Jordan Lee", reason: "Can’t be found", offer: "name",
     note: "Searching by its IDs found nothing Plexbie could grab for Elephants Dream: 212 releases came back. Search by name instead?",
@@ -159,7 +160,7 @@ const newInvite = (label: string, email: string | null, d: number) => {
 
 /** Manage → All requests: everyone's approved requests, as an admin sees them. */
 const WHO: Record<string, string> = { "5001": "Jordan Lee", "5002": "Sam Ortiz", "5004": "Priya N.", "5005": "Alex Kim" };
-const ARRIVAL: AppTitle = { id: "329865", kind: "movie", title: "Elephants Dream", year: "2016", poster: null, availability: "requested" };
+const ARRIVAL: AppTitle = { id: "329865", kind: "movie", title: "Elephants Dream", year: "2006", poster: "https://media.plexbie.com/posters/elephants-dream-v1.jpg", availability: "requested" };
 let sampleAll: AppAdminRequestRow[] = [
   { id: "6002", slot: 216, stage: "searching", title: ARRIVAL, requestedAt: ago(60 * 50), updatedAt: ago(60 * 48),
     progress: { detail: "Looking for a copy" }, help: { id: "h2", reason: "Can’t be found" }, requester: "Jordan Lee", status: "approved",
@@ -175,10 +176,10 @@ let sampleAll: AppAdminRequestRow[] = [
 ];
 const sampleArchive: AppAdminRequestRow[] = [
   { id: "4001", slot: 1, stage: "declined", requestedAt: ago(60 * 24 * 400), updatedAt: ago(60 * 24 * 400),
-    title: { id: "49051", kind: "movie", title: "Over the Low Hills", year: "2012", poster: null, availability: "available" }, requester: "Jordan Lee",
+    title: { id: "49051", kind: "movie", title: "Plan 9 from Outer Space", year: "1957", poster: "https://media.plexbie.com/posters/plan-9-v1.jpg", availability: "available" }, requester: "Jordan Lee",
     status: "declined", stuck: [] },
   { id: "4100", slot: 120, stage: "available", seasons: [3], requestedAt: ago(60 * 24 * 70), updatedAt: ago(60 * 24 * 66),
-    title: { id: "95480", kind: "tv", title: "Back Office Spies", year: "2022", poster: null, availability: "available" }, requester: "Marcus T.", status: "approved",
+    title: { id: "95480", kind: "tv", title: "King of the Rocket Men", year: "1949", poster: "https://media.plexbie.com/posters/king-of-the-rocket-men-v1.jpg", availability: "available" }, requester: "Marcus T.", status: "approved",
     approvedBy: "Alex Kim", approvedAt: ago(60 * 24 * 70), stageSince: ago(60 * 24 * 66), finishedAt: ago(60 * 24 * 66), stuck: [] },
 ];
 const sampleActivity: Record<string, { at: string; by: string; did: string }[]> = {};
@@ -261,13 +262,13 @@ const convo = (minutes: number, channel: string, text: string, title: string | n
 const SAMPLE_NAMES: Record<string, string> = { dsample: "Alex Kim", p7: "Sam", pgrandad: "grandad" };
 const sampleConvos: Record<string, SampleMsg[]> = {
   dsample: [
-    convo(60 * 5, "discord", "Good news! Glass Office is now ready to start on Plex.", null, "out"),
-    convo(40, "web", "Stuck downloading. It’s been at 62% since this morning.", "Something wrong with Glass Office", "in"),
-    convo(30, "discord", "Found a copy that works. Is the 4K version OK, or would you rather wait for 1080p?", "🛠️ About your request: Glass Office", "out"),
-    convo(22, "discord", "4K is great, thank you!", "Answer about Glass Office", "in"),
+    convo(60 * 5, "discord", "Good news! Pepper & Carrot is now ready to start on Plex.", null, "out"),
+    convo(40, "web", "Stuck downloading. It’s been at 62% since this morning.", "Something wrong with Pepper & Carrot", "in"),
+    convo(30, "discord", "Found a copy that works. Is the 4K version OK, or would you rather wait for 1080p?", "🛠️ About your request: Pepper & Carrot", "out"),
+    convo(22, "discord", "4K is great, thank you!", "Answer about Pepper & Carrot", "in"),
     convo(6, "discord", "oh and the subtitles on episode 3 are out of sync", null, "in"),
   ],
-  p7: [convo(60 * 5, "discord", "Glass Office season 2 is approved.", "Request approved", "out")],
+  p7: [convo(60 * 5, "discord", "Pepper & Carrot season 2 is approved.", "Request approved", "out")],
   pgrandad: [convo(60 * 24, "none", "Your Plex access is about to lapse.", "Heads up", "out",
     { delivered: false, error: "No phone alerts turned on and no email to send to" })],
 };
@@ -304,7 +305,7 @@ export const sampleApi: Api = {
     await pause(350);
     return {
       onAir: [
-        { member: "Priya", title: "Glass Office", subtitle: "S2 · E3 · The Fortieth Floor", poster: GLASS_OFFICE, progress: 0.42, device: "Apple TV" },
+        { member: "Priya", title: "Pepper & Carrot", subtitle: "S2 · E3 · The Potion Contest", poster: GLASS_OFFICE, progress: 0.42, device: "Apple TV" },
         { member: "Sam", title: "Sintel", subtitle: null, poster: SINTEL, progress: 0.78, device: "Living room TV" },
       ],
       leaderboard: [{ name: "Priya", hours: 412, streak: 9 }, { name: "Alex Kim", hours: 388, streak: 3 }, { name: "Sam", hours: 240, streak: 0 }],
@@ -561,7 +562,7 @@ export const sampleApi: Api = {
       return {
         id, name: SAMPLE_NAMES[id], count: list.filter((m) => m.direction === "out").length, received: list.filter((m) => m.direction === "in").length,
         unread: list.filter((m) => m.direction === "in" && !(done && done.at >= m.at)).length, done,
-        ticket: id === "dsample" ? { id: "h1", title: "Glass Office", slot: 214 } : null,
+        ticket: id === "dsample" ? { id: "h1", title: "Pepper & Carrot", slot: 214 } : null,
         failed: list.filter((m) => !m.delivered).length, via: [...new Set(list.map((m) => m.channel))],
         last: { at: last.at, text: last.title ?? last.text, channel: last.channel, delivered: last.delivered, direction: last.direction },
       };
@@ -585,7 +586,7 @@ export const sampleApi: Api = {
     if (!m) throw new ApiError(404, "That message isn’t one someone sent Plexbie.", "http");
     m.ticket = "h1";
     say("h1", "member", m.text, ME);
-    return ok("Added to their ticket on Glass Office.");
+    return ok("Added to their ticket on Pepper & Carrot.");
   },
   inboxSettings: async (autoreply) => { await pause(300); sampleAutoreply = autoreply; return ok(autoreply ? "Plexbie answers new DMs." : "Plexbie won’t answer DMs by itself."); },
   registerPush: async () => null,
