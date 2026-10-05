@@ -22,67 +22,88 @@ export const sampleSession: AppSession = {
 export const sampleRequests: AppRequest[] = [
   {
     id: "5001", slot: 214, stage: "downloading", seasons: [2], requestedAt: ago(60 * 26), updatedAt: ago(14), help: { id: "h1", reason: "Stuck downloading" },
-    title: { id: "95396", kind: "tv", title: "Severance", year: "2022", poster: "https://image.tmdb.org/t/p/w342/pPHpeI2X1qEd1CS1SeyrdhZ4qnT.jpg" },
+    title: { id: "95396", kind: "tv", title: "Glass Office", year: "2022", poster: null },
     progress: { percent: 62, detail: "Season pack, 9 episodes, about 4 min left" },
   },
   {
     id: "5002", slot: 211, stage: "unpacking", format: "audiobook", requestedAt: ago(60 * 49), updatedAt: ago(60 * 3),
-    title: { id: "OL-hailmary", kind: "audiobook", title: "Project Hail Mary", year: "2021", poster: "https://covers.openlibrary.org/b/id/11200092-L.jpg" },
+    title: { id: "OL-hailmary", kind: "audiobook", title: "Long Way to Tau", year: "2021", poster: null },
     progress: { percent: null, detail: "Unpacking in SABnzbd" },
   },
   {
     slot: 209, stage: "requested", requestedAt: ago(60 * 5), updatedAt: ago(60 * 5),
-    title: { id: "693134", kind: "movie", title: "Dune: Part Two", year: "2024", poster: "https://image.tmdb.org/t/p/w342/6izwz7rsy95ARzTR3poZ8H6c5pp.jpg" },
+    title: { id: "693134", kind: "movie", title: "Tears of Steel", year: "2012", poster: "https://media.plexbie.com/posters/tears-of-steel-v1.jpg" },
   },
   {
     slot: 205, stage: "upcoming", requestedAt: ago(60 * 24 * 3), updatedAt: ago(60 * 24 * 3),
-    title: { id: "346648", kind: "movie", title: "Paddington 2", year: "2017", poster: null },
-    progress: { releaseDate: "2026-10-27", detail: "Out to stream Oct 27. Plexbie gets it then. In cinemas since Sep 30." },
+    title: { id: "346648", kind: "movie", title: "Big Buck Bunny", year: "2008", poster: "https://media.plexbie.com/posters/big-buck-bunny-v1.jpg" },
+    progress: { releaseDate: "2026-10-27", detail: "Out to stream Oct 27. Plexbie gets it then." },
   },
   {
     slot: 197, stage: "available", requestedAt: ago(60 * 24 * 6), updatedAt: ago(60 * 24 * 4),
-    title: { id: "1184918", kind: "movie", title: "The Wild Robot", year: "2024", poster: "https://image.tmdb.org/t/p/w342/wTnV3PCVW5O92JMrFvvrRcV39RU.jpg" },
+    title: { id: "1184918", kind: "movie", title: "Sintel", year: "2010", poster: "https://media.plexbie.com/posters/sintel-v1.jpg" },
   },
   {
     slot: 188, stage: "declined", requestedAt: ago(60 * 24 * 12), updatedAt: ago(60 * 24 * 11),
     note: "Season 2 isn't out yet. Ask again when it airs.",
-    title: { id: "225180", kind: "tv", title: "Blue Eye Samurai", year: "2023", poster: "https://image.tmdb.org/t/p/w342/fXm3JT4WLQVnwukdvghtAblc1wc.jpg" },
+    title: { id: "225180", kind: "tv", title: "Indigo Blade", year: "2023", poster: null },
   },
 ];
 
-const SEVERANCE = "https://image.tmdb.org/t/p/w342/pPHpeI2X1qEd1CS1SeyrdhZ4qnT.jpg";
-const DUNE = "https://image.tmdb.org/t/p/w342/6izwz7rsy95ARzTR3poZ8H6c5pp.jpg";
-const ROBOT = "https://image.tmdb.org/t/p/w342/wTnV3PCVW5O92JMrFvvrRcV39RU.jpg";
-const SAMURAI = "https://image.tmdb.org/t/p/w342/fXm3JT4WLQVnwukdvghtAblc1wc.jpg";
-const HAIL_MARY = "https://covers.openlibrary.org/b/id/11200092-L.jpg";
+const GLASS_OFFICE = null;        // invented show: a drawn cover
+const TEARS_OF_STEEL = "https://media.plexbie.com/posters/tears-of-steel-v1.jpg";   // Blender Foundation, CC BY 3.0
+const SINTEL = "https://media.plexbie.com/posters/sintel-v1.jpg";   // Blender Foundation, CC BY 3.0
+const INDIGO_BLADE = null;        // invented show: a drawn cover
+const LONG_WAY = null;            // invented book: a drawn cover
 
 /** What sample search and title pages know about. The descriptions are our own words. */
 const sampleTitles: AppTitle[] = [
-  { kind: "tv", id: "95396", title: "Severance", year: "2022", poster: SEVERANCE, availability: "available", genres: ["Drama", "Mystery"],
-    overview: "Office workers whose memories are split between work and home start to wonder what they do all day.",
+  { kind: "tv", id: "95396", title: "Glass Office", year: "2022", poster: GLASS_OFFICE, availability: "available", genres: ["Drama", "Mystery"],
+    overview: "A window cleaner forty floors up keeps finding notes taped to the outside of the glass, all addressed to her.",
     seasons: [{ n: 1, episodes: 9, status: "available" }, { n: 2, episodes: 10, status: "requested" }],
     yourRequest: { slot: 214, stage: "downloading" } },
-  { kind: "tv", id: "225180", title: "Blue Eye Samurai", year: "2023", poster: SAMURAI, availability: "none", genres: ["Animation", "Action"],
-    overview: "An animated revenge story set in Edo-period Japan.",
+  { kind: "tv", id: "225180", title: "Indigo Blade", year: "2023", poster: INDIGO_BLADE, availability: "none", genres: ["Animation", "Action"],
+    overview: "A masked swordswoman hunts the four men who know where she came from.",
     seasons: [{ n: 1, episodes: 8, status: "none" }, { n: 2, episodes: 0, status: "upcoming" }] },
-  { kind: "movie", id: "693134", title: "Dune: Part Two", year: "2024", poster: DUNE, availability: "requested", runtime: 166,
-    genres: ["Science Fiction"], overview: "The second half of the desert-planet epic.", yourRequest: { slot: 209, stage: "requested" } },
-  { kind: "movie", id: "1184918", title: "The Wild Robot", year: "2024", poster: ROBOT, availability: "available", runtime: 102,
-    genres: ["Animation", "Family"], overview: "A robot stranded on a wild island learns to look after a gosling." },
-  { kind: "audiobook", id: "OL-hailmary", title: "Project Hail Mary", year: "2021", poster: HAIL_MARY, availability: "none",
-    author: "Andy Weir", overview: "A lone astronaut wakes up with no memory and one job." },
-  { kind: "ebook", id: "OL-hailmary", title: "Project Hail Mary", year: "2021", poster: HAIL_MARY, availability: "none",
-    author: "Andy Weir", overview: "A lone astronaut wakes up with no memory and one job." },
+  { kind: "movie", id: "693134", title: "Tears of Steel", year: "2012", poster: TEARS_OF_STEEL, availability: "requested", runtime: 12,
+    genres: ["Science Fiction", "Action"], overview: "In a future Amsterdam, a band of scientists and fighters makes a last stand against giant robots, armed with a painful memory.", yourRequest: { slot: 209, stage: "requested" } },
+  { kind: "movie", id: "1184918", title: "Sintel", year: "2010", poster: SINTEL, availability: "available", runtime: 15,
+    genres: ["Animation", "Fantasy"], overview: "A young woman crosses a cold world looking for the baby dragon she once raised." },
+  { kind: "audiobook", id: "OL-hailmary", title: "Long Way to Tau", year: "2021", poster: LONG_WAY, availability: "none",
+    author: "R. Vale", overview: "A retired delivery drone volunteers for one last parcel, to a moon nobody has mapped." },
+  { kind: "ebook", id: "OL-hailmary", title: "Long Way to Tau", year: "2021", poster: LONG_WAY, availability: "none",
+    author: "R. Vale", overview: "A retired delivery drone volunteers for one last parcel, to a moon nobody has mapped." },
+  // Blender Foundation open movies (CC BY) and public-domain films, with their real posters.
+  { kind: "movie", id: "900101", title: "Big Buck Bunny", year: "2008", poster: "https://media.plexbie.com/posters/big-buck-bunny-v1.jpg", availability: "available", runtime: 10,
+    genres: ["Animation", "Comedy", "Family"], overview: "A gentle giant of a rabbit plans some very sweet revenge on three bullying rodents." },
+  { kind: "movie", id: "900102", title: "Elephants Dream", year: "2006", poster: "https://media.plexbie.com/posters/elephants-dream-v1.jpg", availability: "available", runtime: 11,
+    genres: ["Animation", "Science Fiction"], overview: "Two men wander a vast machine world that seems to rearrange itself around them." },
+  { kind: "movie", id: "900103", title: "Cosmos Laundromat", year: "2015", poster: "https://media.plexbie.com/posters/cosmos-laundromat-v1.jpg", availability: "available", runtime: 12,
+    genres: ["Animation", "Comedy"], overview: "A sheep fed up with his windswept island meets a strange salesman who offers him a new life. Then another." },
+  { kind: "movie", id: "900104", title: "Spring", year: "2019", poster: "https://media.plexbie.com/posters/spring-v1.jpg", availability: "available", runtime: 8,
+    genres: ["Animation", "Fantasy"], overview: "A shepherd girl and her dog face the ancient spirits that carry spring back into the mountains." },
+  { kind: "movie", id: "900105", title: "Sprite Fright", year: "2021", poster: "https://media.plexbie.com/posters/sprite-fright-v1.jpg", availability: "available", runtime: 10,
+    genres: ["Animation", "Horror", "Comedy"], overview: "Rowdy teenagers on a forest weekend meet the tiny, very polite mushroom sprites who live there. It doesn't stay polite." },
+  { kind: "movie", id: "900106", title: "Charge", year: "2022", poster: "https://media.plexbie.com/posters/charge-v1.jpg", availability: "available", runtime: 4,
+    genres: ["Animation", "Action"], overview: "An old man guards the last working power station in a frozen wasteland, and a robot thief wants what's inside." },
+  { kind: "movie", id: "900001", title: "Plan 9 from Outer Space", year: "1957", poster: "https://media.plexbie.com/posters/plan-9-v1.jpg", availability: "available", runtime: 79,
+    genres: ["Science Fiction", "Horror"], overview: "Visitors from space raise the dead to stop humanity building the ultimate weapon." },
+  { kind: "movie", id: "900002", title: "House on Haunted Hill", year: "1959", poster: "https://media.plexbie.com/posters/house-on-haunted-hill-v1.jpg", availability: "available", runtime: 75,
+    genres: ["Horror", "Mystery"], overview: "A millionaire offers five strangers ten thousand dollars each to survive one night in a haunted house." },
+  { kind: "movie", id: "900003", title: "Night of the Living Dead", year: "1968", poster: "https://media.plexbie.com/posters/night-of-the-living-dead-v1.jpg", availability: "available", runtime: 96,
+    genres: ["Horror"], overview: "Strangers barricade themselves inside a farmhouse as the dead begin to walk." },
+  { kind: "movie", id: "900004", title: "Carnival of Souls", year: "1962", poster: "https://media.plexbie.com/posters/carnival-of-souls-v1.jpg", availability: "available", runtime: 78,
+    genres: ["Horror", "Mystery"], overview: "After surviving a car crash, a church organist is drawn to an abandoned pavilion by a pale stranger." },
 ];
 
 const sampleAdmin: AppAdminRequests = {
   pending: [
-    { id: "7001", slot: 216, title: "Blue Eye Samurai", kind: "tv", poster: SAMURAI, seasons: [1], requester: "Sam", requestedAt: ago(35), status: "pending" },
-    { id: "7002", slot: 215, title: "The Wild Robot", kind: "movie", poster: ROBOT, seasons: null, requester: "Priya", requestedAt: ago(60 * 3), status: "pending" },
+    { id: "7001", slot: 216, title: "Indigo Blade", kind: "tv", poster: INDIGO_BLADE, seasons: [1], requester: "Sam", requestedAt: ago(35), status: "pending" },
+    { id: "7002", slot: 215, title: "Sintel", kind: "movie", poster: SINTEL, seasons: null, requester: "Priya", requestedAt: ago(60 * 3), status: "pending" },
   ],
   older: [],
   recent: [
-    { id: "6990", slot: 209, title: "Dune: Part Two", kind: "movie", poster: DUNE, seasons: null, requester: "Alex Kim", requestedAt: ago(60 * 5),
+    { id: "6990", slot: 209, title: "Tears of Steel", kind: "movie", poster: TEARS_OF_STEEL, seasons: null, requester: "Alex Kim", requestedAt: ago(60 * 5),
       status: "approved", resolvedBy: "Jordan", resolvedAt: ago(60 * 4) },
   ],
 };
@@ -97,7 +118,7 @@ const sampleCleanup: AppAdminCleanup = {
   channels: [{ id: "c1", name: "general" }, { id: "c2", name: "movie-night" }],
   warning: [{ ratingKey: "r1", title: "Old Documentary", type: "movie", daysLeft: 4, reason: "added", lastActivity: ago(60 * 24 * 86) }],
   upcoming: [{ ratingKey: "r2", title: "Some Sitcom", type: "show", daysLeft: 23, reason: "watched", lastActivity: ago(60 * 24 * 67) }],
-  exempt: [{ ratingKey: "r3", title: "The Wild Robot", type: "movie" }],
+  exempt: [{ ratingKey: "r3", title: "Sintel", type: "movie" }],
 };
 
 let sampleJoins: AppAdminJoin[] = [
@@ -106,10 +127,10 @@ let sampleJoins: AppAdminJoin[] = [
 ];
 let sampleLanguages: string[] = [];        // the language chips, remembered for the visit
 let sampleHelp: AppAdminHelp[] = [
-  { id: "h1", slot: 214, title: "Severance", kind: "tv", seasons: [2], who: "Alex Kim", reason: "Stuck downloading",
+  { id: "h1", slot: 214, title: "Glass Office", kind: "tv", seasons: [2], who: "Alex Kim", reason: "Stuck downloading",
     note: "It’s been at 62% since this morning.", status_then: "Downloading, 62%", status: "open", created_at: ago(40), actions: [] },
-  { id: "h2", slot: 216, title: "Arrival", kind: "movie", seasons: null, who: "Jordan Lee", reason: "Can’t be found", offer: "name",
-    note: "Searching by its IDs found nothing Plexbie could grab for Arrival: 212 releases came back. Search by name instead?",
+  { id: "h2", slot: 216, title: "Elephants Dream", kind: "movie", seasons: null, who: "Jordan Lee", reason: "Can’t be found", offer: "name",
+    note: "Searching by its IDs found nothing Plexbie could grab for Elephants Dream: 212 releases came back. Search by name instead?",
     status_then: "Nothing found", status: "open", created_at: ago(12), actions: [] },
 ];
 let samplePeople: AppAdminPerson[] = [
@@ -138,7 +159,7 @@ const newInvite = (label: string, email: string | null, d: number) => {
 
 /** Manage → All requests: everyone's approved requests, as an admin sees them. */
 const WHO: Record<string, string> = { "5001": "Jordan Lee", "5002": "Sam Ortiz", "5004": "Priya N.", "5005": "Alex Kim" };
-const ARRIVAL: AppTitle = { id: "329865", kind: "movie", title: "Arrival", year: "2016", poster: null, availability: "requested" };
+const ARRIVAL: AppTitle = { id: "329865", kind: "movie", title: "Elephants Dream", year: "2016", poster: null, availability: "requested" };
 let sampleAll: AppAdminRequestRow[] = [
   { id: "6002", slot: 216, stage: "searching", title: ARRIVAL, requestedAt: ago(60 * 50), updatedAt: ago(60 * 48),
     progress: { detail: "Looking for a copy" }, help: { id: "h2", reason: "Can’t be found" }, requester: "Jordan Lee", status: "approved",
@@ -154,10 +175,10 @@ let sampleAll: AppAdminRequestRow[] = [
 ];
 const sampleArchive: AppAdminRequestRow[] = [
   { id: "4001", slot: 1, stage: "declined", requestedAt: ago(60 * 24 * 400), updatedAt: ago(60 * 24 * 400),
-    title: { id: "49051", kind: "movie", title: "The Hobbit: An Unexpected Journey", year: "2012", poster: null, availability: "available" }, requester: "Jordan Lee",
+    title: { id: "49051", kind: "movie", title: "Over the Low Hills", year: "2012", poster: null, availability: "available" }, requester: "Jordan Lee",
     status: "declined", stuck: [] },
   { id: "4100", slot: 120, stage: "available", seasons: [3], requestedAt: ago(60 * 24 * 70), updatedAt: ago(60 * 24 * 66),
-    title: { id: "95480", kind: "tv", title: "Slow Horses", year: "2022", poster: null, availability: "available" }, requester: "Marcus T.", status: "approved",
+    title: { id: "95480", kind: "tv", title: "Back Office Spies", year: "2022", poster: null, availability: "available" }, requester: "Marcus T.", status: "approved",
     approvedBy: "Alex Kim", approvedAt: ago(60 * 24 * 70), stageSince: ago(60 * 24 * 66), finishedAt: ago(60 * 24 * 66), stuck: [] },
 ];
 const sampleActivity: Record<string, { at: string; by: string; did: string }[]> = {};
@@ -190,7 +211,7 @@ const sampleTickets: Record<string, { requestKey: string | null; owner: string |
     entry("status", "Priya N.", "Waiting on them", 30),
   ] },
   h2: { requestKey: "6002", owner: null, waiting: false, thread: [
-    entry("member", "Jordan Lee", "Can’t be found. Searching by its IDs found nothing Plexbie could grab for Arrival: 212 releases came back. Search by name instead?", 12),
+    entry("member", "Jordan Lee", "Can’t be found. Searching by its IDs found nothing Plexbie could grab for Elephants Dream: 212 releases came back. Search by name instead?", 12),
   ] },
 };
 const ticketOf = (id: string) => (sampleTickets[id] ??= { requestKey: null, owner: null, waiting: false, thread: [] });
@@ -240,13 +261,13 @@ const convo = (minutes: number, channel: string, text: string, title: string | n
 const SAMPLE_NAMES: Record<string, string> = { dsample: "Alex Kim", p7: "Sam", pgrandad: "grandad" };
 const sampleConvos: Record<string, SampleMsg[]> = {
   dsample: [
-    convo(60 * 5, "discord", "Good news! Severance is now ready to start on Plex.", null, "out"),
-    convo(40, "web", "Stuck downloading. It’s been at 62% since this morning.", "Something wrong with Severance", "in"),
-    convo(30, "discord", "Found a copy that works. Is the 4K version OK, or would you rather wait for 1080p?", "🛠️ About your request: Severance", "out"),
-    convo(22, "discord", "4K is great, thank you!", "Answer about Severance", "in"),
+    convo(60 * 5, "discord", "Good news! Glass Office is now ready to start on Plex.", null, "out"),
+    convo(40, "web", "Stuck downloading. It’s been at 62% since this morning.", "Something wrong with Glass Office", "in"),
+    convo(30, "discord", "Found a copy that works. Is the 4K version OK, or would you rather wait for 1080p?", "🛠️ About your request: Glass Office", "out"),
+    convo(22, "discord", "4K is great, thank you!", "Answer about Glass Office", "in"),
     convo(6, "discord", "oh and the subtitles on episode 3 are out of sync", null, "in"),
   ],
-  p7: [convo(60 * 5, "discord", "Severance season 2 is approved.", "Request approved", "out")],
+  p7: [convo(60 * 5, "discord", "Glass Office season 2 is approved.", "Request approved", "out")],
   pgrandad: [convo(60 * 24, "none", "Your Plex access is about to lapse.", "Heads up", "out",
     { delivered: false, error: "No phone alerts turned on and no email to send to" })],
 };
@@ -273,16 +294,18 @@ export const sampleApi: Api = {
     const t = (k: string, id: string) => sampleTitles.find((x) => x.kind === k && x.id === id)!;
     return [
       { title: t("movie", "1184918"), addedAt: ago(60 * 3), detail: null },
+      { title: t("movie", "900106"), addedAt: ago(60 * 9), detail: null },
       { title: t("tv", "95396"), addedAt: ago(60 * 20), detail: "Season 2, episodes 1–4" },
       { title: t("audiobook", "OL-hailmary"), addedAt: ago(60 * 30), detail: "Audiobook" },
+      { title: t("movie", "900105"), addedAt: ago(60 * 26), detail: null },
     ];
   },
   community: async () => {
     await pause(350);
     return {
       onAir: [
-        { member: "Priya", title: "Severance", subtitle: "S2 · E3 · Who Is Alive?", poster: SEVERANCE, progress: 0.42, device: "Apple TV" },
-        { member: "Sam", title: "The Wild Robot", subtitle: null, poster: ROBOT, progress: 0.78, device: "Living room TV" },
+        { member: "Priya", title: "Glass Office", subtitle: "S2 · E3 · The Fortieth Floor", poster: GLASS_OFFICE, progress: 0.42, device: "Apple TV" },
+        { member: "Sam", title: "Sintel", subtitle: null, poster: SINTEL, progress: 0.78, device: "Living room TV" },
       ],
       leaderboard: [{ name: "Priya", hours: 412, streak: 9 }, { name: "Alex Kim", hours: 388, streak: 3 }, { name: "Sam", hours: 240, streak: 0 }],
       you: { rank: 2, hours: 388, streak: 3, longestStreak: 21, daysIdle: 0, removalAfterDays: 60, topThree: true, watchPartyMinutes: 95 },
@@ -460,7 +483,7 @@ export const sampleApi: Api = {
   helpSearch: async (_id, how) => {
     await pause(600);
     return ok({ again: "Sonarr is searching for season 2 again.", episodes: "Sonarr is searching season 2 one episode at a time.",
-      name: "Plexbie is searching NZBHydra for “Arrival 2016”. It reports back here, and closes this if it finds it." }[how]);
+      name: "Plexbie is searching NZBHydra for “Elephants Dream 2016”. It reports back here, and closes this if it finds it." }[how]);
   },
   helpResolve: async (id, reply) => {
     await pause(500);
@@ -538,7 +561,7 @@ export const sampleApi: Api = {
       return {
         id, name: SAMPLE_NAMES[id], count: list.filter((m) => m.direction === "out").length, received: list.filter((m) => m.direction === "in").length,
         unread: list.filter((m) => m.direction === "in" && !(done && done.at >= m.at)).length, done,
-        ticket: id === "dsample" ? { id: "h1", title: "Severance", slot: 214 } : null,
+        ticket: id === "dsample" ? { id: "h1", title: "Glass Office", slot: 214 } : null,
         failed: list.filter((m) => !m.delivered).length, via: [...new Set(list.map((m) => m.channel))],
         last: { at: last.at, text: last.title ?? last.text, channel: last.channel, delivered: last.delivered, direction: last.direction },
       };
@@ -562,7 +585,7 @@ export const sampleApi: Api = {
     if (!m) throw new ApiError(404, "That message isn’t one someone sent Plexbie.", "http");
     m.ticket = "h1";
     say("h1", "member", m.text, ME);
-    return ok("Added to their ticket on Severance.");
+    return ok("Added to their ticket on Glass Office.");
   },
   inboxSettings: async (autoreply) => { await pause(300); sampleAutoreply = autoreply; return ok(autoreply ? "Plexbie answers new DMs." : "Plexbie won’t answer DMs by itself."); },
   registerPush: async () => null,
