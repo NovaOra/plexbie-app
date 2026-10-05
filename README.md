@@ -39,6 +39,9 @@ are now out of date.
 3. `scripts/release.sh`:
    - builds the Android APK and signs it with the release key in `~/.plexbie` (it checks the certificate);
    - builds the unsigned iPhone `.ipa`;
+   - scans both with [VirusTotal](https://www.virustotal.com) (`scripts/virustotal.sh`, with a free account's key as
+     `VIRUSTOTAL_API_KEY` in `~/.plexbie/release.env`). If any engine flags either file it stops before publishing;
+     otherwise the release notes link both reports. Without a key it publishes unscanned and says so;
    - tags the release, then puts the APK, the IPA and `latest.json` on the GitHub release;
    - copies them into the maintainer's Plexbie (`PLEXBIE_HOST` in `~/.plexbie/release.env`).
 

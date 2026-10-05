@@ -5,8 +5,10 @@
 #      can't update in place), checked against the known certificate,
 #   3. an iPhone .ipa, built unsigned: SideStore/AltStore sign it on each phone with
 #      that member's own Apple ID (there's no Apple developer account here),
-#   4. a GitHub release (tag vX.Y.Z) with docs/releases/X.Y.Z.md as its notes,
-#   5. handed to the Plexbie bot (config/app/ in its container): members get the
+#   4. both scanned by VirusTotal (scripts/virustotal.sh; stops if any engine flags
+#      either, and the release notes link both reports),
+#   5. a GitHub release (tag vX.Y.Z) with docs/releases/X.Y.Z.md as its notes,
+#   6. handed to the Plexbie bot (config/app/ in its container): members get the
 #      "new version" card in the app and a download on the website, app users one
 #      alert, iPhones the update through their SideStore source, and the site's
 #      /.well-known/assetlinks.json names the release key so plexbie.com links open
@@ -84,11 +86,31 @@ echo "iPhone: $ipa ($ipa_sha)"
 [[ $publish == 1 ]] || exit 0
 [[ -n "${PLEXBIE_HOST:-}" ]] || { echo "Set PLEXBIE_HOST (ssh user@host of your Plexbie) in ~/.plexbie/release.env." >&2; exit 1; }
 
+# VirusTotal, before anything is published: a flagged file stops the release here. A known
+# false positive can go out anyway with VIRUSTOTAL_ACCEPT=1 (the notes still say what it found).
+scan=""
+if [[ -n "${VIRUSTOTAL_API_KEY:-}" ]]; then
+  echo "VirusTotal: scanning the APK and the IPA (a few minutes)…"
+  apk_scan=$(scripts/virustotal.sh "$apk")      # a failed scan stops the release (set -e)
+  ipa_scan=$(scripts/virustotal.sh "$ipa")
+  read -r apk_flag apk_engines apk_report <<<"$apk_scan"
+  read -r ipa_flag ipa_engines ipa_report <<<"$ipa_scan"
+  echo "VirusTotal: APK $apk_flag/$apk_engines flagged, IPA $ipa_flag/$ipa_engines flagged"
+  if (( apk_flag + ipa_flag > 0 )) && [[ "${VIRUSTOTAL_ACCEPT:-}" != 1 ]]; then
+    echo "Not published: look at $apk_report and $ipa_report first." >&2; exit 1
+  fi
+  scan=$(printf -- '- VirusTotal: %s of %s antivirus engines flagged the APK ([report](%s)), %s of %s the IPA ([report](%s))' \
+    "$apk_flag" "$apk_engines" "$apk_report" "$ipa_flag" "$ipa_engines" "$ipa_report")
+else
+  echo "No VIRUSTOTAL_API_KEY in ~/.plexbie/release.env: publishing without a virus scan." >&2
+fi
+
 {
   cat "$notes"
   printf '\n**Installing:** open Plexbie (a card on Home, or You) or the website'"'"'s Alerts page and tap Download; it installs over the older version and keeps you signed in.\n\n'
   printf '**iPhone:** through SideStore or AltStore, with the source on the website'"'"'s Alerts page (each member has their own); it shows up there as an update.\n\n'
   printf '**Checks**\n- APK SHA-256: `%s`\n- Signing certificate SHA-256: `%s` (same as before)\n- IPA SHA-256 (unsigned): `%s`\n' "$sha" "$CERT_SHA256" "$ipa_sha"
+  if [[ -n "$scan" ]]; then printf '%s\n' "$scan"; fi
 } > "$out/notes.md"
 # latest.json goes on the release too: other installs copy the APK, the IPA and it into
 # their config/app/ to offer the app from their own Plexbie.
