@@ -6,10 +6,7 @@
 // writes never retry on their own, because a repeated approve or request is not harmless.
 import { z } from "zod";
 import {
-  AckSchema, AdminCleanupSchema, AdminHelpListSchema, ConversationSchema, DiscordOverviewSchema, HealthSchema, MessagePeopleSchema, AdminInvitesSchema, AdminJoinsSchema, AdminPeopleSchema, AdminRequestsSchema, LinkCandidatesSchema,
-  NewInviteSchema, PlexInvitesSchema, ArrivalsSchema, CommunitySchema, HelpAnswerSchema, StatusSchema, MediaRequestSchema, MediaRequestsSchema, MobileInfoSchema, NothingSchema,
-  LibrarySchema, PopularSchema, SessionSchema, TitleDetailSchema, TitlesSchema, TokenSchema, WatchPartySchema,
-  AppReleaseSchema, DownloadLinkSchema, DiscoverSchema, ShelfPageSchema, SearchAllSchema, PrefsSchema,
+  AckSchema, AdminCleanupSchema, AdminHelpListSchema, ConversationSchema, DiscordOverviewSchema, HealthSchema, MessagePeopleSchema, AdminInvitesSchema, AdminJoinsSchema, AdminPeopleSchema, AdminRequestsSchema, LinkCandidatesSchema, NewInviteSchema, PlexInvitesSchema, ArrivalsSchema, CommunitySchema, HelpAnswerSchema, StatusSchema, MediaRequestSchema, MediaRequestsSchema, MobileInfoSchema, NothingSchema, LibrarySchema, PopularSchema, SessionSchema, TitleDetailSchema, TitlesSchema, TokenSchema, WatchPartySchema, AppReleaseSchema, DownloadLinkSchema, DiscoverSchema, ShelfPageSchema, SearchAllSchema, PrefsSchema, AdminAllRequestsSchema, AdminRequestDetailSchema,
 } from "./schemas";
 import type { AppCleanupSettings } from "./schemas";
 import type { BookFormat, HelpReason, MediaKind } from "./types";
@@ -146,6 +143,15 @@ export function api(conn: Connection) {
       request(conn, `/api/requests/${encodeURIComponent(requestId)}/help`, HelpAnswerSchema, json({ reason, note })),
     join: (email: string) => request(conn, "/api/join", NothingSchema, json({ email })),
     adminRequests: (signal?: AbortSignal) => request(conn, "/api/admin/requests", AdminRequestsSchema, {}, signal),
+    /** Everyone's approved requests and where each is now; with q, any request ever. */
+    adminAll: (q: string, signal?: AbortSignal) => request(conn, `/api/admin/all?${new URLSearchParams({ q })}`, AdminAllRequestsSchema, {}, signal),
+    adminRequest: (key: string, signal?: AbortSignal) =>
+      request(conn, `/api/admin/request/${encodeURIComponent(key)}`, AdminRequestDetailSchema, {}, signal),
+    /** An admin's ticket on someone's request; `tell` lets the person who asked know. */
+    requestTicket: (key: string, note: string, tell: boolean) =>
+      request(conn, `/api/admin/request/${encodeURIComponent(key)}/ticket`, HelpAnswerSchema, json({ note, tell })),
+    requestSearch: (key: string, how: HelpSearch) =>
+      request(conn, `/api/admin/request/${encodeURIComponent(key)}/search/${how}`, AckSchema, json({})),
     decide: (id: string, approve: boolean) =>
       request(conn, `/api/admin/requests/${encodeURIComponent(id)}/${approve ? "approve" : "decline"}`, AckSchema, json({})),
     // Manage: join requests, help, people, invites. Writes are never retried by the client.

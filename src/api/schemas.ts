@@ -165,6 +165,44 @@ export type AppAdminRequests = z.infer<typeof AdminRequestsSchema>;
 const rowsOf = <T extends z.ZodTypeAny>(row: T) => z.array(z.unknown()).transform((rows) =>
   rows.flatMap((r) => { const p = row.safeParse(r); return p.success ? [p.data as z.infer<T>] : []; }));
 
+/** A request on Manage → All requests: what its member sees, plus who asked and why it looks stuck. */
+export const AdminRequestRowSchema = MediaRequestSchema.extend({
+  requester: z.string().catch("Someone"),
+  status: z.string().catch(""),
+  approvedBy: z.string().nullable().optional().catch(null),
+  approvedAt: z.string().nullable().optional().catch(null),
+  /** When it reached the stage it's at, as far as the bot has seen. */
+  stageSince: z.string().nullable().optional().catch(null),
+  finishedAt: z.string().nullable().optional().catch(null),
+  /** Why it looks stuck, in words; empty when it doesn't. */
+  stuck: z.array(z.string()).catch([]),
+});
+export type AppAdminRequestRow = z.infer<typeof AdminRequestRowSchema>;
+/** GET /api/admin/all[?q=]: what's on its way and finished in 30 days, or (with q) any request ever. */
+export const AdminAllRequestsSchema = z.looseObject({
+  rows: rowsOf(AdminRequestRowSchema).catch([]),
+  counts: z.looseObject({ active: z.number().catch(0), stuck: z.number().catch(0), finished: z.number().catch(0) }).nullable().optional().catch(null),
+  query: z.string().nullable().optional().catch(null),
+});
+export type AppAdminAllRequests = z.infer<typeof AdminAllRequestsSchema>;
+const AdminTicketSchema = z.looseObject({
+  id: z.string(), status: z.string().catch("open"), reason: z.string().catch(""),
+  note: z.string().nullable().optional().catch(null), who: z.string().nullable().optional().catch(null),
+  /** Set when an admin opened it from All requests. */
+  opened_by: z.string().nullable().optional().catch(null),
+  created_at: z.string().catch(""), resolved_by: z.string().nullable().optional().catch(null),
+  resolved_at: z.string().nullable().optional().catch(null), reply: z.string().nullable().optional().catch(null),
+});
+export type AppAdminTicket = z.infer<typeof AdminTicketSchema>;
+/** GET /api/admin/request/<key>: one request in full, its tickets, and what admins did from it. */
+export const AdminRequestDetailSchema = AdminRequestRowSchema.extend({
+  via: z.string().catch("Discord"),
+  seerrId: z.number().nullable().optional().catch(null),
+  tickets: rowsOf(AdminTicketSchema).catch([]),
+  activity: z.array(z.looseObject({ at: z.string().catch(""), by: z.string().catch(""), did: z.string().catch("") })).catch([]),
+});
+export type AppAdminRequestDetail = z.infer<typeof AdminRequestDetailSchema>;
+
 /** Someone asking to join (GET /api/admin/joins). Decided by messageId, the Discord card. */
 const AdminJoinSchema = z.looseObject({
   key: z.string(), messageId: z.string().catch(""), name: z.string().catch("Someone"), via: z.string().catch("discord"),

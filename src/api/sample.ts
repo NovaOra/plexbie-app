@@ -4,7 +4,8 @@
 // the people are made up. Nothing here is ever sent anywhere.
 import { ApiError, type Api, type NewRequest } from "./client";
 import type {
-  AppAdminCleanup, AppAdminHelp, AppAdminInvite, AppAdminJoin, AppAdminPerson, AppAdminRequests, AppPlexInvite, AppRequest, AppSession, AppTitle,
+  AppAdminAllRequests, AppAdminCleanup, AppAdminHelp, AppAdminInvite, AppAdminJoin, AppAdminPerson, AppAdminRequestDetail, AppAdminRequestRow,
+  AppAdminRequests, AppPlexInvite, AppRequest, AppSession, AppTitle,
 } from "./schemas";
 
 const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
@@ -135,6 +136,40 @@ const newInvite = (label: string, email: string | null, d: number) => {
   return { url: `https://plexbie.example/invite/sample${Date.now().toString(36)}`, invite };
 };
 
+/** Manage → All requests: everyone's approved requests, as an admin sees them. */
+const WHO: Record<string, string> = { "5001": "Jordan Lee", "5002": "Sam Ortiz", "5004": "Priya N.", "5005": "Alex Kim" };
+const ARRIVAL: AppTitle = { id: "329865", kind: "movie", title: "Arrival", year: "2016", poster: null, availability: "requested" };
+let sampleAll: AppAdminRequestRow[] = [
+  { id: "6002", slot: 216, stage: "searching", title: ARRIVAL, requestedAt: ago(60 * 50), updatedAt: ago(60 * 48),
+    progress: { detail: "Looking for a copy" }, help: { id: "h2", reason: "Can’t be found" }, requester: "Jordan Lee", status: "approved",
+    approvedBy: "Alex Kim", approvedAt: ago(60 * 48), stageSince: ago(60 * 48), stuck: ["Help asked: Can’t be found", "Nothing found for over a day"] },
+  ...sampleRequests.filter((r) => r.id && !["requested", "declined"].includes(r.stage)).map((r): AppAdminRequestRow => ({
+    ...r, requester: WHO[r.id!] ?? "Priya N.", status: "approved", approvedBy: "Alex Kim", approvedAt: r.requestedAt,
+    stageSince: r.updatedAt, finishedAt: r.stage === "available" ? r.updatedAt : null,
+    help: r.id === "5001" ? { id: "h1", reason: "Stuck downloading" } : r.help,
+    stuck: r.id === "5001" ? ["Help asked: Stuck downloading", "Download hasn’t moved in 6 hours"] : [],
+  })),
+];
+const sampleArchive: AppAdminRequestRow[] = [
+  { id: "4100", slot: 120, stage: "available", seasons: [3], requestedAt: ago(60 * 24 * 70), updatedAt: ago(60 * 24 * 66),
+    title: { id: "95480", kind: "tv", title: "Slow Horses", year: "2022", poster: null, availability: "available" }, requester: "Marcus T.", status: "approved",
+    approvedBy: "Alex Kim", approvedAt: ago(60 * 24 * 70), stageSince: ago(60 * 24 * 66), finishedAt: ago(60 * 24 * 66), stuck: [] },
+];
+const sampleActivity: Record<string, { at: string; by: string; did: string }[]> = {};
+function allOf(q: string): AppAdminAllRequests {
+  const words = q.trim().toLowerCase().replace(/^(no\.|#)\s*/, "").replace(/^0+/, "");
+  if (words) {
+    const rows = [...sampleAll, ...sampleArchive]
+      .filter((r) => `${r.title.title} ${r.requester}`.toLowerCase().includes(words) || String(r.slot) === words)
+      .sort((a, b) => b.slot - a.slot);
+    return { rows, counts: null, query: words };
+  }
+  const rows = [...sampleAll].sort((a, b) => Number(a.stage === "available") - Number(b.stage === "available")
+    || Number(!a.stuck.length) - Number(!b.stuck.length) || b.slot - a.slot);
+  return { rows, query: null, counts: { active: rows.filter((r) => r.stage !== "available").length,
+    stuck: rows.filter((r) => r.stuck.length).length, finished: rows.filter((r) => r.stage === "available").length } };
+}
+
 /** The sample "server": answers the same calls as api(), from the data above. */
 export const sampleApi: Api = {
   session: async () => sampleSession,
@@ -244,6 +279,35 @@ export const sampleApi: Api = {
   },
   appDownloadLink: async () => "",                // nothing to download in the sample household
   adminHelp: async () => { await pause(300); return sampleHelp; },
+  adminAll: async (q) => { await pause(350); return allOf(q); },
+  adminRequest: async (key) => {
+    await pause(250);
+    const r = [...sampleAll, ...sampleArchive].find((x) => x.id === key);
+    if (!r) throw new ApiError(404, "No such request.", "http");
+    const detail: AppAdminRequestDetail = {
+      ...r, via: key === "5002" ? "the website" : "Discord", seerrId: null, activity: sampleActivity[key] ?? [],
+      tickets: sampleHelp.filter((h) => h.slot === r.slot).map((h) => ({
+        id: h.id, status: h.status, reason: h.reason, note: h.note, who: h.who, opened_by: (h as { opened_by?: string }).opened_by ?? null,
+        created_at: h.created_at, resolved_by: null, resolved_at: null, reply: null })),
+    };
+    return detail;
+  },
+  requestTicket: async (key, note, tell) => {
+    await pause(450);
+    const r = sampleAll.find((x) => x.id === key);
+    const help = { id: `h${Date.now()}`, reason: "Opened by an admin" };
+    sampleHelp = [{ id: help.id, slot: r?.slot ?? 0, title: r?.title.title ?? "", kind: r?.title.kind ?? "movie", seasons: null,
+      who: r?.requester ?? "Someone", reason: help.reason, note, status_then: r?.stage ?? "", status: "open", created_at: new Date().toISOString(),
+      actions: [], opened_by: "you" }, ...sampleHelp];
+    sampleAll = sampleAll.map((x) => (x.id === key ? { ...x, help, stuck: [`Help asked: ${help.reason}`, ...x.stuck] } : x));
+    return { ok: true, message: `Ticket opened${tell ? `, and ${r?.requester ?? "they"} has been told` : ""}. It’s on Needs help.`, help };
+  },
+  requestSearch: async (key, how) => {
+    await pause(500);
+    const said = { again: "Searching again.", episodes: "Searching one episode at a time.", name: "Searching by name. Plexbie reports back in the admin channel." }[how];
+    (sampleActivity[key] ??= []).push({ at: new Date().toISOString(), by: "you", did: said });
+    return ok(said);
+  },
   helpSearch: async (_id, how) => {
     await pause(600);
     return ok({ again: "Sonarr is searching for season 2 again.", episodes: "Sonarr is searching season 2 one episode at a time.",

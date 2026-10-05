@@ -18,9 +18,10 @@ import { MessagesSection } from "./MessagesSection";
 import { JoinsSection, useJoins } from "./JoinsSection";
 import { PeopleSection } from "./PeopleSection";
 import { RequestsSection, useRequestsCount } from "./RequestsSection";
+import { AllRequestsSection, useAllRequests } from "./AllRequestsSection";
 import { Ambient, TAB_BAR_CLEARANCE } from "../../ui/Glass";
 
-type Tab = "requests" | "joins" | "people" | "invites" | "cleanup" | "messages" | "health" | "discord";
+type Tab = "requests" | "all" | "joins" | "people" | "invites" | "cleanup" | "messages" | "health" | "discord";
 
 export function ManageScreen() {
   const insets = useSafeAreaInsets();
@@ -31,20 +32,22 @@ export function ManageScreen() {
   const { waiting } = useRequestsCount();
   const joins = useJoins();
   const joinsWaiting = joins.data?.filter((j) => j.status === "pending").length ?? 0;
+  const stuck = useAllRequests().data?.counts?.stuck ?? 0;
   const [pulling, setPulling] = useState(false);
   const onRefresh = useCallback(async () => {
     setPulling(true);
     try { await qc.refetchQueries({ queryKey: ["admin", server] }); } finally { setPulling(false); }
   }, [qc, server]);
 
-  /** "Requests · 4 waiting": the section, and what's waiting in it. */
+  /** "Requests · 4 waiting" (or "All requests · 2 stuck"): the section, and what's waiting in it. */
+  const word = (id: Tab) => (id === "all" ? "stuck" : "waiting");
   const sectionLabel = (id: Tab) => {
     const [, label, n] = tabs.find(([t]) => t === id)!;
-    return n ? `${label} · ${n} waiting` : label;
+    return n ? `${label} · ${n} ${word(id)}` : label;
   };
   const tabs: [Tab, string, number][] = [
     // The website's names and order.
-    ["requests", "Requests", waiting], ["joins", "Join requests", joinsWaiting], ["invites", "Invites", 0], ["people", "People", 0],
+    ["requests", "Requests", waiting], ["all", "All requests", stuck], ["joins", "Join requests", joinsWaiting], ["invites", "Invites", 0], ["people", "People", 0],
     ["cleanup", "Cleanup", 0], ["discord", "Discord", 0], ["messages", "Messages", 0], ["health", "Health", 0],
   ];
 
@@ -64,11 +67,11 @@ export function ManageScreen() {
           {/* What's waiting elsewhere, so it isn't hidden behind the dropdown. */}
           {tabs.filter(([id, , n]) => id !== tab && n > 0).map(([id, label, n]) => (
             <Text key={id} variant="meta" style={styles.waiting} onPress={() => setTab(id)} accessibilityRole="button"
-              accessibilityLabel={`${label}, ${n} waiting. Opens it.`}>{label} · {n} waiting</Text>
+              accessibilityLabel={`${label}, ${n} ${word(id)}. Opens it.`}>{label} · {n} {word(id)}</Text>
           ))}
         </View>
         <View style={styles.section}>
-          {tab === "requests" ? <RequestsSection /> : tab === "joins" ? <JoinsSection /> : tab === "people" ? <PeopleSection />
+          {tab === "requests" ? <RequestsSection /> : tab === "all" ? <AllRequestsSection /> : tab === "joins" ? <JoinsSection /> : tab === "people" ? <PeopleSection />
             : tab === "invites" ? <InvitesSection /> : tab === "cleanup" ? <CleanupSection /> : tab === "messages" ? <MessagesSection />
             : tab === "health" ? <HealthSection /> : <DiscordSection />}
         </View>

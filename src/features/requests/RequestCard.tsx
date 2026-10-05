@@ -19,8 +19,11 @@ function seasonsText(s: AppRequest["seasons"]) {
   return s?.length ? s.map((n) => `S${n}`).join(", ") : null;
 }
 
-/** One request, as its "slot" on the schedule: number, poster, title, where it is now. */
-export const RequestCard = memo(function RequestCard({ request: r, onPress }: { request: AppRequest; onPress?: (slot: number) => void }) {
+/** One request, as its "slot" on the schedule: number, poster, title, where it is now.
+ *  On Manage → All requests it also says who asked (`by`) and why it looks stuck (`stuck`). */
+export const RequestCard = memo(function RequestCard({ request: r, onPress, by, stuck }: {
+  request: AppRequest; onPress?: (slot: number) => void; by?: string; stuck?: string[];
+}) {
   const live = isLive(r.stage);
   const done = r.stage === "available";
   const muted = r.stage === "declined" || r.stage === "closed";
@@ -30,20 +33,22 @@ export const RequestCard = memo(function RequestCard({ request: r, onPress }: { 
 
   const large = useLargeText();
   const reduced = useReducedMotion();
-  const label = `${r.title.title}, request ${r.slot}. ${stageLabel(r.stage, r.title.kind)}. ${/[.!?]$/.test(detail) ? detail : `${detail}.`}${percent !== null ? ` ${percent} percent.` : ""}`
+  const label = `${r.title.title}, request ${r.slot}${by ? `, asked by ${by}` : ""}. ${stuck?.length ? `Looks stuck: ${stuck.join(", ")}. ` : ""}${stageLabel(r.stage, r.title.kind)}. ${/[.!?]$/.test(detail) ? detail : `${detail}.`}${percent !== null ? ` ${percent} percent.` : ""}`
     + `${r.note ? ` Note: ${r.note}.` : ""} Updated ${since(r.updatedAt)}.`;
   const card = (
-    <View style={[styles.card, glass.surface, live && styles.cardLive]} accessible={!onPress} accessibilityLabel={onPress ? undefined : label}>
+    <View style={[styles.card, glass.surface, live && styles.cardLive, !!stuck?.length && styles.cardStuck]} accessible={!onPress} accessibilityLabel={onPress ? undefined : label}>
       <GlassFill radius={radius.m} />
       <Poster poster={r.title.poster} title={r.title.title} id={r.title.id} style={styles.poster} />
       <View style={styles.body}>
         <Text variant="eyebrow" numberOfLines={large ? undefined : 1}>{eyebrow}</Text>
         <Text variant="title" numberOfLines={large ? undefined : 2} style={muted && styles.mutedTitle}>{r.title.title}</Text>
+        {by ? <Text variant="meta" numberOfLines={large ? undefined : 1}>Asked by {by}</Text> : null}
         <View style={styles.strap}>
           <View style={[styles.tally, live && styles.tallyLive, done && styles.tallyDone, muted && styles.tallyMuted]} />
           <Text style={[styles.stage, done && styles.stageDone, muted && styles.stageMuted]}>{stageLabel(r.stage, r.title.kind)}</Text>
         </View>
         <Text variant="meta" numberOfLines={large ? undefined : 2}>{detail}</Text>
+        {stuck?.map((s) => <Text key={s} variant="meta" style={styles.stuck}>⚠︎ {s}</Text>)}
         {live && percent !== null ? (
           <View style={styles.track} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
             <Animated.View style={[styles.fill, { width: `${percent}%`, transitionProperty: "width", transitionDuration: reduced ? 0 : 600, transitionTimingFunction: EASE }]} />
@@ -69,6 +74,8 @@ const styles = StyleSheet.create({
     backgroundColor: color.panel, borderRadius: radius.m, borderWidth: StyleSheet.hairlineWidth, borderColor: color.rule,
   },
   cardLive: { borderColor: "rgba(255, 92, 147, 0.45)" },
+  cardStuck: { borderColor: "rgba(255, 92, 147, 0.7)" },
+  stuck: { color: color.tally, fontFamily: font.semibold },
   poster: { width: 72 },
   body: { flex: 1, gap: 4, minWidth: 0 },
   mutedTitle: { color: color.slateInk },

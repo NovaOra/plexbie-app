@@ -7,7 +7,7 @@ import type { Ack } from "../../api/schemas";
 import { useSession } from "../../auth/session";
 import { useToast, type ToastIn } from "../../ui/Toast";
 
-export type Section = "requests" | "joins" | "help" | "people" | "invites" | "plexinvites" | "links" | "cleanup" | "health" | "discord" | "messages";
+export type Section = "requests" | "all" | "joins" | "help" | "people" | "invites" | "plexinvites" | "links" | "cleanup" | "health" | "discord" | "messages";
 
 export function useAdminKey() {
   const { state } = useSession();

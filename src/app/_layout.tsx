@@ -55,6 +55,7 @@ function Routes() {
         {/* Pushed over the tabs with the platform's own transition and back gesture. */}
         <Stack.Screen name="title/[kind]/[id]" options={{ animation: "default" }} />
         <Stack.Screen name="request/[slot]" options={{ animation: "default" }} />
+        <Stack.Screen name="manage-request/[key]" options={{ animation: "default" }} />
         <Stack.Screen name="you" options={{ animation: "default" }} />
         <Stack.Screen name="channel" options={{ animation: "default" }} />
         {/* A real sheet (UISheetPresentationController / Material bottom sheet), not one drawn in JS. */}
