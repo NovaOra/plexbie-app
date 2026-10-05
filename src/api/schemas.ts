@@ -77,6 +77,26 @@ const ProgressSchema = z.looseObject({
   releaseDate: z.string().nullable().optional().catch(null),
 });
 
+/** One line on a ticket's timeline. "note" is admins only; "reply" went to the member. */
+const TicketEntrySchema = z.looseObject({
+  id: z.string().catch(""), at: z.string().catch(""), by: z.string().catch(""),
+  kind: z.string().catch("note"),   // "member" | "note" | "reply" | "action" | "status" today
+  text: z.string().catch(""),
+});
+export type AppTicketEntry = z.infer<typeof TicketEntrySchema>;
+const timeline = z.array(z.unknown()).transform((rows) =>
+  rows.flatMap((r) => { const p = TicketEntrySchema.safeParse(r); return p.success ? [p.data] : []; }));
+
+/** The member's ticket on their request: its conversation, without the admins' notes. */
+const MemberTicketSchema = z.looseObject({
+  id: z.string(), reason: z.string(),
+  status: opt(z.string()),
+  /** An admin asked something and waits on the member's answer. */
+  waiting: opt(z.boolean()),
+  thread: opt(timeline),
+});
+export type AppMemberTicket = z.infer<typeof MemberTicketSchema>;
+
 export const MediaRequestSchema = z.looseObject({
   id: opt(z.string()),
   slot: z.number(),
@@ -88,7 +108,7 @@ export const MediaRequestSchema = z.looseObject({
   format: opt(z.string()),
   note: opt(z.string()),
   progress: ProgressSchema.nullable().optional().catch(null),
-  help: z.looseObject({ id: z.string(), reason: z.string() }).nullable().optional().catch(null),
+  help: MemberTicketSchema.nullable().optional().catch(null),
 });
 export type AppRequest = z.infer<typeof MediaRequestSchema>;
 
@@ -178,11 +198,18 @@ export const AdminRequestRowSchema = MediaRequestSchema.extend({
   stuck: z.array(z.string()).catch([]),
 });
 export type AppAdminRequestRow = z.infer<typeof AdminRequestRowSchema>;
-/** GET /api/admin/all[?q=]: what's on its way and finished in 30 days, or (with q) any request ever. */
+/** GET /api/admin/all[?q=][&all=1]: every request from the last 30 days (and anything still on its
+ *  way), every request since No. 0001 with all=1, or (with q) any request ever. */
 export const AdminAllRequestsSchema = z.looseObject({
   rows: rowsOf(AdminRequestRowSchema).catch([]),
-  counts: z.looseObject({ active: z.number().catch(0), stuck: z.number().catch(0), finished: z.number().catch(0) }).nullable().optional().catch(null),
+  counts: z.looseObject({
+    active: z.number().catch(0), stuck: z.number().catch(0), finished: z.number().catch(0),
+    waiting: z.number().catch(0), declined: z.number().catch(0),
+  }).nullable().optional().catch(null),
   query: z.string().nullable().optional().catch(null),
+  everything: z.boolean().catch(false),
+  /** How many requests there have ever been (0 from an older bot). */
+  total: z.number().catch(0),
 });
 export type AppAdminAllRequests = z.infer<typeof AdminAllRequestsSchema>;
 const AdminTicketSchema = z.looseObject({
@@ -202,6 +229,35 @@ export const AdminRequestDetailSchema = AdminRequestRowSchema.extend({
   activity: z.array(z.looseObject({ at: z.string().catch(""), by: z.string().catch(""), did: z.string().catch("") })).catch([]),
 });
 export type AppAdminRequestDetail = z.infer<typeof AdminRequestDetailSchema>;
+
+/** A ticket on Manage → Tickets (GET /api/admin/tickets). */
+const AdminTicketRowSchema = z.looseObject({
+  id: z.string(), requestKey: z.string().nullable().catch(null), slot: z.number().catch(0), title: z.string().catch(""),
+  kind: z.string().catch(""), seasons: z.union([z.array(z.number()), z.literal("all"), z.literal("latest")]).nullable().optional().catch(null),
+  who: z.string().catch("Someone"), reason: z.string().catch(""), status: z.string().catch("open"), waiting: z.boolean().catch(false),
+  owner: z.string().nullable().optional().catch(null), openedBy: z.string().nullable().optional().catch(null),
+  /** "name": Plexbie's search by ID found nothing; it asks whether to search by name. */
+  offer: z.string().nullable().optional().catch(null),
+  createdAt: z.string().catch(""), updatedAt: z.string().catch(""),
+  last: z.looseObject({ by: z.string().nullable().catch(null), kind: z.string().nullable().catch(null), text: z.string().catch("") }).nullable().optional().catch(null),
+  count: z.number().catch(0),
+});
+export type AppAdminTicketRow = z.infer<typeof AdminTicketRowSchema>;
+/** Needing an admin first, then waiting on the member, then the last 50 solved. */
+export const AdminTicketsSchema = z.looseObject({
+  rows: rowsOf(AdminTicketRowSchema).catch([]),
+  counts: z.looseObject({ action: z.number().catch(0), waiting: z.number().catch(0), solved: z.number().catch(0) })
+    .catch({ action: 0, waiting: 0, solved: 0 }),
+});
+export type AppAdminTickets = z.infer<typeof AdminTicketsSchema>;
+/** GET /api/admin/ticket/<id>: one ticket, its whole timeline, and its request as All requests shows it. */
+export const AdminTicketDetailSchema = AdminTicketRowSchema.extend({
+  note: z.string().nullable().optional().catch(null),
+  statusThen: z.string().nullable().optional().catch(null),
+  thread: timeline.catch([]),
+  request: AdminRequestRowSchema.nullable().catch(null),
+});
+export type AppAdminTicketDetail = z.infer<typeof AdminTicketDetailSchema>;
 
 /** Someone asking to join (GET /api/admin/joins). Decided by messageId, the Discord card. */
 const AdminJoinSchema = z.looseObject({
@@ -314,14 +370,16 @@ export type AppDiscordOverview = z.infer<typeof DiscordOverviewSchema>;
 
 /** Everyone Plexbie has messaged, and how (GET /api/admin/messages). */
 export const MessagePeopleSchema = rowsOf(z.looseObject({
-  id: z.string(), name: z.string().catch("Someone"), count: z.number().catch(0), failed: z.number().catch(0),
+  /** count: from Plexbie; received: from them (a DM, "Something wrong?", a ticket answer). */
+  id: z.string(), name: z.string().catch("Someone"), count: z.number().catch(0), received: z.number().catch(0), failed: z.number().catch(0),
   via: z.array(z.string()).catch([]),
-  last: z.looseObject({ at: z.string().catch(""), text: z.string().catch(""), channel: z.string().catch("none"), delivered: z.boolean().catch(true) }),
+  last: z.looseObject({ at: z.string().catch(""), text: z.string().catch(""), channel: z.string().catch("none"), delivered: z.boolean().catch(true),
+    direction: z.string().catch("out") }),
 }));
 export type AppMessagePerson = z.infer<typeof MessagePeopleSchema>[number];
-/** One person's messages from Plexbie (GET /api/admin/messages/{who}). */
+/** One person's messages with Plexbie (GET /api/admin/messages/{who}); "in" ones they sent. */
 export const ConversationSchema = rowsOf(z.looseObject({
-  id: z.string(), at: z.string(), channel: z.string().catch("none"), delivered: z.boolean().catch(true),
+  id: z.string(), at: z.string(), direction: z.string().catch("out"), channel: z.string().catch("none"), delivered: z.boolean().catch(true),
   title: z.string().nullable().catch(null), text: z.string().catch(""), context: z.string().catch(""), error: z.string().nullable().catch(null),
 }));
 export type AppLoggedMessage = z.infer<typeof ConversationSchema>[number];

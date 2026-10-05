@@ -1,6 +1,7 @@
-// Manage → All requests: everyone's approved requests and where each one is now, the ones
-// that look stuck first. Without a search it's what's on its way plus the last 30 days of
-// finished; a search reaches any request ever. A row opens the request in full.
+// Manage → All requests: every request from everyone (waiting, approved, declined, on Plex)
+// and where each one is now, the ones that look stuck first. It opens on the last 30 days
+// (and anything still on its way); "Every request since No. 0001" loads the lot, and a search
+// reaches any request ever. A row opens the request in full.
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
@@ -8,13 +9,18 @@ import { StyleSheet, TextInput, View } from "react-native";
 import type { AppAdminRequestRow } from "../../api/schemas";
 import { useApi } from "../../auth/session";
 import { PickerPill } from "../../ui/PickerSheet";
+import { Button } from "../../ui/Button";
 import { Text } from "../../ui/Text";
 import { color, font, radius, space, TOUCH } from "../../ui/theme";
 import { RequestCard } from "../requests/RequestCard";
 import { AllClear } from "./bits";
 import { useAdminKey } from "./useAdmin";
 
-type Show = "progress" | "stuck" | "finished" | "everything";
+type Show = "everything" | "progress" | "stuck" | "waiting" | "finished" | "declined";
+const ENDED = ["declined", "closed"];
+const showing = (show: Show, r: AppAdminRequestRow) =>
+  show === "progress" ? !["available", "requested", ...ENDED].includes(r.stage) : show === "stuck" ? r.stuck.length > 0
+    : show === "waiting" ? r.stage === "requested" : show === "finished" ? r.stage === "available" : show === "declined" ? ENDED.includes(r.stage) : true;
 
 /** Everyone's requests, kept fresh while Manage is open (also feeds the "· 2 stuck" label). */
 export function useAllRequests() {
@@ -26,9 +32,16 @@ export function useAllRequests() {
 export function AllRequestsSection() {
   const client = useApi();
   const key = useAdminKey();
-  const all = useAllRequests();
-  const counts = all.data?.counts ?? { active: 0, stuck: 0, finished: 0 };
-  const [show, setShow] = useState<Show>(counts.stuck ? "stuck" : "progress");
+  const recent = useAllRequests();
+  // Every request since No. 0001, fetched only when asked for.
+  const [history, setHistory] = useState(false);
+  const every = useQuery({
+    queryKey: [...key("all"), "everything"], enabled: history,
+    queryFn: ({ signal }) => client.adminAll("", signal, true),
+  });
+  const all = history && every.data ? every : recent;
+  const counts = all.data?.counts ?? { active: 0, stuck: 0, finished: 0, waiting: 0, declined: 0 };
+  const [show, setShow] = useState<Show>(recent.data?.counts?.stuck ? "stuck" : "everything");
   const [q, setQ] = useState("");
   const [words, setWords] = useState("");
   // Waits for a pause in typing, then asks the bot (it searches every request ever).
@@ -42,18 +55,22 @@ export function AllRequestsSection() {
   });
 
   const open = (r: AppAdminRequestRow) => { if (r.id) router.push({ pathname: "/manage-request/[key]", params: { key: r.id } }); };
-  const rows = words ? found.data?.rows ?? [] : (all.data?.rows ?? []).filter((r) =>
-    show === "progress" ? r.stage !== "available" : show === "stuck" ? r.stuck.length > 0 : show === "finished" ? r.stage === "available" : true);
+  const rows = words ? found.data?.rows ?? [] : (all.data?.rows ?? []).filter((r) => showing(show, r));
   const options: { value: Show; label: string }[] = [
-    { value: "progress", label: `In progress · ${counts.active}` },
+    { value: "everything", label: `Every request · ${all.data?.rows.length ?? 0}` },
+    { value: "progress", label: `On its way · ${counts.active}` },
     { value: "stuck", label: `Looks stuck · ${counts.stuck}` },
-    { value: "finished", label: `Finished (30 days) · ${counts.finished}` },
-    { value: "everything", label: `Everything · ${all.data?.rows.length ?? 0}` },
+    { value: "waiting", label: `Waiting for a decision · ${counts.waiting}` },
+    { value: "finished", label: `On Plex · ${counts.finished}` },
+    { value: "declined", label: `Declined · ${counts.declined}` },
   ];
+  const total = recent.data?.total ?? 0;
 
   return (
     <View style={styles.section}>
-      <Text variant="body">Everyone’s approved requests and where each one is now. Open one to search again or open a ticket.</Text>
+      <Text variant="body">
+        Every request from everyone, waiting, approved or declined, and where each one is now. {history ? "Showing every request since No. 0001." : "Showing the last 30 days, and anything still on its way."}
+      </Text>
       <TextInput value={q} onChangeText={setQ} placeholder="Search every request" placeholderTextColor={color.faint}
         autoCapitalize="none" autoCorrect={false} returnKeyType="search" clearButtonMode="while-editing"
         accessibilityLabel="Search every request, by title, who asked, or number" style={styles.input} />
@@ -73,10 +90,19 @@ export function AllRequestsSection() {
         <RequestCard key={r.id ?? r.slot} request={r} by={r.requester} stuck={r.stuck} onPress={() => open(r)} />
       ))}
       {!words && all.data && !rows.length ? (
-        <AllClear title={show === "stuck" ? "Nothing looks stuck" : show === "finished" ? "Nothing finished lately" : "Nothing on its way"}>
-          {show === "finished" ? "Requests that reached Plex in the last 30 days show here." : "Approved requests show here until they reach Plex."}
+        <AllClear title={show === "stuck" ? "Nothing looks stuck" : show === "finished" ? "Nothing on Plex lately" : show === "waiting" ? "Nothing waiting"
+          : show === "declined" ? "Nothing declined" : show === "progress" ? "Nothing on its way" : "No requests yet"}>
+          {history ? "Nothing like this since No. 0001." : "In the last 30 days. “Every request since No. 0001” shows the rest."}
         </AllClear>
       ) : null}
+      {!words ? (
+        history ? (
+          <Button kind="secondary" label="Back to the last 30 days" onPress={() => setHistory(false)} style={styles.more} />
+        ) : (
+          <Button kind="secondary" label={`Every request since No. 0001${total ? ` · ${total}` : ""}`} onPress={() => setHistory(true)} style={styles.more} />
+        )
+      ) : null}
+      {history && every.isFetching && !every.data ? <Text variant="meta" accessibilityLiveRegion="polite">Loading every request…</Text> : null}
     </View>
   );
 }
@@ -90,4 +116,5 @@ const styles = StyleSheet.create({
   picker: { flexDirection: "row" },
   skeleton: { height: 120, borderRadius: radius.m, backgroundColor: color.panel },
   bad: { color: color.tally },
+  more: { alignSelf: "center" },
 });

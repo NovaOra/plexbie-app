@@ -6,7 +6,7 @@
 // writes never retry on their own, because a repeated approve or request is not harmless.
 import { z } from "zod";
 import {
-  AckSchema, AdminCleanupSchema, AdminHelpListSchema, ConversationSchema, DiscordOverviewSchema, HealthSchema, MessagePeopleSchema, AdminInvitesSchema, AdminJoinsSchema, AdminPeopleSchema, AdminRequestsSchema, LinkCandidatesSchema, NewInviteSchema, PlexInvitesSchema, ArrivalsSchema, CommunitySchema, HelpAnswerSchema, StatusSchema, MediaRequestSchema, MediaRequestsSchema, MobileInfoSchema, NothingSchema, LibrarySchema, PopularSchema, SessionSchema, TitleDetailSchema, TitlesSchema, TokenSchema, WatchPartySchema, AppReleaseSchema, DownloadLinkSchema, DiscoverSchema, ShelfPageSchema, SearchAllSchema, PrefsSchema, AdminAllRequestsSchema, AdminRequestDetailSchema,
+  AckSchema, AdminCleanupSchema, AdminHelpListSchema, ConversationSchema, DiscordOverviewSchema, HealthSchema, MessagePeopleSchema, AdminInvitesSchema, AdminJoinsSchema, AdminPeopleSchema, AdminRequestsSchema, LinkCandidatesSchema, NewInviteSchema, PlexInvitesSchema, ArrivalsSchema, CommunitySchema, HelpAnswerSchema, StatusSchema, MediaRequestSchema, MediaRequestsSchema, MobileInfoSchema, NothingSchema, LibrarySchema, PopularSchema, SessionSchema, TitleDetailSchema, TitlesSchema, TokenSchema, WatchPartySchema, AppReleaseSchema, DownloadLinkSchema, DiscoverSchema, ShelfPageSchema, SearchAllSchema, PrefsSchema, AdminAllRequestsSchema, AdminRequestDetailSchema, AdminTicketsSchema, AdminTicketDetailSchema,
 } from "./schemas";
 import type { AppCleanupSettings } from "./schemas";
 import type { BookFormat, HelpReason, MediaKind } from "./types";
@@ -143,13 +143,29 @@ export function api(conn: Connection) {
       request(conn, `/api/requests/${encodeURIComponent(requestId)}/help`, HelpAnswerSchema, json({ reason, note })),
     join: (email: string) => request(conn, "/api/join", NothingSchema, json({ email })),
     adminRequests: (signal?: AbortSignal) => request(conn, "/api/admin/requests", AdminRequestsSchema, {}, signal),
-    /** Everyone's approved requests and where each is now; with q, any request ever. */
-    adminAll: (q: string, signal?: AbortSignal) => request(conn, `/api/admin/all?${new URLSearchParams({ q })}`, AdminAllRequestsSchema, {}, signal),
+    /** Everyone's requests and where each is now: the last 30 days, every one with `everything`; with q, any request ever. */
+    adminAll: (q: string, signal?: AbortSignal, everything = false) =>
+      request(conn, `/api/admin/all?${new URLSearchParams({ q, ...(everything ? { all: "1" } : {}) })}`, AdminAllRequestsSchema, {}, signal),
     adminRequest: (key: string, signal?: AbortSignal) =>
       request(conn, `/api/admin/request/${encodeURIComponent(key)}`, AdminRequestDetailSchema, {}, signal),
-    /** An admin's ticket on someone's request; `tell` lets the person who asked know. */
-    requestTicket: (key: string, note: string, tell: boolean) =>
-      request(conn, `/api/admin/request/${encodeURIComponent(key)}/ticket`, HelpAnswerSchema, json({ note, tell })),
+    /** An admin's ticket on someone's request; with `tell`, `message` goes to the person who asked. */
+    requestTicket: (key: string, note: string, tell: boolean, message = "") =>
+      request(conn, `/api/admin/request/${encodeURIComponent(key)}/ticket`, HelpAnswerSchema, json({ note, tell, message })),
+    // Manage → Tickets: a ticket is a conversation an admin can take, note on, reply in, and solve.
+    adminTickets: (signal?: AbortSignal) => request(conn, "/api/admin/tickets", AdminTicketsSchema, {}, signal),
+    adminTicket: (id: string, signal?: AbortSignal) =>
+      request(conn, `/api/admin/ticket/${encodeURIComponent(id)}`, AdminTicketDetailSchema, {}, signal),
+    /** "note": only admins see it. "reply": sent to the member, who can answer. */
+    ticketComment: (id: string, kind: "note" | "reply", text: string) =>
+      request(conn, `/api/admin/ticket/${encodeURIComponent(id)}/comment`, AckSchema, json({ kind, text })),
+    /** "resolved" can carry a last word to the member. */
+    ticketStatus: (id: string, status: "open" | "waiting" | "resolved", message = "") =>
+      request(conn, `/api/admin/ticket/${encodeURIComponent(id)}/status`, AckSchema, json({ status, message })),
+    /** Takes the ticket, or lets it go when it's already yours. */
+    ticketTake: (id: string) => request(conn, `/api/admin/ticket/${encodeURIComponent(id)}/take`, AckSchema, json({})),
+    /** The member answering their ticket. */
+    answerTicket: (requestId: string, text: string) =>
+      request(conn, `/api/requests/${encodeURIComponent(requestId)}/help/reply`, AckSchema, json({ text })),
     requestSearch: (key: string, how: HelpSearch) =>
       request(conn, `/api/admin/request/${encodeURIComponent(key)}/search/${how}`, AckSchema, json({})),
     decide: (id: string, approve: boolean) =>

@@ -1,8 +1,8 @@
 // One request in full, for an admin (Manage → All requests): where it is, who asked, why it
 // looks stuck, its tickets and history, the fixes (search again, episode by episode, by
-// name), and "Open a ticket", which goes on Needs help like a member's would.
+// name), and "Open a ticket", which goes on Manage → Tickets like a member's would.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -50,12 +50,13 @@ export function AdminRequestScreen() {
   const [writing, setWriting] = useState(false);
   const [note, setNote] = useState("");
   const [tell, setTell] = useState(false);
+  const [message, setMessage] = useState("");
   const field = useScrollToField();
 
   const after = () => setTimeout(() => {
     void qc.invalidateQueries({ queryKey: detailKey });
     void qc.invalidateQueries({ queryKey: key("all") });
-    void qc.invalidateQueries({ queryKey: key("help") });
+    void qc.invalidateQueries({ queryKey: key("tickets") });
   }, 900);
   const search = async (how: HelpSearch) => {
     const out = await act(how, () => client.requestSearch(id, how), {
@@ -65,8 +66,8 @@ export function AdminRequestScreen() {
     if (out) after();
   };
   const ticket = async () => {
-    const out = await act("ticket", () => client.requestTicket(id, note.trim(), tell), {
-      failText: "Couldn’t open the ticket", done: (o) => ({ text: "Ticket opened", detail: o.message }), refresh: ["help", "requests"],
+    const out = await act("ticket", () => client.requestTicket(id, note.trim(), tell, tell ? message.trim() : ""), {
+      failText: "Couldn’t open the ticket", done: (o) => ({ text: "Ticket opened", detail: o.message }), refresh: ["tickets"],
     });
     if (!out) return;
     setWriting(false);
@@ -91,7 +92,8 @@ export function AdminRequestScreen() {
   }
 
   const openTicket = r.tickets.find((t) => t.status === "open");
-  const video = r.title.kind === "tv" || r.title.kind === "movie";
+  // Only an approved request can be searched for (not one waiting for a decision, or declined).
+  const video = (r.title.kind === "tv" || r.title.kind === "movie") && !["requested", "declined", "closed"].includes(r.stage);
   const history = [
     ...r.tickets.map((t) => ({ at: t.created_at, text: ticketLine(t) })),
     ...r.activity.map((a) => ({ at: a.at, text: `${a.by}: ${a.did}` })),
@@ -140,7 +142,8 @@ export function AdminRequestScreen() {
           <View style={[styles.box, glass.surface]} accessibilityRole="summary">
             <GlassFill radius={radius.m} />
             <Text variant="label">There’s an open ticket on this: {openTicket.reason}.</Text>
-            <Text variant="meta">Resolve it from Needs help, in the Requests section.</Text>
+            <Button label="Open the ticket" style={styles.start}
+              onPress={() => router.push({ pathname: "/manage-ticket/[id]", params: { id: openTicket.id } })} />
           </View>
         ) : writing ? (
           <View style={[styles.box, glass.surface]} onLayout={field.onLayout}>
@@ -149,9 +152,20 @@ export function AdminRequestScreen() {
             <TextInput value={note} onChangeText={setNote} multiline maxLength={600} autoFocus onFocus={field.onFocus}
               placeholder="For example: the indexer had nothing, trying another release" placeholderTextColor={color.faint}
               accessibilityLabel="What’s wrong, or what you’ve found" accessibilityLabelledBy="ticket-note" style={styles.input} />
-            <SwitchRow label={`Let ${r.requester} know an admin is looking into it`} value={tell} onValueChange={setTell}>
-              <Text variant="body" style={styles.ink}>Let {r.requester} know an admin is looking into it</Text>
+            <SwitchRow label={`Let ${r.requester} know`} value={tell} onValueChange={(on) => {
+              setTell(on);
+              if (on && !message) setMessage(`An admin is looking into your request for ${r.title.title}. You’ll hear back when it’s sorted.`);
+            }}>
+              <Text variant="body" style={styles.ink}>Let {r.requester} know</Text>
             </SwitchRow>
+            {tell ? (
+              <>
+                <Text variant="label" nativeID="ticket-message">Message to {r.requester}</Text>
+                <TextInput value={message} onChangeText={setMessage} multiline maxLength={600} onFocus={field.onFocus}
+                  accessibilityLabel={`Message to ${r.requester}`} accessibilityLabelledBy="ticket-message" style={[styles.input, styles.inputReply]} />
+                <Text variant="meta">Sent the usual way (a Discord DM, or an alert). They can answer it.</Text>
+              </>
+            ) : null}
             <View style={card.actions}>
               <Button kind="secondary" label="Back" onPress={() => { setWriting(false); setNote(""); }} style={card.grow} />
               <Button label="Open the ticket" busy={busy === "ticket"} busyLabel="Opening…" disabled={!note.trim()}
@@ -218,6 +232,7 @@ const styles = StyleSheet.create({
   factValue: { flex: 1 },
   fixes: { flexDirection: "row", flexWrap: "wrap", gap: space.s },
   fix: { flexGrow: 1, flexBasis: 150 },
+  inputReply: { borderColor: "rgba(255, 209, 228, 0.6)" },
   input: {
     minHeight: TOUCH * 2, padding: space.m, borderRadius: radius.m, borderWidth: 1.5, borderColor: color.slate,
     backgroundColor: color.field, color: color.ink, fontFamily: font.regular, fontSize: 16, textAlignVertical: "top",

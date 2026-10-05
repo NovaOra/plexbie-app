@@ -1,5 +1,6 @@
 // Manage → Messages: everything Plexbie has said to people (Discord DM, website alert,
-// email) and whether it arrived. Tap someone for their messages, newest at the bottom.
+// email) and whether it arrived, and what they sent Plexbie (a DM, "Something wrong?",
+// answers on their ticket). Tap someone for the conversation, newest at the bottom.
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { StyleSheet, TextInput, View } from "react-native";
@@ -15,6 +16,8 @@ import { Heading, Initial, Pill, card } from "./bits";
 import { useAdminKey } from "./useAdmin";
 
 const VIA: Record<string, string> = { discord: "Discord DM", web: "Website alert", email: "Email", none: "Not delivered" };
+/** Where something a person sent Plexbie came from. */
+const FROM: Record<string, string> = { discord: "Sent on Discord", web: "Sent on the website or app" };
 const WHO = /^[dp][\w .@+-]{1,120}$/;      // the bot's own rule for a person's id
 
 function dayLabel(iso: string) {
@@ -35,22 +38,22 @@ export function MessagesSection() {
   const shown = q ? rows.filter((p) => p.name.toLowerCase().includes(q)) : rows;
   return (
     <>
-      <Heading title="What Plexbie said" count={rows.length} />
-      <Text variant="meta">Every message Plexbie sends someone, and how it got there. Kept for 90 days.</Text>
+      <Heading title="Messages" count={rows.length} />
+      <Text variant="meta">Every message Plexbie sends someone and how it got there, and what they send Plexbie: DMs, “Something wrong?” and answers on their tickets. Kept for 90 days.</Text>
       {rows.length > 5 ? (
         <TextInput value={query} onChangeText={setQuery} placeholder="Find someone" placeholderTextColor={color.faint}
           autoCorrect={false} autoCapitalize="none" accessibilityLabel="Find someone" style={styles.search} />
       ) : null}
       {shown.map((p) => (
         <PressableScale key={p.id} haptic="none" onPress={() => setOpen(p)} style={styles.person}
-          accessibilityLabel={`${p.name}, ${p.count} messages${p.failed ? `, ${p.failed} not delivered` : ""}. Last ${since(p.last.at)}: ${p.last.text}`}>
+          accessibilityLabel={`${p.name}, ${p.count} messages from Plexbie${p.received ? `, ${p.received} from them` : ""}${p.failed ? `, ${p.failed} not delivered` : ""}. Last ${since(p.last.at)}${p.last.direction === "in" ? `, from ${p.name}` : ""}: ${p.last.text}`}>
           <Initial name={p.name} />
           <View style={{ flex: 1, gap: 2 }}>
             <View style={styles.top}>
               <Text variant="label" numberOfLines={1} style={{ flex: 1 }}>{p.name}</Text>
               <Text variant="meta">{since(p.last.at)}</Text>
             </View>
-            <Text variant="meta" numberOfLines={2}>{p.last.text}</Text>
+            <Text variant="meta" numberOfLines={2}>{p.last.direction === "in" ? <Text variant="meta" style={styles.them}>{p.name.split(" ")[0]}: </Text> : null}{p.last.text}</Text>
             <View style={card.pills}>
               {p.via.map((v) => <Pill key={v} label={VIA[v] ?? v} />)}
               {p.failed ? <Pill label={`${p.failed} not delivered`} tone="bad" /> : null}
@@ -58,7 +61,7 @@ export function MessagesSection() {
           </View>
         </PressableScale>
       ))}
-      {!shown.length ? <Text variant="meta">{q ? "Nobody matches." : "Plexbie hasn’t messaged anyone yet."}</Text> : null}
+      {!shown.length ? <Text variant="meta">{q ? "Nobody matches." : "No messages yet."}</Text> : null}
     </>
   );
 }
@@ -77,7 +80,7 @@ function Conversation({ person, onBack }: { person: AppMessagePerson; onBack: ()
         <Initial name={person.name} />
         <View style={{ flex: 1 }}>
           <Text ref={heading} variant="title" accessibilityRole="header">{person.name}</Text>
-          <Text variant="meta">{person.count} message{person.count === 1 ? "" : "s"} from Plexbie</Text>
+          <Text variant="meta">{person.count} message{person.count === 1 ? "" : "s"} from Plexbie{person.received ? ` · ${person.received} from ${person.name}` : ""}</Text>
         </View>
       </View>
       {!valid ? <Text variant="meta">This person’s messages can’t be opened here.</Text> : null}
@@ -87,19 +90,21 @@ function Conversation({ person, onBack }: { person: AppMessagePerson; onBack: ()
         const day = dayLabel(m.at);
         const showDay = day !== lastDay;
         lastDay = day;
+        const incoming = m.direction === "in";
+        const via = incoming ? FROM[m.channel] ?? VIA[m.channel] ?? m.channel : m.delivered ? VIA[m.channel] ?? m.channel
+          : `${m.channel === "discord" ? "Discord DM didn’t arrive" : "Not delivered"}${m.error ? `: ${m.error}` : ""}`;
         return (
           <View key={m.id} style={{ gap: space.s }}>
             {showDay ? <Text variant="eyebrow" style={styles.day}>{day}</Text> : null}
-            <View style={[styles.bubble, !m.delivered && styles.failed]} accessible
-              accessibilityLabel={`${m.title ? `${m.title}. ` : ""}${m.text}. ${m.delivered ? VIA[m.channel] ?? m.channel : `Not delivered${m.error ? `: ${m.error}` : ""}`}`}>
+            <View style={[styles.bubble, incoming && styles.incoming, !m.delivered && styles.failed]} accessible
+              accessibilityLabel={`${incoming ? person.name : "Plexbie"}: ${m.title ? `${m.title}. ` : ""}${m.text}. ${via}`}>
               <View style={styles.top}>
-                <Text variant="label" style={styles.plexbie}>Plexbie</Text>
+                <Text variant="label" style={incoming ? styles.ink : styles.plexbie}>{incoming ? person.name : "Plexbie"}</Text>
                 <Text variant="meta">{new Date(m.at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</Text>
               </View>
               {m.title ? <Text variant="label">{m.title}</Text> : null}
               <Text variant="body" style={styles.ink}>{m.text}</Text>
-              <Pill label={m.delivered ? VIA[m.channel] ?? m.channel : `${m.channel === "discord" ? "Discord DM didn’t arrive" : "Not delivered"}${m.error ? `: ${m.error}` : ""}`}
-                tone={m.delivered ? "plain" : "bad"} />
+              <Pill label={via} tone={m.delivered ? "plain" : "bad"} />
             </View>
           </View>
         );
@@ -120,6 +125,8 @@ const styles = StyleSheet.create({
   day: { alignSelf: "center", marginTop: space.s },
   bubble: { gap: space.xs, padding: space.m, borderRadius: radius.m, backgroundColor: color.panel },
   failed: { borderWidth: 1, borderColor: color.tally },
+  incoming: { marginLeft: space.xl, backgroundColor: "rgba(255, 209, 228, 0.1)", borderWidth: 1, borderColor: "rgba(255, 209, 228, 0.25)" },
+  them: { color: color.screen, fontFamily: font.semibold },
   plexbie: { color: color.screen },
   ink: { color: color.ink },
 });

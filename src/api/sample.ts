@@ -5,7 +5,7 @@
 import { ApiError, type Api, type NewRequest } from "./client";
 import type {
   AppAdminAllRequests, AppAdminCleanup, AppAdminHelp, AppAdminInvite, AppAdminJoin, AppAdminPerson, AppAdminRequestDetail, AppAdminRequestRow,
-  AppAdminRequests, AppPlexInvite, AppRequest, AppSession, AppTitle,
+  AppAdminRequests, AppAdminTicketDetail, AppAdminTicketRow, AppMemberTicket, AppPlexInvite, AppRequest, AppSession, AppTicketEntry, AppTitle,
 } from "./schemas";
 
 const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
@@ -21,7 +21,7 @@ export const sampleSession: AppSession = {
 
 export const sampleRequests: AppRequest[] = [
   {
-    id: "5001", slot: 214, stage: "downloading", seasons: [2], requestedAt: ago(60 * 26), updatedAt: ago(14),
+    id: "5001", slot: 214, stage: "downloading", seasons: [2], requestedAt: ago(60 * 26), updatedAt: ago(14), help: { id: "h1", reason: "Stuck downloading" },
     title: { id: "95396", kind: "tv", title: "Severance", year: "2022", poster: "https://image.tmdb.org/t/p/w342/pPHpeI2X1qEd1CS1SeyrdhZ4qnT.jpg" },
     progress: { percent: 62, detail: "Season pack, 9 episodes, about 4 min left" },
   },
@@ -143,37 +143,97 @@ let sampleAll: AppAdminRequestRow[] = [
   { id: "6002", slot: 216, stage: "searching", title: ARRIVAL, requestedAt: ago(60 * 50), updatedAt: ago(60 * 48),
     progress: { detail: "Looking for a copy" }, help: { id: "h2", reason: "Can’t be found" }, requester: "Jordan Lee", status: "approved",
     approvedBy: "Alex Kim", approvedAt: ago(60 * 48), stageSince: ago(60 * 48), stuck: ["Help asked: Can’t be found", "Nothing found for over a day"] },
-  ...sampleRequests.filter((r) => r.id && !["requested", "declined"].includes(r.stage)).map((r): AppAdminRequestRow => ({
-    ...r, requester: WHO[r.id!] ?? "Priya N.", status: "approved", approvedBy: "Alex Kim", approvedAt: r.requestedAt,
+  ...sampleRequests.map((r): AppAdminRequestRow => ({
+    ...r, id: r.id ?? `s${r.slot}`, requester: WHO[r.id ?? ""] ?? "Priya N.",
+    status: r.stage === "requested" ? "pending" : r.stage === "declined" ? "declined" : "approved",
+    approvedBy: ["requested", "declined"].includes(r.stage) ? null : "Alex Kim", approvedAt: ["requested", "declined"].includes(r.stage) ? null : r.requestedAt,
     stageSince: r.updatedAt, finishedAt: r.stage === "available" ? r.updatedAt : null,
     help: r.id === "5001" ? { id: "h1", reason: "Stuck downloading" } : r.help,
     stuck: r.id === "5001" ? ["Help asked: Stuck downloading", "Download hasn’t moved in 6 hours"] : [],
   })),
 ];
 const sampleArchive: AppAdminRequestRow[] = [
+  { id: "4001", slot: 1, stage: "declined", requestedAt: ago(60 * 24 * 400), updatedAt: ago(60 * 24 * 400),
+    title: { id: "49051", kind: "movie", title: "The Hobbit: An Unexpected Journey", year: "2012", poster: null, availability: "available" }, requester: "Jordan Lee",
+    status: "declined", stuck: [] },
   { id: "4100", slot: 120, stage: "available", seasons: [3], requestedAt: ago(60 * 24 * 70), updatedAt: ago(60 * 24 * 66),
     title: { id: "95480", kind: "tv", title: "Slow Horses", year: "2022", poster: null, availability: "available" }, requester: "Marcus T.", status: "approved",
     approvedBy: "Alex Kim", approvedAt: ago(60 * 24 * 70), stageSince: ago(60 * 24 * 66), finishedAt: ago(60 * 24 * 66), stuck: [] },
 ];
 const sampleActivity: Record<string, { at: string; by: string; did: string }[]> = {};
-function allOf(q: string): AppAdminAllRequests {
+function allOf(q: string, everything = false): AppAdminAllRequests {
   const words = q.trim().toLowerCase().replace(/^(no\.|#)\s*/, "").replace(/^0+/, "");
   if (words) {
     const rows = [...sampleAll, ...sampleArchive]
       .filter((r) => `${r.title.title} ${r.requester}`.toLowerCase().includes(words) || String(r.slot) === words)
       .sort((a, b) => b.slot - a.slot);
-    return { rows, counts: null, query: words };
+    return { rows, counts: null, query: words, everything: false, total: sampleAll.length + sampleArchive.length };
   }
-  const rows = [...sampleAll].sort((a, b) => Number(a.stage === "available") - Number(b.stage === "available")
-    || Number(!a.stuck.length) - Number(!b.stuck.length) || b.slot - a.slot);
-  return { rows, query: null, counts: { active: rows.filter((r) => r.stage !== "available").length,
-    stuck: rows.filter((r) => r.stuck.length).length, finished: rows.filter((r) => r.stage === "available").length } };
+  const ended = (r: AppAdminRequestRow) => r.stage === "declined" || r.stage === "closed";
+  const rows = [...sampleAll, ...(everything ? sampleArchive : [])].sort((a, b) => Number(!a.stuck.length) - Number(!b.stuck.length) || b.slot - a.slot);
+  return { rows, query: null, everything, total: sampleAll.length + sampleArchive.length, counts: {
+    active: rows.filter((r) => !["available", "requested"].includes(r.stage) && !ended(r)).length, stuck: rows.filter((r) => r.stuck.length).length,
+    waiting: rows.filter((r) => r.stage === "requested").length, finished: rows.filter((r) => r.stage === "available").length, declined: rows.filter(ended).length } };
 }
+
+/** Each ticket's conversation, who has it, and whether it waits on the member. */
+const ME = sampleSession.user.name;
+let entries = 0;
+const entry = (kind: string, by: string, text: string, minutes = 0): AppTicketEntry =>
+  ({ id: `e${++entries}`, at: ago(minutes), by, kind, text });
+const sampleTickets: Record<string, { requestKey: string | null; owner: string | null; waiting: boolean; thread: AppTicketEntry[] }> = {
+  h1: { requestKey: "5001", owner: "Priya N.", waiting: true, thread: [
+    entry("member", "Alex Kim", "Stuck downloading. It’s been at 62% since this morning.", 40),
+    entry("status", "Priya N.", "Took it", 34),
+    entry("note", "Priya N.", "That release stalled at the source. There’s a 4K copy that’s healthy.", 31),
+    entry("reply", "Priya N.", "Found a copy that works. Is the 4K version OK, or would you rather wait for 1080p?", 30),
+    entry("status", "Priya N.", "Waiting on them", 30),
+  ] },
+  h2: { requestKey: "6002", owner: null, waiting: false, thread: [
+    entry("member", "Jordan Lee", "Can’t be found. Searching by its IDs found nothing Plexbie could grab for Arrival: 212 releases came back. Search by name instead?", 12),
+  ] },
+};
+const ticketOf = (id: string) => (sampleTickets[id] ??= { requestKey: null, owner: null, waiting: false, thread: [] });
+function ticketRow(h: AppAdminHelp): AppAdminTicketRow {
+  const t = ticketOf(h.id);
+  const last = t.thread[t.thread.length - 1];
+  return {
+    id: h.id, requestKey: t.requestKey, slot: h.slot, title: h.title, kind: h.kind, seasons: h.seasons, who: h.who, reason: h.reason,
+    status: h.status, waiting: h.status === "open" && t.waiting, owner: t.owner, openedBy: (h as { opened_by?: string }).opened_by ?? null, offer: h.offer ?? null,
+    createdAt: h.created_at, updatedAt: last?.at ?? h.created_at, last: last ? { by: last.by, kind: last.kind, text: last.text } : null,
+    count: t.thread.length,
+  };
+}
+/** What the member sees of their ticket: their words and the admins' replies, not the notes. */
+function memberTicket(help: { id: string; reason: string }): AppMemberTicket {
+  const h = sampleHelp.find((x) => x.id === help.id);
+  const t = ticketOf(help.id);
+  return {
+    ...help, status: h?.status ?? "open", waiting: h?.status === "open" && t.waiting,
+    thread: t.thread.filter((e) => ["member", "reply"].includes(e.kind) || (e.kind === "status" && ["Solved", "Reopened"].includes(e.text)))
+      .map((e) => (e.kind === "member" ? { ...e, by: "You" } : e)),
+  };
+}
+const say = (id: string, kind: string, text: string, by = ME) => { ticketOf(id).thread.push(entry(kind, by, text)); };
+/** A solved ticket stops making its request look stuck on All requests (and a reopened one starts again). */
+const markHelp = (id: string, open: boolean) => {
+  const h = sampleHelp.find((x) => x.id === id);
+  sampleAll = sampleAll.map((x) => {
+    if (x.id !== sampleTickets[id]?.requestKey) return x;
+    const rest = x.stuck.filter((s) => !s.startsWith("Help asked"));
+    return open && h ? { ...x, help: { id, reason: h.reason }, stuck: [`Help asked: ${h.reason}`, ...rest] } : { ...x, help: null, stuck: rest };
+  });
+};
+const helpFor = (id: string) => {
+  const h = sampleHelp.find((x) => x.id === id);
+  if (!h) throw new ApiError(404, "No such ticket.", "http");
+  return h;
+};
 
 /** The sample "server": answers the same calls as api(), from the data above. */
 export const sampleApi: Api = {
   session: async () => sampleSession,
-  myRequests: async () => { await pause(450); return sampleRequests; },
+  myRequests: async () => { await pause(450); return sampleRequests.map((r) => (r.help ? { ...r, help: memberTicket(r.help) } : r)); },
   library: async (kind) => {
     await pause(350);
     const want = kind === "book" ? ["audiobook"] : [kind];
@@ -251,9 +311,14 @@ export const sampleApi: Api = {
   },
   askHelp: async (requestId, reason) => {
     await pause(500);
-    const help = { id: `h${requestId}`, reason };
     const r = sampleRequests.find((x) => x.id === requestId);
-    if (r) r.help = help;
+    const label = { stuck: "Stuck downloading", notfound: "Can’t be found", quality: "Wrong version or quality", episodes: "Wrong or missing episodes",
+      playback: "Won’t play on Plex", other: "Something else" }[reason] ?? reason;
+    const help = { id: `h${requestId}`, reason: label };
+    sampleHelp = [{ id: help.id, slot: r?.slot ?? 0, title: r?.title.title ?? "", kind: r?.title.kind ?? "movie", seasons: null, who: ME,
+      reason: label, note: "", status_then: r?.stage ?? "", status: "open", created_at: new Date().toISOString(), actions: [] }, ...sampleHelp];
+    sampleTickets[help.id] = { requestKey: requestId, owner: null, waiting: false, thread: [entry("member", ME, label)] };
+    if (r) r.help = memberTicket(help);
     return { ok: true, message: "Sent. An admin will take a look and get back to you.", help };
   },
   join: async () => { await pause(500); return null; },
@@ -279,7 +344,7 @@ export const sampleApi: Api = {
   },
   appDownloadLink: async () => "",                // nothing to download in the sample household
   adminHelp: async () => { await pause(300); return sampleHelp; },
-  adminAll: async (q) => { await pause(350); return allOf(q); },
+  adminAll: async (q, _signal, everything) => { await pause(350); return allOf(q, everything); },
   adminRequest: async (key) => {
     await pause(250);
     const r = [...sampleAll, ...sampleArchive].find((x) => x.id === key);
@@ -292,15 +357,76 @@ export const sampleApi: Api = {
     };
     return detail;
   },
-  requestTicket: async (key, note, tell) => {
+  adminTickets: async () => {
+    await pause(300);
+    const rows = sampleHelp.map(ticketRow);
+    const newest = (rs: AppAdminTicketRow[]) => rs.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    const action = newest(rows.filter((t) => t.status === "open" && !t.waiting));
+    const waiting = newest(rows.filter((t) => t.status === "open" && t.waiting));
+    const solved = newest(rows.filter((t) => t.status !== "open"));
+    return { rows: [...action, ...waiting, ...solved], counts: { action: action.length, waiting: waiting.length, solved: solved.length } };
+  },
+  adminTicket: async (id) => {
+    await pause(250);
+    const h = helpFor(id);
+    const t = ticketOf(id);
+    const detail: AppAdminTicketDetail = { ...ticketRow(h), note: h.note, statusThen: h.status_then, thread: [...t.thread],
+      request: [...sampleAll, ...sampleArchive].find((x) => x.id === t.requestKey) ?? null };
+    return detail;
+  },
+  ticketComment: async (id, kind, text) => {
+    await pause(400);
+    const h = helpFor(id);
+    say(id, kind, text);
+    return ok(kind === "reply" ? `Sent to ${h.who}.` : "Note added. Only admins see it.");
+  },
+  ticketStatus: async (id, status, message) => {
+    await pause(400);
+    const h = helpFor(id);
+    const t = ticketOf(id);
+    if (status === "waiting") { t.waiting = true; say(id, "status", "Waiting on them"); return ok(`Waiting on ${h.who}’s answer.`); }
+    if (status === "resolved") {
+      if (message?.trim()) say(id, "reply", message.trim());
+      say(id, "status", "Solved");
+      t.waiting = false;
+      sampleHelp = sampleHelp.map((x) => (x.id === id ? { ...x, status: "resolved" } : x));
+      markHelp(id, false);
+      return ok(`Solved. ${h.who} has been told.`);
+    }
+    if (h.status !== "open") { sampleHelp = sampleHelp.map((x) => (x.id === id ? { ...x, status: "open" } : x)); markHelp(id, true); say(id, "status", "Reopened"); }
+    else say(id, "status", "Back with the admins");
+    t.waiting = false;
+    return ok("Open.");
+  },
+  ticketTake: async (id) => {
+    await pause(350);
+    helpFor(id);
+    const t = ticketOf(id);
+    const mine = t.owner !== ME;
+    t.owner = mine ? ME : null;
+    say(id, "status", mine ? "Took it" : "Let it go");
+    return ok(mine ? "It’s yours. You’ll get an alert when they answer." : "Let go. Anyone can take it.");
+  },
+  answerTicket: async (requestId, text) => {
+    await pause(450);
+    const r = sampleRequests.find((x) => x.id === requestId);
+    if (!r?.help) throw new ApiError(404, "No such request.", "http");
+    if (helpFor(r.help.id).status !== "open") throw new ApiError(409, "This ticket is closed. Ask for help again if it’s still wrong.", "http");
+    say(r.help.id, "member", text, ME);
+    ticketOf(r.help.id).waiting = false;
+    return ok("Sent. The admins have it.");
+  },
+  requestTicket: async (key, note, tell, message) => {
     await pause(450);
     const r = sampleAll.find((x) => x.id === key);
     const help = { id: `h${Date.now()}`, reason: "Opened by an admin" };
     sampleHelp = [{ id: help.id, slot: r?.slot ?? 0, title: r?.title.title ?? "", kind: r?.title.kind ?? "movie", seasons: null,
       who: r?.requester ?? "Someone", reason: help.reason, note, status_then: r?.stage ?? "", status: "open", created_at: new Date().toISOString(),
-      actions: [], opened_by: "you" }, ...sampleHelp];
+      actions: [], opened_by: ME }, ...sampleHelp];
+    sampleTickets[help.id] = { requestKey: key, owner: null, waiting: false, thread: [entry("note", ME, note)] };
+    if (tell && message?.trim()) say(help.id, "reply", message.trim());
     sampleAll = sampleAll.map((x) => (x.id === key ? { ...x, help, stuck: [`Help asked: ${help.reason}`, ...x.stuck] } : x));
-    return { ok: true, message: `Ticket opened${tell ? `, and ${r?.requester ?? "they"} has been told` : ""}. It’s on Needs help.`, help };
+    return { ok: true, message: `Ticket opened${tell ? `, and ${r?.requester ?? "they"} has been told` : ""}. It’s on Manage → Tickets.`, help };
   },
   requestSearch: async (key, how) => {
     await pause(500);
@@ -313,7 +439,14 @@ export const sampleApi: Api = {
     return ok({ again: "Sonarr is searching for season 2 again.", episodes: "Sonarr is searching season 2 one episode at a time.",
       name: "Plexbie is searching NZBHydra for “Arrival 2016”. It reports back here, and closes this if it finds it." }[how]);
   },
-  helpResolve: async (id) => { await pause(500); sampleHelp = sampleHelp.map((h) => (h.id === id ? { ...h, status: "resolved" } : h)); return ok("They’ve been told."); },
+  helpResolve: async (id, reply) => {
+    await pause(500);
+    if (reply.trim()) say(id, "reply", reply.trim());
+    say(id, "status", "Solved");
+    sampleHelp = sampleHelp.map((h) => (h.id === id ? { ...h, status: "resolved" } : h));
+    markHelp(id, false);
+    return ok("They’ve been told.");
+  },
   adminPeople: async () => { await pause(350); return samplePeople; },
   linkCandidates: async () => ({ discord: [{ id: "203", name: "Rosa M", username: "rosam" }, { id: "204", name: "Dev", username: "devr" }] }),
   linkPerson: async (plexName, discordId) => {
@@ -374,12 +507,21 @@ export const sampleApi: Api = {
   }),
   say: async () => { await pause(500); return ok("Posted in #general."); },
   adminMessages: async () => [
-    { id: "p7", name: "Sam", count: 3, failed: 0, via: ["discord"], last: { at: ago(60 * 5), text: "Severance season 2 is approved.", channel: "discord", delivered: true } },
-    { id: "pgrandad", name: "grandad", count: 1, failed: 1, via: ["none"], last: { at: ago(60 * 24), text: "Your Plex access is about to lapse.", channel: "none", delivered: false } },
+    { id: "dsample", name: "Alex Kim", count: 2, received: 2, failed: 0, via: ["discord", "web"],
+      last: { at: ago(22), text: "Answer about Severance", channel: "discord", delivered: true, direction: "in" } },
+    { id: "p7", name: "Sam", count: 1, received: 0, failed: 0, via: ["discord"],
+      last: { at: ago(60 * 5), text: "Severance season 2 is approved.", channel: "discord", delivered: true, direction: "out" } },
+    { id: "pgrandad", name: "grandad", count: 1, received: 0, failed: 1, via: ["none"],
+      last: { at: ago(60 * 24), text: "Your Plex access is about to lapse.", channel: "none", delivered: false, direction: "out" } },
   ],
-  conversation: async (who) => (who === "p7"
-    ? [{ id: "m1", at: ago(60 * 5), channel: "discord", delivered: true, title: "Request approved", text: "Severance season 2 is approved.", context: "decision", error: null }]
-    : [{ id: "m2", at: ago(60 * 24), channel: "none", delivered: false, title: "Heads up", text: "Your Plex access is about to lapse.", context: "warning", error: "No phone alerts turned on and no email to send to" }]),
+  conversation: async (who) => (who === "dsample" ? [
+    { id: "m3", at: ago(60 * 5), direction: "out", channel: "discord", delivered: true, title: null, text: "Good news! Severance is now ready to start on Plex.", context: "arrival", error: null },
+    { id: "m4", at: ago(40), direction: "in", channel: "web", delivered: true, title: "Something wrong with Severance", text: "Stuck downloading. It’s been at 62% since this morning.", context: "Something wrong?", error: null },
+    { id: "m5", at: ago(30), direction: "out", channel: "discord", delivered: true, title: "🛠️ About your request: Severance", text: "Found a copy that works. Is the 4K version OK, or would you rather wait for 1080p?", context: "ticket reply", error: null },
+    { id: "m6", at: ago(22), direction: "in", channel: "discord", delivered: true, title: "Answer about Severance", text: "4K is great, thank you!", context: "ticket answer", error: null },
+  ] : who === "p7"
+    ? [{ id: "m1", at: ago(60 * 5), direction: "out", channel: "discord", delivered: true, title: "Request approved", text: "Severance season 2 is approved.", context: "decision", error: null }]
+    : [{ id: "m2", at: ago(60 * 24), direction: "out", channel: "none", delivered: false, title: "Heads up", text: "Your Plex access is about to lapse.", context: "warning", error: "No phone alerts turned on and no email to send to" }]),
   registerPush: async () => null,
   unregisterPush: async () => null,
   logout: async () => null,

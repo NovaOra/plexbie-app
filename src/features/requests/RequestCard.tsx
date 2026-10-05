@@ -33,7 +33,7 @@ export const RequestCard = memo(function RequestCard({ request: r, onPress, by, 
 
   const large = useLargeText();
   const reduced = useReducedMotion();
-  const label = `${r.title.title}, request ${r.slot}${by ? `, asked by ${by}` : ""}. ${stuck?.length ? `Looks stuck: ${stuck.join(", ")}. ` : ""}${stageLabel(r.stage, r.title.kind)}. ${/[.!?]$/.test(detail) ? detail : `${detail}.`}${percent !== null ? ` ${percent} percent.` : ""}`
+  const label = `${r.title.title}, request ${r.slot}${by ? `, asked by ${by}` : ""}. ${stuck?.length ? `Looks stuck: ${stuck.join(", ")}. ` : ""}${!by && r.help?.waiting && r.help.status !== "resolved" ? "An admin asked you something. " : ""}${stageLabel(r.stage, r.title.kind)}. ${/[.!?]$/.test(detail) ? detail : `${detail}.`}${percent !== null ? ` ${percent} percent.` : ""}`
     + `${r.note ? ` Note: ${r.note}.` : ""} Updated ${since(r.updatedAt)}.`;
   const card = (
     <View style={[styles.card, glass.surface, live && styles.cardLive, !!stuck?.length && styles.cardStuck]} accessible={!onPress} accessibilityLabel={onPress ? undefined : label}>
@@ -49,6 +49,7 @@ export const RequestCard = memo(function RequestCard({ request: r, onPress, by, 
         </View>
         <Text variant="meta" numberOfLines={large ? undefined : 2}>{detail}</Text>
         {stuck?.map((s) => <Text key={s} variant="meta" style={styles.stuck}>⚠︎ {s}</Text>)}
+        {!by && r.help?.waiting && r.help.status !== "resolved" ? <Text variant="meta" style={styles.asked}>An admin asked you something</Text> : null}
         {live && percent !== null ? (
           <View style={styles.track} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
             <Animated.View style={[styles.fill, { width: `${percent}%`, transitionProperty: "width", transitionDuration: reduced ? 0 : 600, transitionTimingFunction: EASE }]} />
@@ -76,6 +77,7 @@ const styles = StyleSheet.create({
   cardLive: { borderColor: "rgba(255, 92, 147, 0.45)" },
   cardStuck: { borderColor: "rgba(255, 92, 147, 0.7)" },
   stuck: { color: color.tally, fontFamily: font.semibold },
+  asked: { color: color.screen, fontFamily: font.semibold },
   poster: { width: 72 },
   body: { flex: 1, gap: 4, minWidth: 0 },
   mutedTitle: { color: color.slateInk },
