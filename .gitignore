@@ -55,3 +55,7 @@ google-services.json
 AGENTS.md
 CLAUDE.md
 .claude/
+
+# Local native modules build here
+modules/*/android/build/
+modules/*/android/.cxx/
