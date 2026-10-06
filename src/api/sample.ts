@@ -127,12 +127,16 @@ let sampleJoins: AppAdminJoin[] = [
   { key: "p302", messageId: "9302", name: "Rosa M", via: "plex", email: "", status: "approved", askedAt: ago(60 * 30) },
 ];
 let sampleLanguages: string[] = [];        // the language chips, remembered for the visit
+const BLOCKED_NOTE = "Radar Men from the Moon finished downloading, but Sonarr won’t import it by itself. Look at the files on this ticket before you import it.";
 let sampleHelp: AppAdminHelp[] = [
   { id: "h1", slot: 214, title: "Pepper & Carrot", kind: "tv", seasons: [2], who: "Alex Kim", reason: "Stuck downloading",
     note: "It’s been at 62% since this morning.", status_then: "Downloading, 62%", status: "open", created_at: ago(40), actions: [] },
   { id: "h2", slot: 216, title: "Elephants Dream", kind: "movie", seasons: null, who: "Jordan Lee", reason: "Can’t be found", offer: "name",
     note: "Searching by its IDs found nothing Plexbie could grab for Elephants Dream: 212 releases came back. Search by name instead?",
     status_then: "Nothing found", status: "open", created_at: ago(12), actions: [] },
+  // A download Sonarr won't import by itself, as Plexbie opens it (the bot's core/blocked_imports).
+  { id: "h4", slot: 217, title: "Radar Men from the Moon", kind: "tv", seasons: [1], who: "Jordan Lee", reason: "Downloaded, but won’t import",
+    note: BLOCKED_NOTE, status_then: "Downloaded, import blocked", status: "open", created_at: ago(8), actions: [], opened_by: "Plexbie" } as AppAdminHelp,
 ];
 let samplePeople: AppAdminPerson[] = [
   { plexName: "sam.p", displayName: "Sam", discordName: "Sam", discordId: "201", linked: true, lastWatched: ago(60 * 24 * 52),
@@ -204,6 +208,7 @@ let entries = 0;
 const entry = (kind: string, by: string, text: string, minutes = 0): AppTicketEntry =>
   ({ id: `e${++entries}`, at: ago(minutes), by, kind, text });
 const sampleTickets: Record<string, { requestKey: string | null; owner: string | null; waiting: boolean; thread: AppTicketEntry[] }> = {
+  h4: { requestKey: null, owner: null, waiting: false, thread: [entry("note", "Plexbie", BLOCKED_NOTE, 8)] },
   h1: { requestKey: "5001", owner: "Priya N.", waiting: true, thread: [
     entry("member", "Alex Kim", "Stuck downloading. It’s been at 62% since this morning.", 40),
     entry("status", "Priya N.", "Took it", 34),
@@ -215,6 +220,11 @@ const sampleTickets: Record<string, { requestKey: string | null; owner: string |
     entry("member", "Jordan Lee", "Can’t be found. Searching by its IDs found nothing Plexbie could grab for Elephants Dream: 212 releases came back. Search by name instead?", 12),
   ] },
 };
+const BLOCKED_REF = { app: "sonarr" as const, downloadId: "SABnzbd_nzo_demo" };
+const SAMPLE_EPISODES = ["Moon Rocket", "Molten Terror", "Bridge of Death", "Flight to Destruction", "Murder Car", "Hills of Death",
+  "Camouflaged Destruction", "The Enemy Planet", "Battle in the Stratosphere", "Mass Execution", "Planned Pursuit", "Death of the Moon Man"]
+  .map((title, i) => ({ id: 701 + i, label: `S01E${String(i + 1).padStart(2, "0")}`, season: 1, episode: i + 1, title, hasFile: false }));
+const BLOCKED_WHY = "Found matching series via grab history, but release was matched to series by ID. Automatic import is not possible.";
 const ticketOf = (id: string) => (sampleTickets[id] ??= { requestKey: null, owner: null, waiting: false, thread: [] });
 function ticketRow(h: AppAdminHelp): AppAdminTicketRow {
   const t = ticketOf(h.id);
@@ -413,12 +423,33 @@ export const sampleApi: Api = {
     const solved = newest(rows.filter((t) => t.status !== "open"));
     return { rows: [...action, ...waiting, ...solved], counts: { action: action.length, waiting: waiting.length, solved: solved.length } };
   },
+  adminBlocked: async () => {
+    await pause(200);
+    return { rows: [{ ...BLOCKED_REF, title: "Radar Men from the Moon", year: 1952, messages: [BLOCKED_WHY], episodes: ["S01E01", "S01E02", "S01E03"], ticket: "h4" }] };
+  },
+  blockedPreview: async () => {
+    await pause(300);
+    return { ...BLOCKED_REF, title: "Radar Men from the Moon", folder: "/data/usenet/complete/tv/Radar.Men.From.The.Moon.S01.1080p.WEB",
+      messages: [BLOCKED_WHY], warnings: [],
+      files: [1, 2, 3].map((n) => ({ name: `Radar.Men.From.The.Moon.S01E0${n}.1080p.WEB.mkv`, size: (1.1 + n / 10) * 2 ** 30,
+        as: n === 3 ? [] : [`S01E0${n}`], quality: "WEBDL-1080p", qualityId: 3, languages: [{ id: 1, name: "English" }], releaseGroup: "WEB",
+        rejections: n === 3 ? ["Unable to determine if file is a sample"] : [],
+        notes: n === 3 ? ["Unable to determine if file is a sample", "Sonarr can’t tell which episode this is: pick it"] : [],
+        episodes: n === 3 ? [] : [SAMPLE_EPISODES[n - 1]], seriesId: 41, movie: null, ready: n !== 3 })),
+      others: [{ name: "Radar.Men.From.The.Moon.S01.nfo", size: 2048, danger: false }], ok: true,
+      series: { id: 41, title: "Radar Men from the Moon", year: 1952 }, movie: null,
+      options: { qualities: [{ id: 3, name: "WEBDL-1080p" }, { id: 7, name: "Bluray-1080p" }, { id: 18, name: "WEBDL-2160p" }],
+        languages: [{ id: 1, name: "English" }, { id: 2, name: "French" }], episodes: SAMPLE_EPISODES } };
+  },
+  arrLibrary: async () => { await pause(200); return { rows: [{ id: 41, title: "Radar Men from the Moon", year: 1952 }, { id: 42, title: "King of the Rocket Men", year: 1949 }] }; },
+  arrEpisodes: async () => { await pause(200); return { rows: SAMPLE_EPISODES }; },
+  blockedImport: async () => { await pause(900); return { ok: true, message: "Imported 3 files." }; },
   adminTicket: async (id) => {
     await pause(250);
     const h = helpFor(id);
     const t = ticketOf(id);
     const detail: AppAdminTicketDetail = { ...ticketRow(h), note: h.note, statusThen: h.status_then, thread: [...t.thread],
-      request: [...sampleAll, ...sampleArchive].find((x) => x.id === t.requestKey) ?? null };
+      request: [...sampleAll, ...sampleArchive].find((x) => x.id === t.requestKey) ?? null, blocked: id === "h4" ? BLOCKED_REF : null };
     return detail;
   },
   ticketComment: async (id, kind, text) => {

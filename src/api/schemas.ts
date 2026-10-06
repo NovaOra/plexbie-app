@@ -251,13 +251,52 @@ export const AdminTicketsSchema = z.looseObject({
 });
 export type AppAdminTickets = z.infer<typeof AdminTicketsSchema>;
 /** GET /api/admin/ticket/<id>: one ticket, its whole timeline, and its request as All requests shows it. */
+/** A finished download Sonarr or Radarr won't import by themselves (the bot's core/blocked_imports). */
+export const BlockedRefSchema = z.looseObject({ app: z.enum(["sonarr", "radarr"]), downloadId: z.string() });
+export type AppBlockedRef = z.infer<typeof BlockedRefSchema>;
 export const AdminTicketDetailSchema = AdminTicketRowSchema.extend({
   note: z.string().nullable().optional().catch(null),
   statusThen: z.string().nullable().optional().catch(null),
   thread: timeline.catch([]),
   request: AdminRequestRowSchema.nullable().catch(null),
+  blocked: BlockedRefSchema.nullable().optional().catch(null),
 });
 export type AppAdminTicketDetail = z.infer<typeof AdminTicketDetailSchema>;
+/** GET /api/admin/blocked: every download waiting for an admin to look at it. */
+export const BlockedListSchema = z.looseObject({
+  rows: rowsOf(BlockedRefSchema.extend({
+    title: z.string().catch("A download"), year: z.number().nullable().optional().catch(null),
+    messages: z.array(z.string()).catch([]), episodes: z.array(z.string()).catch([]),
+    ticket: z.string().nullable().optional().catch(null),
+  })).catch([]),
+});
+export type AppBlockedRow = z.infer<typeof BlockedListSchema>["rows"][number];
+/** A show (Sonarr) or film (Radarr) in the library, and an episode in Sonarr. */
+export const ArrItemSchema = z.looseObject({ id: z.number(), title: z.string().catch(""), year: z.number().nullable().optional().catch(null) });
+export type AppArrItem = z.infer<typeof ArrItemSchema>;
+export const ArrEpisodeSchema = z.looseObject({ id: z.number(), label: z.string().catch(""), season: z.number().catch(0),
+  episode: z.number().catch(0), title: z.string().catch(""), hasFile: z.boolean().catch(false) });
+export type AppArrEpisode = z.infer<typeof ArrEpisodeSchema>;
+const NamedSchema = z.looseObject({ id: z.number(), name: z.string().catch("") });
+/** GET /api/admin/blocked/<app>/<id>: what's in it, what looks off, and what can be chosen. */
+export const BlockedPreviewSchema = BlockedRefSchema.extend({
+  title: z.string().catch(""), folder: z.string().catch(""),
+  messages: z.array(z.string()).catch([]), warnings: z.array(z.string()).catch([]),
+  files: z.array(z.looseObject({ name: z.string(), size: z.number().catch(0), as: z.array(z.string()).catch([]),
+    quality: z.string().nullable().optional().catch(null), qualityId: z.number().nullable().optional().catch(null),
+    languages: z.array(NamedSchema).catch([]), releaseGroup: z.string().catch(""),
+    rejections: z.array(z.string()).catch([]), notes: z.array(z.string()).catch([]),
+    episodes: z.array(ArrEpisodeSchema).catch([]), seriesId: z.number().nullable().optional().catch(null),
+    movie: ArrItemSchema.nullable().optional().catch(null), ready: z.boolean().catch(false) })).catch([]),
+  others: z.array(z.looseObject({ name: z.string(), size: z.number().catch(0), danger: z.boolean().catch(false) })).catch([]),
+  ok: z.boolean().catch(false),
+  series: ArrItemSchema.nullable().optional().catch(null), movie: ArrItemSchema.nullable().optional().catch(null),
+  options: z.looseObject({ qualities: z.array(NamedSchema).catch([]), languages: z.array(NamedSchema).catch([]),
+    episodes: z.array(ArrEpisodeSchema).optional().catch([]) }).catch({ qualities: [], languages: [], episodes: [] }),
+});
+export const ArrLibrarySchema = z.looseObject({ rows: z.array(ArrItemSchema).catch([]) });
+export const ArrEpisodesSchema = z.looseObject({ rows: z.array(ArrEpisodeSchema).catch([]) });
+export type AppBlockedPreview = z.infer<typeof BlockedPreviewSchema>;
 
 /** Someone asking to join (GET /api/admin/joins). Decided by messageId, the Discord card. */
 const AdminJoinSchema = z.looseObject({

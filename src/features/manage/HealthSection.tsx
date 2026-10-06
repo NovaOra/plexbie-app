@@ -6,6 +6,7 @@ import { Button } from "../../ui/Button";
 import { Text } from "../../ui/Text";
 import { color, radius, space } from "../../ui/theme";
 import { AllClear, Heading, card } from "./bits";
+import { BlockedList } from "./BlockedImport";
 import { useAdminKey } from "./useAdmin";
 
 export function HealthSection() {
@@ -14,6 +15,7 @@ export function HealthSection() {
   const rows = health.data;
   return (
     <>
+      <BlockedList />
       <Heading title="Services" />
       {!rows ? (health.error ? <Text variant="body">{health.error.message}</Text> : <View style={[card.box, { height: 180 }]} />)
         : !rows.length ? <AllClear title="Nothing to check yet">Connect Sonarr, Radarr, Seerr, Tautulli or SABnzbd on the setup page and they’re watched here.</AllClear>

@@ -91,6 +91,9 @@ export interface RequestProgress {
   problem?: string | null;
   partial?: boolean;
   seasons?: { n: number; have: number; total: number }[];
+  /** "upcoming": when it comes out (ISO date) and how: digital, disc, cinemas, premiere or unannounced. */
+  releaseDate?: string | null;
+  releaseKind?: string | null;
 }
 
 export interface MediaRequest {
@@ -98,8 +101,8 @@ export interface MediaRequest {
   id?: string;
   /** The slot number members can refer to; stable and sequential. */
   slot: number;
-  /** An open help request on this one, if the person asked. */
-  help?: { id: string; reason: string } | null;
+  /** The open ticket on this one, as its member sees it (what they said and what was said to them). */
+  help?: MemberTicket | null;
   title: Title;
   stage: RequestStage;
   requestedAt: string;
@@ -211,9 +214,26 @@ export interface AdminCleanup {
   exempt: { ratingKey: string; title: string; type?: string | null }[];
 }
 
+/** A shelf of titles to browse (Trending, Popular, Coming soon, Top rated, or a genre), from Seerr. */
+export interface DiscoverShelf { key: string; title: string; titles: Title[]; more: boolean }
+export interface Discover {
+  kind: "movie" | "tv"; shelves: DiscoverShelf[]; genres: { id: number; name: string }[];
+  /** This member's choice (none: everything, the global top), and what they can pick from. */
+  languages: string[]; languageOptions: { code: string; name: string }[];
+}
+export interface ShelfPage { titles: Title[]; more: boolean; page: number }
+
+/** The Android app's latest version (GET /api/app/latest), or null before the first release. */
+/** The app's newest release: the Android APK, and the same version for iPhones
+ *  (installed through SideStore or AltStore) when the release has one. */
+export interface AppRelease {
+  version: string; versionCode: number; sha256: string; size: number; notes: string; publishedAt?: string | null;
+  ios?: { size: number } | null;
+}
+/** A member's own SideStore/AltStore source: the address, and links that add it. */
+export interface IosSource { url: string; sidestore: string; altstore: string }
+
 export interface HealthCheck { name: string; ok: boolean; ms: number; detail?: string | null }
-/** Clicks on the site's outbound links (portal/clicks.py): totals only. */
-export interface LinkClicks { id: string; label: string; week: number; lastWeek: number; total: number }
 
 /* ----------------------------------------------------------- invite links */
 
@@ -251,19 +271,157 @@ export interface NewInvite { url: string; invite: AdminInvite }
 
 export interface DiscordJoin { who: string; by: string; via: "discord" | "plexbie"; code: string | null; at: string | null; role: string | null }
 export interface WatchPartyLive { channel: string | null; streamer: string; title: string | null; startedAt: string | null; people: string[] }
-export interface DiscordOverview { channels: { id: string; name: string }[]; joins: DiscordJoin[]; party: WatchPartyLive | null }
+export interface DiscordOverview {
+  channels: { id: string; name: string }[]; joins: DiscordJoin[]; party: WatchPartyLive | null;
+  /** DMs to Plexbie: whether it answers them itself, and what it lacks to keep a thread per person. */
+  inbox?: { autoreply: boolean; threadsMissing: string | null };
+}
 export interface WatchPartyMine { seconds: number; sessions: number; last: string | null }
 
 /* ------------------------------------------------------------ message log */
 
 export type MessageChannel = "discord" | "web" | "email" | "none";
+/** "out": Plexbie to them. "in": them to Plexbie (a DM, "Something wrong?", a ticket answer). */
+export type MessageDirection = "out" | "in";
 export interface MessagePerson {
-  id: string; name: string; count: number; failed: number; via: MessageChannel[];
-  last: { at: string; text: string; channel: MessageChannel; delivered: boolean };
+  /** count: from Plexbie; received: from them. */
+  id: string; name: string; count: number; received?: number; failed: number; via: MessageChannel[];
+  last: { at: string; text: string; channel: MessageChannel; delivered: boolean; direction?: MessageDirection };
+  /** Their messages no admin has marked done. */
+  unread?: number;
+  /** Who marked the conversation done, and when (the history stays). */
+  done?: { at: string; by: string | null } | null;
+  /** Their open ticket, for "Add to their ticket". */
+  ticket?: { id: string; title: string; slot: number } | null;
 }
 export interface LoggedMessage {
-  id: string; at: string; channel: MessageChannel; delivered: boolean;
+  id: string; at: string; direction?: MessageDirection; channel: MessageChannel; delivered: boolean;
+  /** The admin who wrote it (a reply from Manage or Discord). */
+  by?: string | null;
+  /** Something they sent that an admin put on their ticket. */
+  ticket?: string | null;
   title: string | null; text: string; context: string; error: string | null;
+}
+
+/* ------------------------------------------------------------- tickets */
+
+/** One line on a ticket's timeline. "note" is admins only; "reply" was sent to the member. */
+export interface TicketEntry {
+  id: string; at: string; by: string;
+  kind: "member" | "note" | "reply" | "action" | "status";
+  text: string;
+}
+export interface MemberTicket {
+  id: string; reason: string;
+  status?: "open" | "resolved";
+  /** An admin asked something and waits on the member's answer. */
+  waiting?: boolean;
+  thread?: TicketEntry[];
+}
+/** A ticket on Manage → Tickets. */
+export interface AdminTicketRow {
+  id: string; requestKey: string; slot: number; title: string; kind: string; seasons: number[] | "all" | null;
+  who: string; reason: string; status: "open" | "resolved"; waiting: boolean; owner?: string | null;
+  openedBy?: string | null; offer?: "name" | null; createdAt: string; updatedAt: string;
+  last?: { by: string; kind: TicketEntry["kind"]; text: string } | null; count: number;
+}
+export interface AdminTickets {
+  rows: AdminTicketRow[];
+  /** Needing an admin, waiting on the member, and the last 50 solved. */
+  counts: { action: number; waiting: number; solved: number };
+}
+export interface AdminTicketDetail extends AdminTicketRow {
+  note?: string | null; statusThen?: string | null; quiet?: boolean;
+  thread: TicketEntry[];
+  /** Its request, as Manage → All requests shows it (null if the request is gone). */
+  request: AdminRequestRow | null;
+  /** A download Sonarr/Radarr won't import by themselves, on this ticket. */
+  blocked?: BlockedRef | null;
+}
+
+/* ---------------------------------------------- blocked imports (Manage) */
+
+/** A finished download Sonarr or Radarr won't import by themselves (core/blocked_imports). */
+export interface BlockedRef { app: "sonarr" | "radarr"; downloadId: string }
+export interface BlockedRow extends BlockedRef {
+  title: string; year?: number | null; release: string; messages: string[]; episodes: string[];
+  /** Its ticket, when it's on a request. */
+  ticket?: string | null;
+}
+/** An episode in Sonarr, to say which one a file is. */
+export interface ArrEpisode { id: number; label: string; season: number; episode: number; title: string; hasFile: boolean }
+/** A show (Sonarr) or film (Radarr) in the library. */
+export interface ArrItem { id: number; title: string; year?: number | null }
+export interface BlockedFile {
+  name: string; size: number;
+  /** What Sonarr/Radarr take it to be ("S01E01", or the film's title). */
+  as: string[];
+  quality?: string | null; qualityId?: number | null;
+  languages: { id: number; name: string }[];
+  releaseGroup: string;
+  /** Sonarr's/Radarr's own reasons for not importing it, word for word. */
+  rejections: string[];
+  /** Those reasons and what Plexbie noticed (samples, tiny files, odd extensions). */
+  notes: string[];
+  episodes: ArrEpisode[]; seriesId?: number | null;
+  movie?: ArrItem | null;
+  /** Placed: it has an episode (or a film). */
+  ready: boolean;
+}
+/** What's in it, and what looks off, for an admin to look at before importing. */
+export interface BlockedPreview extends BlockedRef {
+  title: string; year?: number | null; release: string; folder: string; messages: string[]; episodes: string[];
+  warnings: string[];
+  files: BlockedFile[];
+  /** Other files in the folder (Plexbie lists them when it can see it); `danger`: a program. */
+  others: { name: string; size: number; danger: boolean }[];
+  /** Whether it can be imported from Plexbie at all (never with a program in it). */
+  ok: boolean;
+  series?: ArrItem | null; movie?: ArrItem | null;
+  /** What Sonarr's/Radarr's own Manual Import lets you choose. */
+  options: { qualities: { id: number; name: string }[]; languages: { id: number; name: string }[]; episodes?: ArrEpisode[] };
+}
+/** An admin's choices for one file when importing a blocked download. */
+export interface BlockedChoice {
+  name: string; skip?: boolean; seriesId?: number; episodeIds?: number[]; movieId?: number;
+  qualityId?: number; languageIds?: number[]; releaseGroup?: string;
+}
+
+/* ------------------------------------------------- all requests (Manage) */
+
+/** A request as an admin sees it on Manage → All requests: the member's view plus who and why. */
+export interface AdminRequestRow extends MediaRequest {
+  requester: string;
+  status: string;
+  approvedBy?: string | null;
+  approvedAt?: string | null;
+  /** When it reached the stage it's at (as far as Plexbie has seen). */
+  stageSince?: string | null;
+  finishedAt?: string | null;
+  /** Why it looks stuck, in words; empty when it doesn't. */
+  stuck: string[];
+}
+export interface AdminAllRequests {
+  rows: AdminRequestRow[];
+  /** Without a search: on their way, stuck, waiting for a decision, on Plex, declined (or closed). */
+  counts: { active: number; stuck: number; finished: number; waiting?: number; declined?: number } | null;
+  query: string | null;
+  /** Every request since No. 0001, not just the last 30 days. */
+  everything?: boolean;
+  /** How many requests there have ever been. */
+  total?: number;
+}
+export interface AdminTicket {
+  id: string; status: "open" | "resolved"; reason: string; note?: string; who?: string; opened_by?: string | null;
+  created_at?: string; resolved_by?: string | null; resolved_at?: string | null; reply?: string | null;
+  status_then?: string; actions?: { at: string; by: string; did: string }[] | null;
+}
+export interface AdminRequestDetail extends AdminRequestRow {
+  via: string;
+  seerrId?: number | null;
+  discordUrl?: string | null;
+  tickets: AdminTicket[];
+  activity: { at: string; by: string; did: string }[];
 }
 
 /* ---------------------------------------------------------- help requests */
@@ -274,4 +432,6 @@ export interface AdminHelp {
   who: string; reason: string; note: string; status_then: string; status: "open" | "resolved";
   created_at: string; resolved_by?: string; resolved_at?: string; reply?: string | null;
   actions?: { at: string; by: string; did: string }[];
+  /** "name": Plexbie's search by ID found nothing and it asks whether to search by name. */
+  offer?: "name";
 }

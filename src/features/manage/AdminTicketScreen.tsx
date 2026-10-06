@@ -24,6 +24,7 @@ import { StageBox } from "../request/StageBox";
 import { formatSlot, since } from "../requests/stage";
 import { Thread, TicketPill, ticketState } from "../tickets/Thread";
 import { card } from "./bits";
+import { BlockedImport } from "./BlockedImport";
 import { seasonsChip } from "./RequestsSection";
 import { useAct, useAdminKey } from "./useAdmin";
 
@@ -120,6 +121,8 @@ export function AdminTicketScreen() {
             ) : null}
           </>
         ) : null}
+
+        {t.blocked && open ? <BlockedImport target={t.blocked} onDone={() => void qc.invalidateQueries({ queryKey: detailKey })} /> : null}
 
         {video && open ? (
           <View style={styles.fixes}>

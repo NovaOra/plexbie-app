@@ -6,10 +6,10 @@
 // writes never retry on their own, because a repeated approve or request is not harmless.
 import { z } from "zod";
 import {
-  AckSchema, AdminCleanupSchema, AdminHelpListSchema, ConversationSchema, DiscordOverviewSchema, HealthSchema, MessagePeopleSchema, AdminInvitesSchema, AdminJoinsSchema, AdminPeopleSchema, AdminRequestsSchema, LinkCandidatesSchema, NewInviteSchema, PlexInvitesSchema, ArrivalsSchema, CommunitySchema, HelpAnswerSchema, StatusSchema, MediaRequestSchema, MediaRequestsSchema, MobileInfoSchema, NothingSchema, LibrarySchema, PopularSchema, SessionSchema, TitleDetailSchema, TitlesSchema, TokenSchema, WatchPartySchema, AppReleaseSchema, DownloadLinkSchema, DiscoverSchema, ShelfPageSchema, SearchAllSchema, PrefsSchema, AdminAllRequestsSchema, AdminRequestDetailSchema, AdminTicketsSchema, AdminTicketDetailSchema,
+  AckSchema, AdminCleanupSchema, AdminHelpListSchema, ConversationSchema, DiscordOverviewSchema, HealthSchema, MessagePeopleSchema, AdminInvitesSchema, AdminJoinsSchema, AdminPeopleSchema, AdminRequestsSchema, LinkCandidatesSchema, NewInviteSchema, PlexInvitesSchema, ArrivalsSchema, CommunitySchema, HelpAnswerSchema, StatusSchema, MediaRequestSchema, MediaRequestsSchema, MobileInfoSchema, NothingSchema, LibrarySchema, PopularSchema, SessionSchema, TitleDetailSchema, TitlesSchema, TokenSchema, WatchPartySchema, AppReleaseSchema, DownloadLinkSchema, DiscoverSchema, ShelfPageSchema, SearchAllSchema, PrefsSchema, AdminAllRequestsSchema, AdminRequestDetailSchema, AdminTicketsSchema, AdminTicketDetailSchema, BlockedListSchema, BlockedPreviewSchema, ArrLibrarySchema, ArrEpisodesSchema,
 } from "./schemas";
 import type { AppCleanupSettings } from "./schemas";
-import type { BookFormat, HelpReason, MediaKind } from "./types";
+import type { BlockedChoice, BookFormat, HelpReason, MediaKind } from "./types";
 
 export interface NewRequest { kind: MediaKind; id: string; seasons?: number[] | "all" | "latest"; format?: BookFormat }
 export type HelpSearch = "again" | "episodes" | "name";
@@ -153,6 +153,17 @@ export function api(conn: Connection) {
       request(conn, `/api/admin/request/${encodeURIComponent(key)}/ticket`, HelpAnswerSchema, json({ note, tell, message })),
     // Manage → Tickets: a ticket is a conversation an admin can take, note on, reply in, and solve.
     adminTickets: (signal?: AbortSignal) => request(conn, "/api/admin/tickets", AdminTicketsSchema, {}, signal),
+    adminBlocked: (signal?: AbortSignal) => request(conn, "/api/admin/blocked", BlockedListSchema, {}, signal),
+    blockedPreview: (app: string, downloadId: string, signal?: AbortSignal) =>
+      request(conn, `/api/admin/blocked/${encodeURIComponent(app)}/${encodeURIComponent(downloadId)}`, BlockedPreviewSchema, {}, signal),
+    /** Imports it through Sonarr's/Radarr's Manual Import (after the admin held the button). */
+    blockedImport: (app: string, downloadId: string, files?: BlockedChoice[]) =>
+      request(conn, `/api/admin/blocked/${encodeURIComponent(app)}/${encodeURIComponent(downloadId)}/import`, AckSchema, json(files ? { files } : {})),
+    /** Shows (Sonarr) or films (Radarr) in the library, for "Wrong show?". */
+    arrLibrary: (app: string, q: string, signal?: AbortSignal) =>
+      request(conn, `/api/admin/arr/${encodeURIComponent(app)}/library?q=${encodeURIComponent(q)}`, ArrLibrarySchema, {}, signal),
+    arrEpisodes: (seriesId: number, signal?: AbortSignal) =>
+      request(conn, `/api/admin/arr/sonarr/series/${seriesId}/episodes`, ArrEpisodesSchema, {}, signal),
     adminTicket: (id: string, signal?: AbortSignal) =>
       request(conn, `/api/admin/ticket/${encodeURIComponent(id)}`, AdminTicketDetailSchema, {}, signal),
     /** "note": only admins see it. "reply": sent to the member, who can answer. */

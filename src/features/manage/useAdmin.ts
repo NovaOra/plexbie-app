@@ -28,13 +28,13 @@ export function useAct() {
   const act = useCallback(async (
     id: string | null,
     call: () => Promise<Ack>,
-    opts: { done?: (out: Ack) => ToastIn | null; failText?: string; refresh?: Section[] } = {},
+    opts: { done?: (out: Ack) => ToastIn | null; failText?: string; refresh?: Section[]; reward?: boolean } = {},
   ): Promise<Ack | null> => {
     if (id) setBusy(id);
     try {
       const out = await call();
       if (out.ok === false) throw new Error(out.message || "That didn’t work.");
-      haptic.success();
+      if (opts.reward) haptic.reward(); else haptic.success();
       const t = opts.done ? opts.done(out) : { text: out.message || "Done" };
       if (t) toast(t);
       return out;
