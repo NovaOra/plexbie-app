@@ -10,6 +10,8 @@ import { usePush } from "./usePush";
 import { useState } from "react";
 import { hapticsOn, setHapticsOn } from "../../ui/haptics";
 import { refreshPush } from "./push";
+import { liveAvailable, liveOn, previewLive, setLiveOn } from "./live";
+import { canPromote } from "../../../modules/plexbie-live";
 import { GlassFill, glass } from "../../ui/Glass";
 
 const WHY = "When a request is approved, declined or ready, and when your access needs attention. Your Plexbie server is given this phone’s push address.";
@@ -71,6 +73,30 @@ export function VibrationRow() {
         <Text variant="title">Vibration</Text>
         <Text variant="meta">{VIBRATION_WHY}</Text>
       </SwitchRow>
+    </View>
+  );
+}
+
+/** Live progress on or off (Android): needs alerts, since the updates come the same way. */
+export function LiveRow() {
+  const client = useApi();
+  const { status } = usePush();
+  const [on, setOn] = useState(liveOn);
+  if (!liveAvailable || status === null) return null;
+  const why = status !== "on" ? "Turn on phone alerts first: live progress comes the same way. “Show me” plays a preview."
+    : `While one of your requests downloads, it stays in your notifications${canPromote() ? " and the status bar" : ""}, `
+      + "filling up until it’s on Plex. Nothing shows while it’s waiting, and a stuck one goes by itself.";
+  return (
+    <View style={[styles.card, glass.surface]}>
+      <GlassFill radius={radius.m} />
+      <SwitchRow label="Live progress" value={on && status === "on"} disabled={status !== "on"} onValueChange={(next) => {
+        setOn(next);
+        void setLiveOn(next).then(() => refreshPush(client));
+      }}>
+        <Text variant="title">Live progress</Text>
+        <Text variant="meta">{why}</Text>
+      </SwitchRow>
+      <Button kind="secondary" label="Show me" onPress={() => void previewLive()} style={styles.start} />
     </View>
   );
 }

@@ -10,6 +10,7 @@ import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import type { Api } from "../../api/client";
 import * as haptics from "../../ui/haptics";
+import { liveIn, liveOn } from "./live";
 
 const KEY = "plexbie.pushToken";
 const STORE: SecureStore.SecureStoreOptions = { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY };
@@ -36,7 +37,9 @@ export const pushPossible = () => !!projectId() && Device.isDevice !== false && 
 
 // Shown while the app is open, too: a banner, in the list, with sound, and a knock-knock.
 Notifications.setNotificationHandler({
-  handleNotification: async () => {
+  handleNotification: async (n) => {
+    // Live progress updates are silent data; the background task draws them (live.ts).
+    if (liveIn(n.request.content.data)) return { shouldShowBanner: false, shouldShowList: false, shouldPlaySound: false, shouldSetBadge: false };
     haptics.knock();
     return { shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false };
   },
@@ -79,7 +82,7 @@ export async function enablePush(client: Api): Promise<PushState> {
   if (!perm.granted && perm.canAskAgain) perm = await Notifications.requestPermissionsAsync();
   if (!perm.granted) return "denied";
   const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId: projectId()! });
-  await client.registerPush(token, Platform.OS, alertChannel());
+  await client.registerPush(token, Platform.OS, alertChannel(), liveOn());
   await SecureStore.setItemAsync(KEY, token, STORE);
   return "on";
 }
@@ -92,7 +95,7 @@ export async function refreshPush(client: Api): Promise<void> {
     const saved = await SecureStore.getItemAsync(KEY, STORE);
     if (!saved) return;
     await makeChannels();
-    await client.registerPush(saved, Platform.OS, alertChannel());
+    await client.registerPush(saved, Platform.OS, alertChannel(), liveOn());
   } catch {
     // The next start tries again.
   }

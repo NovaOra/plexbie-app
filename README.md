@@ -25,6 +25,15 @@ lives in the Keychain/Keystore), requests with live progress, Home, Library, the
 Request page with Seerr discovery, Manage for admins, invites, alerts (Android), and its own
 update notices. iPhone gets iOS 26 Liquid Glass.
 
+**Live progress (Android):** while one of your requests downloads, it stays in the notification
+shade with a bar that fills up until it's on Plex; on Android 16 it's a Live Update, a chip in
+the status bar. The bot sends silent updates (`core/live_progress.py` there) and the app draws
+them in its own module, `modules/plexbie-live`, even when it's closed. Nothing shows before a
+request is downloading, and a stuck one is taken down. It's on the You screen, with a preview.
+
+**Vibration:** Plexbie's own patterns (a little fanfare when a request is sent), and alerts that
+buzz tap-tap-buzz on Android. One switch on the You screen turns all of it off.
+
 **Alerts:** the app gets alerts only from a Plexbie that sends them (`APP_PUSH=expo` on the
 bot, off by default). App alerts go through the Plexbie project's Expo account, so they're
 for the project's own household; every other Plexbie's members turn on its website's
