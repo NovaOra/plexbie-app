@@ -17,7 +17,7 @@
           "altstore"
         ]
       },
-      "buildNumber": "22"
+      "buildNumber": "23"
     },
     "android": {
       "package": "com.plexbie.app",
@@ -29,7 +29,7 @@
       "predictiveBackGestureEnabled": false,
       "allowBackup": false,
       "googleServicesFile": "./google-services.json",
-      "versionCode": 22,
+      "versionCode": 23,
       "blockedPermissions": [
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.READ_EXTERNAL_STORAGE",

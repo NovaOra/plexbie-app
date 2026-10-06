@@ -16,7 +16,8 @@
 #
 # Run scripts/bump.sh first (the next version: one step in the last place, 1.0.9 →
 # 1.1.0), write docs/releases/<version>.md, and commit.
-# Usage: scripts/release.sh   (add --no-publish to stop after signing)
+# Usage: scripts/release.sh   (add --no-publish to stop after signing; --revise to replace
+# the current version with a new build of it, after scripts/bump.sh --build)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -30,7 +31,17 @@ if [[ -f "$HOME/.plexbie/release.env" ]]; then set -a; source "$HOME/.plexbie/re
 PLEXBIE_CONTAINER="${PLEXBIE_CONTAINER:-plexbie}"
 export JAVA_HOME="${JAVA_HOME:-/Applications/Android Studio.app/Contents/jbr/Contents/Home}"
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
-publish=1; [[ "${1:-}" == "--no-publish" ]] && publish=0
+publish=1; revise=0
+for arg in "$@"; do
+  case "$arg" in
+    --no-publish) publish=0 ;;
+    # A new build of the version already out (scripts/bump.sh --build first): same version,
+    # a higher versionCode so phones take it as an update, and its GitHub release, tag and
+    # notes replaced rather than a new one made.
+    --revise) revise=1 ;;
+    *) echo "Unknown option: $arg" >&2; exit 1 ;;
+  esac
+done
 
 version=$(node -p 'require("./app.json").expo.version')
 code=$(node -p 'require("./app.json").expo.android.versionCode')
@@ -40,10 +51,15 @@ apk="$out/plexbie-$version.apk"
 ipa="$out/plexbie-$version.ipa"
 [[ -f "$notes" ]] || { echo "Write $notes first (what's new, for members)." >&2; exit 1; }
 [[ -z "$(git status --porcelain)" ]] || { echo "Commit first: the release is built from what's committed." >&2; exit 1; }
-if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then echo "v$version is already tagged." >&2; exit 1; fi
+if (( revise )); then
+  git rev-parse -q --verify "refs/tags/v$version" >/dev/null || { echo "v$version isn't out yet: release it without --revise." >&2; exit 1; }
+  was=$(gh release download "v$version" -p latest.json -O - 2>/dev/null | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{try{console.log(JSON.parse(d).versionCode)}catch{console.log(0)}})')
+  (( code > was )) || { echo "v$version is out as build $was: run scripts/bump.sh --build (phones only take a higher one)." >&2; exit 1; }
+  echo "Revising $version: build $was becomes build $code"
+elif git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then echo "v$version is already tagged (to replace it, scripts/bump.sh --build, then --revise)." >&2; exit 1; fi
 # One step after the last release, never a jump (scripts/bump.sh makes it).
 last=$(git tag -l 'v*' --sort=-v:refname | head -1 | sed 's/^v//')
-if [[ -n "$last" ]]; then
+if [[ -n "$last" ]] && (( ! revise )); then
   expected=$(node -e '
     const [a, b, c] = process.argv[1].split(".").map(Number); const n = a * 100 + b * 10 + c + 1;
     console.log(`${Math.floor(n / 100)}.${Math.floor(n / 10) % 10}.${n % 10}`);
@@ -122,8 +138,14 @@ node -e '
     ios: { file: ipa, sha256: ipaSha },
     notes: fs.readFileSync(notes, "utf8"), publishedAt: new Date().toISOString() }, null, 2));
 ' "plexbie-$version.apk" "$version" "$code" "$sha" "$notes" "$out/latest.json" "$CERT_SHA256" "plexbie-$version.ipa" "$ipa_sha"
-git tag "v$version" && git push -q origin "v$version"
-gh release create "v$version" "$apk" "$ipa" "$out/latest.json" --title "Plexbie $version" --notes-file "$out/notes.md" --latest
+if (( revise )); then
+  git tag -f "v$version" && git push -q -f origin "v$version"
+  gh release upload "v$version" "$apk" "$ipa" "$out/latest.json" --clobber
+  gh release edit "v$version" --notes-file "$out/notes.md"
+else
+  git tag "v$version" && git push -q origin "v$version"
+  gh release create "v$version" "$apk" "$ipa" "$out/latest.json" --title "Plexbie $version" --notes-file "$out/notes.md" --latest
+fi
 
 tmp=$(ssh "$PLEXBIE_HOST" mktemp -d)
 scp -q "$apk" "$ipa" "$out/latest.json" "$PLEXBIE_HOST:$tmp/"
