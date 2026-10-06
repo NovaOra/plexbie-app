@@ -20,6 +20,20 @@ let on = (() => {
   try { const f = setting(); return !(f.exists && f.textSync().trim() === "off"); } catch { return true; }
 })();
 
+const pinSetting = () => new File(Paths.document, "plexbie-live-pin.txt");
+let pin = (() => {
+  try { const f = pinSetting(); return !(f.exists && f.textSync().trim() === "off"); } catch { return true; }
+})();
+
+/** In the status bar (the default): a Live Update, with its % in the status bar and its
+ *  place at the top of the shade. Off: an ordinary silent notification, down with the
+ *  others. Android doesn't let one be both. */
+export const livePinned = () => pin;
+export function setLivePinned(next: boolean) {
+  pin = next;
+  try { pinSetting().write(next ? "on" : "off"); } catch { /* stays for this run */ }
+}
+
 /** Live progress on (the default) or off, on this phone. */
 export const liveOn = () => liveAvailable && on;
 
@@ -49,7 +63,7 @@ export async function handleLive(live: Live): Promise<void> {
   const percent = typeof live.percent === "number" ? Math.max(0, Math.min(100, Math.round(live.percent))) : null;
   const stage = live.stage === "unpacking" || live.stage === "importing" ? live.stage : "downloading";
   await showLive(live.id, slot, String(live.title ?? "Your request").slice(0, 120), String(live.text ?? "").slice(0, 200),
-    stage, percent, LIVE_TIMEOUT);
+    stage, percent, LIVE_TIMEOUT, pin);
 }
 
 if (liveAvailable) {
@@ -75,12 +89,12 @@ export async function previewLive(): Promise<void> {
   try {
     for (let pct = 0; pct <= 100; pct += 10) {
       const left = Math.max(1, Math.round((100 - pct) / 20));
-      await showLive(id, null, "Sintel (a preview)", `Downloading, ${pct}%. About ${left} min left`, "downloading", pct, LIVE_TIMEOUT);
+      await showLive(id, null, "Sintel (a preview)", `Downloading, ${pct}%. About ${left} min left`, "downloading", pct, LIVE_TIMEOUT, pin);
       await wait(900);
     }
-    await showLive(id, null, "Sintel (a preview)", "Unpacking, 1 of 2", "unpacking", 50, LIVE_TIMEOUT);
+    await showLive(id, null, "Sintel (a preview)", "Unpacking, 1 of 2", "unpacking", 50, LIVE_TIMEOUT, pin);
     await wait(2000);
-    await showLive(id, null, "Sintel (a preview)", "Downloaded. Adding it to Plex", "importing", 100, LIVE_TIMEOUT);
+    await showLive(id, null, "Sintel (a preview)", "Downloaded. Adding it to Plex", "importing", 100, LIVE_TIMEOUT, pin);
     await wait(2500);
   } finally {
     await endLive(id);

@@ -10,7 +10,7 @@ import { usePush } from "./usePush";
 import { useState } from "react";
 import { hapticsOn, setHapticsOn } from "../../ui/haptics";
 import { refreshPush } from "./push";
-import { liveAvailable, liveOn, previewLive, setLiveOn } from "./live";
+import { liveAvailable, liveOn, livePinned, previewLive, setLiveOn, setLivePinned } from "./live";
 import { canPromote } from "../../../modules/plexbie-live";
 import { GlassFill, glass } from "../../ui/Glass";
 
@@ -82,6 +82,7 @@ export function LiveRow() {
   const client = useApi();
   const { status } = usePush();
   const [on, setOn] = useState(liveOn);
+  const [pinned, setPinned] = useState(livePinned);
   if (!liveAvailable || status === null) return null;
   const why = status !== "on" ? "Turn on phone alerts first: live progress comes the same way. “Show me” plays a preview."
     : `While one of your requests downloads, it stays in your notifications${canPromote() ? " and the status bar" : ""}, `
@@ -96,6 +97,14 @@ export function LiveRow() {
         <Text variant="title">Live progress</Text>
         <Text variant="meta">{why}</Text>
       </SwitchRow>
+      {on && status === "on" ? (
+        <SwitchRow label="In the status bar" value={pinned} onValueChange={(next) => { setPinned(next); setLivePinned(next); }}>
+          <Text variant="label">In the status bar</Text>
+          <Text variant="meta">{pinned
+            ? "Its % stays in the status bar, and it sits at the top of your notifications."
+            : "It goes with your silent notifications, without the % in the status bar."} Android doesn’t let it be both.</Text>
+        </SwitchRow>
+      ) : null}
       <Button kind="secondary" label="Show me" onPress={() => void previewLive()} style={styles.start} />
     </View>
   );

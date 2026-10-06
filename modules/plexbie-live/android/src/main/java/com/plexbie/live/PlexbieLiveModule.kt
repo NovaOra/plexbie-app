@@ -37,8 +37,8 @@ class PlexbieLiveModule : Module() {
       else context.getSystemService(NotificationManager::class.java).canPostPromotedNotifications()
     }
 
-    AsyncFunction("show") { id: String, slot: Int?, title: String, text: String, stage: String, percent: Int?, timeoutMs: Double ->
-      show(id, slot, title, text, stage, percent, timeoutMs.toLong())
+    AsyncFunction("show") { id: String, slot: Int?, title: String, text: String, stage: String, percent: Int?, timeoutMs: Double, promote: Boolean ->
+      show(id, slot, title, text, stage, percent, timeoutMs.toLong(), promote)
     }
 
     AsyncFunction("end") { id: String ->
@@ -53,7 +53,9 @@ class PlexbieLiveModule : Module() {
     }
   }
 
-  private fun show(id: String, slot: Int?, title: String, text: String, stage: String, percent: Int?, timeoutMs: Long) {
+  /** `promote`: a Live Update (the status bar chip, and the top of the shade). Without it,
+   *  it's an ordinary silent notification, down with the other silent ones. */
+  private fun show(id: String, slot: Int?, title: String, text: String, stage: String, percent: Int?, timeoutMs: Long, promote: Boolean) {
     makeChannel()
     val icon = context.resources.getIdentifier("notification_icon", "drawable", context.packageName)
       .takeIf { it != 0 } ?: context.applicationInfo.icon
@@ -79,8 +81,8 @@ class PlexbieLiveModule : Module() {
       .setColor(PINK)
       .setContentIntent(openIntent(id, slot))
       .setTimeoutAfter(timeoutMs)
-      .setRequestPromotedOngoing(true)
-      .setShortCriticalText(chip)
+      .setRequestPromotedOngoing(promote)
+    if (promote) builder.setShortCriticalText(chip)
     if (Build.VERSION.SDK_INT >= 36) {
       val style = NotificationCompat.ProgressStyle()
         .setProgressSegments(listOf(
