@@ -50,3 +50,8 @@ google-services.json
 .env.*
 !.env.example
 *signing*.properties
+
+# Local tool settings
+AGENTS.md
+CLAUDE.md
+.claude/

@@ -42,9 +42,6 @@ number) keeps counting up from the earlier private builds, so phones update in p
   allows push alerts for apps from its paid developer program, so the iPhone app points members
   to their Plexbie website's alerts instead.
 
-[docs/PLAN.md](docs/PLAN.md) is the original build plan, kept for its reasoning; parts of it
-are now out of date.
-
 ## Releasing (the maintainer)
 
 1. `scripts/bump.sh`: the next version, the versionCode and the iPhone build number.
