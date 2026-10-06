@@ -25,7 +25,8 @@ KEYSTORE="$HOME/.plexbie/plexbie-release.keystore"
 SIGNING="$HOME/.plexbie/release-signing.properties"
 # Where the maintainer's Plexbie runs (ssh user@host, and its container), kept outside the
 # repo in ~/.plexbie/release.env (PLEXBIE_HOST=…, PLEXBIE_CONTAINER=…) or the environment.
-[[ -f "$HOME/.plexbie/release.env" ]] && source "$HOME/.plexbie/release.env"
+# Exported (set -a), so the scripts it runs see them too (scripts/virustotal.sh needs the key).
+if [[ -f "$HOME/.plexbie/release.env" ]]; then set -a; source "$HOME/.plexbie/release.env"; set +a; fi
 PLEXBIE_CONTAINER="${PLEXBIE_CONTAINER:-plexbie}"
 export JAVA_HOME="${JAVA_HOME:-/Applications/Android Studio.app/Contents/jbr/Contents/Home}"
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
