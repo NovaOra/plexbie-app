@@ -2,6 +2,19 @@
 
 Plexbie's native app for iPhone and Android. It's built with Expo and React Native, from one TypeScript codebase.
 
+<p align="center">
+  <img src="docs/gifs/hero.gif" alt="The Plexbie app on an iPhone and an Android phone, cycling through Home, a film's page, the Library and Manage while notifications pop out" width="720">
+</p>
+
+<table align="center">
+  <tr>
+    <td align="center"><img src="docs/gifs/tour-iphone.gif" alt="iPhone: Home, Request, following a request, Library, Manage and Tickets" width="260"><br><sub><b>iPhone</b></sub></td>
+    <td align="center"><img src="docs/gifs/tour-android.gif" alt="Android: Home, Request, following a request, Library, Manage and Tickets" width="300"><br><sub><b>Android</b></sub></td>
+  </tr>
+</table>
+
+<p align="center"><sub>Shown with the app's sample household. Film posters: <a href="https://studio.blender.org/films/">Blender Foundation</a> open movies and <a href="https://www.peppercarrot.com">Pepper &amp; Carrot</a> by David Revoy (CC BY), and public-domain films, serials and books. Every other title, person and household is made up.</sub></p>
+
 The app is a client of a Plexbie server's `/api`: any Plexbie, on any address. Signing in
 works like Plexbie's setup: members type their domain and the app fills in
 `plexbie.<their domain>`, or they choose **Use a different address** for any other (a
