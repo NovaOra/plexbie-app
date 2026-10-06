@@ -2,7 +2,7 @@
 // season, the admin's note, and "Something wrong?" for when it's stuck. Once asked, the
 // ticket's conversation is here, with a box to answer when an admin asks something.
 import { useQueryClient } from "@tanstack/react-query";
-import * as Haptics from "expo-haptics";
+import * as haptic from "../../ui/haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View } from "react-native";
@@ -125,7 +125,7 @@ function YourTicket({ request: r, ticket, onFocus }: { request: AppRequest; tick
     setProblem("");
     try {
       const out = await client.answerTicket(r.id, text.trim());
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
       const mine = { id: `me${Date.now()}`, at: new Date().toISOString(), by: "You", kind: "member", text: text.trim() };
       // Shown straight away; the next poll confirms it.
       qc.setQueryData<AppRequest[]>(["requests", state.phase === "signedIn" ? state.server : ""], (rows) => rows?.map((x) =>
@@ -133,7 +133,7 @@ function YourTicket({ request: r, ticket, onFocus }: { request: AppRequest; tick
       setText("");
       toast({ text: "Sent to the admins", detail: out.message || undefined });
     } catch (e) {
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      haptic.error();
       setProblem(e instanceof Error ? e.message : "That didn’t send. Try again in a minute.");
     } finally {
       setBusy(false);

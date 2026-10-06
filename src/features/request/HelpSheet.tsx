@@ -1,7 +1,7 @@
 // "What's wrong with No. 0214?": pick a reason, add a note, and the admins hear about it
 // at once (POST /api/requests/{id}/help). A native sheet; the request card updates in place.
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import * as Haptics from "expo-haptics";
+import * as haptic from "../../ui/haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View } from "react-native";
@@ -46,7 +46,7 @@ export function HelpSheet() {
   const ask = useMutation({
     mutationFn: () => client.askHelp(r!.id!, reason!, note.trim()),
     onSuccess: (out) => {
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
       // The card shows "Help asked" straight away; the next poll confirms it.
       qc.setQueryData<AppRequest[]>(["requests", state.phase === "signedIn" ? state.server : ""],
         (rows) => rows?.map((x) => (x.slot === r!.slot ? { ...x, help: out.help } : x)));

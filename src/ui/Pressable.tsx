@@ -1,6 +1,6 @@
 // Every tappable thing: feedback the instant a finger lands (scale 0.97, 120ms ease-out,
 // a CSS transition on the UI thread), the action on release, at least 48dp to hit.
-import * as Haptics from "expo-haptics";
+import * as haptics from "./haptics";
 import { useState, type ReactNode } from "react";
 import { Pressable as RNPressable, StyleSheet, type PressableProps, type StyleProp, type ViewStyle } from "react-native";
 import Animated, { cubicBezier, useReducedMotion } from "react-native-reanimated";
@@ -29,7 +29,7 @@ export function PressableScale({
       onPressIn={(e) => { setDown(true); rest.onPressIn?.(e); }}
       onPressOut={(e) => { setDown(false); rest.onPressOut?.(e); }}
       onPress={(e) => {
-        if (haptic === "light") void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        if (haptic === "light") haptics.tap();
         onPress?.(e);
       }}
       accessibilityRole={rest.accessibilityRole ?? "button"}

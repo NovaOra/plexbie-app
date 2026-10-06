@@ -1,7 +1,7 @@
 // Shared plumbing for Manage's sections: the query key for a section on this server, and
 // an action runner that shows the bot's answer (or its refusal) as a toast.
 import { useQueryClient } from "@tanstack/react-query";
-import * as Haptics from "expo-haptics";
+import * as haptic from "../../ui/haptics";
 import { useCallback, useState } from "react";
 import type { Ack } from "../../api/schemas";
 import { useSession } from "../../auth/session";
@@ -34,12 +34,12 @@ export function useAct() {
     try {
       const out = await call();
       if (out.ok === false) throw new Error(out.message || "That didn’t work.");
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
       const t = opts.done ? opts.done(out) : { text: out.message || "Done" };
       if (t) toast(t);
       return out;
     } catch (e) {
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      haptic.error();
       toast({ tone: "error", text: opts.failText ?? (e instanceof Error ? e.message : "That didn’t work."),
         detail: opts.failText && e instanceof Error ? e.message : undefined });
       return null;

@@ -14,7 +14,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { persistOptions } from "../api/persist";
 import { queryClient } from "../api/query";
 import { SessionProvider, useSession } from "../auth/session";
-import { routeFor } from "../features/push/push";
+import { refreshPush, routeFor } from "../features/push/push";
 import { ConfirmProvider } from "../ui/Confirm";
 import { LaunchOverlay } from "../ui/LaunchOverlay";
 import { ToastProvider } from "../ui/Toast";
@@ -39,8 +39,11 @@ function useAlertTaps(signedIn: boolean) {
 }
 
 function Routes() {
-  const { state } = useSession();
-  useAlertTaps(state.phase === "signedIn" && !state.sample);
+  const { state, client } = useSession();
+  const live = state.phase === "signedIn" && !state.sample;
+  useAlertTaps(live);
+  // Once a start: the alert channels exist and the bot has this phone on the right one.
+  useEffect(() => { if (live && client) void refreshPush(client); }, [live, client]);
   const [fonts, fontError] = useFonts({ Archivo_400Regular, Archivo_500Medium, Archivo_600SemiBold, Archivo_700Bold, Archivo_800ExtraBold });
   // A font that fails to load falls back to the system font; it never keeps the splash up.
   const ready = (fonts || !!fontError) && state.phase !== "loading";

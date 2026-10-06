@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSession } from "../auth/session";
 import { useMe } from "../features/me/useMe";
 import { Avatar } from "../features/me/Avatar";
-import { PushRow } from "../features/push/PushRow";
+import { PushRow, VibrationRow } from "../features/push/PushRow";
 import { VersionRow } from "../features/update/VersionRow";
 import { PressableScale } from "../ui/Pressable";
 import { BackHeader } from "../ui/BackHeader";
@@ -46,6 +46,7 @@ export default function You() {
         </View>
       </View>
       <PushRow />
+      <VibrationRow />
       <VersionRow />
       <PressableScale onPress={() => signOut()} style={styles.button} accessibilityLabel={sample ? "Leave the sample household" : "Sign out"}>
         <Text variant="label" style={styles.buttonText}>{sample ? "Leave the sample" : "Sign out"}</Text>

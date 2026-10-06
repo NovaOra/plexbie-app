@@ -1,7 +1,7 @@
 // One title: what it is, whether it's on Plex, and (for members) asking for it, with the
 // seasons or the book format. Mirrors the website's title page, natively.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import * as Haptics from "expo-haptics";
+import * as haptic from "../../ui/haptics";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
@@ -136,11 +136,11 @@ function Ask({ t, book }: { t: AppTitle; book: boolean }) {
   const send = useMutation({
     mutationFn: () => client.request({ kind: t.kind as MediaKind, id: t.id, seasons: tv ? seasonsToSend(t, pick) : undefined, format: book ? format : undefined }),
     onSuccess: () => {
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.reward();
       void qc.invalidateQueries({ queryKey: ["requests"] });
       void qc.invalidateQueries({ queryKey: ["title"] });
     },
-    onError: () => void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error),
+    onError: () => haptic.error(),
   });
   const problem = send.error
     ? send.error instanceof ApiError && send.error.status === 409 ? (tv ? send.error.message : "Someone already asked for this one. It’s in the queue.")

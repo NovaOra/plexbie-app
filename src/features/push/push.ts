@@ -9,6 +9,7 @@ import * as Notifications from "expo-notifications";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import type { Api } from "../../api/client";
+import * as haptics from "../../ui/haptics";
 
 const KEY = "plexbie.pushToken";
 const STORE: SecureStore.SecureStoreOptions = { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY };
@@ -33,10 +34,34 @@ export const IOS_PUSH = Constants.expoConfig?.extra?.iosPush === true;
  *  Google Play can't, nor an iPhone build without Apple's push entitlement.) */
 export const pushPossible = () => !!projectId() && Device.isDevice !== false && (Platform.OS !== "ios" || IOS_PUSH);
 
-// Shown while the app is open, too: a banner, in the list, with sound.
+// Shown while the app is open, too: a banner, in the list, with sound, and a knock-knock.
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false }),
+  handleNotification: async () => {
+    haptics.knock();
+    return { shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false };
+  },
 });
+
+/** Plexbie's alert vibration on Android: tap, tap, buzz. */
+const PATTERN = [0, 70, 90, 70, 90, 180];
+
+/** The Android channel this phone's alerts should use: Android fixes a channel's sound and
+ *  vibration once it exists, so the Vibration setting picks between two. ("default", from
+ *  older versions, stays for older Plexbie bots, which only know it.) */
+export const alertChannel = () => (haptics.hapticsOn() ? "alerts" : "alerts-quiet");
+
+async function makeChannels() {
+  if (Platform.OS !== "android") return;
+  const common = {
+    importance: Notifications.AndroidImportance.HIGH,
+    lightColor: "#ff5c93",
+    // On a locked phone: that something came, not what it says (DM copies can be personal).
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
+  };
+  await Notifications.setNotificationChannelAsync("alerts", { ...common, name: "Alerts", vibrationPattern: PATTERN, enableVibrate: true });
+  await Notifications.setNotificationChannelAsync("alerts-quiet", { ...common, name: "Alerts without vibration", enableVibrate: false, vibrationPattern: [0] });
+  await Notifications.setNotificationChannelAsync("default", { ...common, name: "Alerts from older Plexbie servers" });
+}
 
 export async function pushState(): Promise<PushState> {
   if (!pushPossible()) return "unavailable";
@@ -49,22 +74,28 @@ export async function pushState(): Promise<PushState> {
 /** Asks (once, when wanted), gets this phone's token and tells the bot. */
 export async function enablePush(client: Api): Promise<PushState> {
   if (!pushPossible()) return "unavailable";
-  if (Platform.OS === "android") {
-    await Notifications.setNotificationChannelAsync("default", {
-      name: "Requests and your account",
-      importance: Notifications.AndroidImportance.HIGH,
-      lightColor: "#ff5c93",
-      // On a locked phone: that something came, not what it says (DM copies can be personal).
-      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
-    });
-  }
+  await makeChannels();
   let perm = await Notifications.getPermissionsAsync();
   if (!perm.granted && perm.canAskAgain) perm = await Notifications.requestPermissionsAsync();
   if (!perm.granted) return "denied";
   const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId: projectId()! });
-  await client.registerPush(token, Platform.OS);
+  await client.registerPush(token, Platform.OS, alertChannel());
   await SecureStore.setItemAsync(KEY, token, STORE);
   return "on";
+}
+
+/** On each start, and when the Vibration setting changes: with alerts on, make sure the
+ *  channels exist and the bot has this phone on the right one. Quiet and best-effort. */
+export async function refreshPush(client: Api): Promise<void> {
+  try {
+    if ((await pushState()) !== "on") return;
+    const saved = await SecureStore.getItemAsync(KEY, STORE);
+    if (!saved) return;
+    await makeChannels();
+    await client.registerPush(saved, Platform.OS, alertChannel());
+  } catch {
+    // The next start tries again.
+  }
 }
 
 /** Tells the bot to stop, and forgets the token. Best-effort on the bot's side. */

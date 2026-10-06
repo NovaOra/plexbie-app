@@ -215,7 +215,9 @@ export function api(conn: Connection) {
     /** Put something they sent Plexbie on their open ticket. */
     messageToTicket: (key: string) => request(conn, `/api/admin/message/${encodeURIComponent(key)}/to-ticket`, AckSchema, json({})),
     inboxSettings: (autoreply: boolean) => request(conn, "/api/admin/inbox", AckSchema, json({ autoreply })),
-    registerPush: (token: string, platform: string) => request(conn, "/api/push/app", NothingSchema, json({ token, platform })),
+    /** `channel`: the Android notification channel alerts should use (see push.ts). */
+    registerPush: (token: string, platform: string, channel?: string) =>
+      request(conn, "/api/push/app", NothingSchema, json({ token, platform, channel })),
     unregisterPush: (token: string) => request(conn, "/api/push/app/remove", NothingSchema, json({ token })),
     /** Ends this session on the server too, so a copied token stops working. */
     logout: () => request(conn, "/api/logout", NothingSchema, { method: "POST" }),

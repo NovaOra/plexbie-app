@@ -1,7 +1,7 @@
 // Manage → Invites: invite links for people without Discord (making the link is the yes),
 // Plex invites nobody has accepted yet, and the links already made.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import * as Haptics from "expo-haptics";
+import * as haptic from "../../ui/haptics";
 import { useState } from "react";
 import { Share, StyleSheet, TextInput, View } from "react-native";
 import type { AppAdminInvite, AppNewInvite, AppPlexInvite } from "../../api/schemas";
@@ -54,7 +54,7 @@ export function InvitesSection() {
     setProblem("");
     try {
       const out = await client.createInvite({ label: label.trim(), email: email.trim() || undefined, days });
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
       setMade(out);
       setLabel("");
       setEmail("");
@@ -69,7 +69,7 @@ export function InvitesSection() {
     setRenewing(i.id);
     try {
       const out = await client.renewInvite(i.id);
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
       setMade(out);
       patchInvites((d) => [out.invite, ...(i.status === "used" ? d : d.filter((x) => x.id !== i.id))]);
       toast({ text: `New link for ${i.label}`, detail: "It’s at the top of Invites, ready to send." });

@@ -2,6 +2,7 @@
 // "switch, on", and a big target), with the platform switch drawn at the end.
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Switch, View, type StyleProp, type ViewStyle } from "react-native";
+import * as haptics from "./haptics";
 import { color, space, TOUCH } from "./theme";
 
 export function SwitchRow({ label, value, onValueChange, disabled, children, style }: {
@@ -14,9 +15,10 @@ export function SwitchRow({ label, value, onValueChange, disabled, children, sty
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
+  const flip = (on: boolean) => { haptics.select(); onValueChange(on); };
   return (
     <Pressable
-      onPress={() => onValueChange(!value)}
+      onPress={() => flip(!value)}
       disabled={disabled}
       accessibilityRole="switch"
       accessibilityLabel={label}
@@ -25,7 +27,7 @@ export function SwitchRow({ label, value, onValueChange, disabled, children, sty
     >
       <View style={styles.content}>{children}</View>
       <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-        <Switch value={value} onValueChange={onValueChange} disabled={disabled}
+        <Switch value={value} onValueChange={flip} disabled={disabled}
           trackColor={{ true: color.screenDeep, false: color.slate }} thumbColor={value ? color.screen : color.ink} />
       </View>
     </Pressable>

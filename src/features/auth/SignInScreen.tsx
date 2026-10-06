@@ -1,4 +1,4 @@
-import * as Haptics from "expo-haptics";
+import * as haptic from "../../ui/haptics";
 import { Image } from "expo-image";
 import { useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View } from "react-native";
@@ -39,11 +39,11 @@ export function SignInScreen() {
     setBusy(via);
     try {
       await signIn(server, via);
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
     } catch (e) {
       if (!(e instanceof SignInError && e.quiet)) {
         setProblem(e instanceof Error ? e.message : "Sign-in didn't work. Try again.");
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        haptic.error();
       }
     } finally {
       setBusy(null);

@@ -2,7 +2,7 @@
 // Approve is one tap; Decline asks first. The card leaves at once and comes back with the
 // error if the bot says no. No undo: a decision is final, here as in Discord.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import * as Haptics from "expo-haptics";
+import * as haptic from "../../ui/haptics";
 import { StyleSheet, View } from "react-native";
 import Animated, { FadeOut, LinearTransition } from "react-native-reanimated";
 import type { AppAdminHelp, AppAdminRequest, AppAdminRequests } from "../../api/schemas";
@@ -54,12 +54,12 @@ export function RequestsSection() {
       return { before };
     },
     onSuccess: (out, { r, approve }) => {
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
       toast({ text: approve ? `Approved ${r.title}` : `Declined ${r.title}`, detail: out.message || undefined });
     },
     onError: (e, { r }, ctx) => {
       if (ctx?.before) qc.setQueryData(key, ctx.before);
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      haptic.error();
       toast({ tone: "error", text: `${r.title} wasn’t decided`, detail: e.message });
     },
     // The bot takes a moment to post to Discord and Seerr; then read the truth back.

@@ -1,12 +1,15 @@
 // "Phone alerts" with a switch: on the You screen, and offered once after a request.
 import { Linking, Platform, StyleSheet, View } from "react-native";
-import { useSession } from "../../auth/session";
+import { useApi, useSession } from "../../auth/session";
 import { useAnnounce } from "../../ui/announce";
 import { SwitchRow } from "../../ui/SwitchRow";
 import { Button } from "../../ui/Button";
 import { Text } from "../../ui/Text";
 import { color, radius, space } from "../../ui/theme";
 import { usePush } from "./usePush";
+import { useState } from "react";
+import { hapticsOn, setHapticsOn } from "../../ui/haptics";
+import { refreshPush } from "./push";
 import { GlassFill, glass } from "../../ui/Glass";
 
 const WHY = "When a request is approved, declined or ready, and when your access needs attention. Your Plexbie server is given this phone’s push address.";
@@ -46,6 +49,28 @@ export function PushRow() {
       ) : null}
       {status === "denied" ? <Button kind="secondary" label="Open settings" onPress={() => void Linking.openSettings()} style={styles.start} /> : null}
       {problem ? <Text variant="meta" style={styles.bad} accessibilityRole="alert">{problem}</Text> : null}
+    </View>
+  );
+}
+
+const VIBRATION_WHY = Platform.OS === "android"
+  ? "A little buzz when you tap, send a request or get an answer, and when an alert comes in."
+  : "A little tap when you press, send a request or get an answer.";
+
+/** Vibration on or off: the app's haptics, and (Android) whether alerts vibrate. */
+export function VibrationRow() {
+  const client = useApi();
+  const [on, setOn] = useState(hapticsOn);
+  return (
+    <View style={[styles.card, glass.surface]}>
+      <GlassFill radius={radius.m} />
+      <SwitchRow label="Vibration" value={on} onValueChange={(next) => {
+        setOn(next);
+        void setHapticsOn(next).then(() => refreshPush(client));
+      }}>
+        <Text variant="title">Vibration</Text>
+        <Text variant="meta">{VIBRATION_WHY}</Text>
+      </SwitchRow>
     </View>
   );
 }
