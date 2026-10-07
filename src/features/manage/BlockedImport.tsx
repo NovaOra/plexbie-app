@@ -2,7 +2,7 @@
 // for each, core/blocked_imports): why, what's in it, and what looks off, then a long hold
 // to import it through their own Manual Import. Never blind: the files come first.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StyleSheet, TextInput, View } from "react-native";
 import { ApiError, IMPORT_TIMEOUT_MS } from "../../api/client";
 import type { AppArrEpisode, AppArrItem, AppBlockedRef } from "../../api/schemas";
@@ -34,6 +34,9 @@ export function BlockedImport({ target, onDone }: { target: AppBlockedRef; onDon
   const [picks, setPicks] = useState<Record<string, BlockedChoice & { movieLabel?: string }>>({});
   const [series, setSeries] = useState<AppArrItem | null>(null);
   const [eps, setEps] = useState<AppArrEpisode[] | null>(null);
+  const [epsFailed, setEpsFailed] = useState(false);
+  /** Which "Wrong show?" pick the episodes being asked for belong to: a slower answer for an earlier one is dropped. */
+  const epsAsked = useRef(0);
   const [finding, setFinding] = useState<string | null>(null);   // "series", or a file name for "Wrong film?"
   const [, wake] = useState(0);
   const preview = useQuery({
@@ -44,7 +47,10 @@ export function BlockedImport({ target, onDone }: { target: AppBlockedRef; onDon
   const app = target.app === "sonarr" ? "Sonarr" : "Radarr";
   const tv = target.app === "sonarr";
   const p = preview.data;
-  const episodes = eps ?? p?.options.episodes ?? [];
+  /** Another show was picked and its episodes aren't here yet (or couldn't be had). */
+  const epsWaiting = !!series && !eps;
+  const episodes = series ? eps ?? [] : p?.options.episodes ?? [];
+  const known = new Set(episodes.map((e) => e.id));
   const sent = `${target.app}:${target.downloadId}`;
   const since = stillImporting.get(sent);
   const waiting = since !== undefined && Date.now() - since < IMPORT_TIMEOUT_MS;
@@ -65,14 +71,21 @@ export function BlockedImport({ target, onDone }: { target: AppBlockedRef; onDon
     const c = picks[f.name] ?? { name: f.name };
     const episodeIds = c.episodeIds ?? (series ? [] : f.episodes.map((e) => e.id));
     const movieId = c.movieId ?? f.movie?.id;
-    return { f, c, skip: !!c.skip, episodeIds, placed: tv ? episodeIds.length > 0 : !!movieId };
+    const film = c.movieLabel ?? f.movie?.title;
+    // With another show picked, only its own episodes count (Sonarr refuses any other).
+    return { f, c, skip: !!c.skip, episodeIds, movieId, film,
+      placed: tv ? episodeIds.length > 0 && (!series || episodeIds.every((id) => known.has(id))) : !!movieId };
   });
+  // Two files as one episode, or as one film (Radarr keeps one file per film: CD1 and CD2, or a sample).
   const used = new Map<number, number>();
-  files.filter((x) => !x.skip).forEach((x) => x.episodeIds.forEach((id) => used.set(id, (used.get(id) ?? 0) + 1)));
-  const doubled = [...used].filter(([, n]) => n > 1).map(([id]) => episodes.find((e) => e.id === id)?.label ?? "an episode");
+  files.filter((x) => !x.skip).forEach((x) => (tv ? x.episodeIds : x.movieId ? [x.movieId] : [])
+    .forEach((id) => used.set(id, (used.get(id) ?? 0) + 1)));
+  const doubled = [...used].filter(([, n]) => n > 1).map(([id]) => tv ? episodes.find((e) => e.id === id)?.label ?? "an episode"
+    : files.find((x) => x.movieId === id)?.film ?? "the same film");
   const going = files.filter((x) => !x.skip);
   const unplaced = going.filter((x) => !x.placed);
-  const blocker = !going.length ? "Every file is skipped." : unplaced.length ? `Pick which ${tv ? "episode" : "film"} ${unplaced[0].f.name} is, or skip it.`
+  const blocker = !going.length ? "Every file is skipped." : epsWaiting ? (epsFailed ? `Try again for ${series.title}’s episodes, or pick another show.` : `Pick the episodes once ${series.title}’s have loaded.`)
+    : unplaced.length ? `Pick which ${tv ? "episode" : "film"} ${unplaced[0].f.name} is, or skip it.`
     : doubled.length ? `Two files are set as ${doubled[0]}.` : "";
 
   const go = async () => {
@@ -90,13 +103,30 @@ export function BlockedImport({ target, onDone }: { target: AppBlockedRef; onDon
     const out = await act("import", call,
       { done: (o) => ({ text: "Imported", detail: o.message || undefined }), failText: "Not imported", refresh: ["tickets", "all", "health"],
         recheck: () => preview.refetch(), reward: true });
-    if (out) { setDone(out.message || "Imported."); onDone?.(); }
+    if (out) { setDone(out.message || "Imported."); onDone?.(); return; }
+    // Not imported: what was seen may have changed ("look again"), so start over from a fresh
+    // look inside. One that got no answer has been looked at again already.
+    epsAsked.current++;
+    setPicks({});
+    setSeries(null);
+    setEps(null);
+    setEpsFailed(false);
+    setFinding(null);
+    if (stillImporting.get(sent) !== started) void preview.refetch();
   };
   const useSeries = async (s: AppArrItem) => {
+    const asked = ++epsAsked.current;
     setFinding(null);
     setSeries(s);
     setPicks({});
-    setEps((await client.arrEpisodes(s.id).catch(() => ({ rows: [] }))).rows);
+    setEps(null);
+    setEpsFailed(false);
+    try {
+      const { rows } = await client.arrEpisodes(s.id);
+      if (asked === epsAsked.current) setEps(rows);
+    } catch {
+      if (asked === epsAsked.current) setEpsFailed(true);
+    }
   };
   const episodeOptions = episodes.map((e) => ({ value: String(e.id), label: `${e.label} · ${e.title || "TBA"}${e.hasFile ? " (has a file)" : ""}` }));
   const owner = series ?? p?.series;
@@ -104,7 +134,13 @@ export function BlockedImport({ target, onDone }: { target: AppBlockedRef; onDon
   return (
     <View style={styles.box} accessibilityLabel={`${app} won’t import this by itself`}>
       <Text variant="label" style={styles.head}>⚠︎ {app} won’t import this by itself</Text>
-      {preview.error ? <Text variant="meta">{preview.error.message}</Text> : !p ? <Text variant="meta">Looking inside…</Text> : (
+      {preview.error ? (
+        <>
+          <Text variant="meta">{preview.error.message}</Text>
+          <Button kind="secondary" label="Try again" busy={preview.isFetching} busyLabel="Looking inside…"
+            onPress={() => void preview.refetch()} style={styles.start} />
+        </>
+      ) : !p ? <Text variant="meta">Looking inside…</Text> : (
         <>
           {p.messages.map((m) => <Text key={m} variant="meta" style={styles.why}>{app} says: “{m}”</Text>)}
           <Text variant="body">Look before you import. Usually it’s fine (a name {app} couldn’t match), but a blocked import can be the wrong episode, the wrong film, or something that shouldn’t be there. Check each file is what {app} thinks it is.</Text>
@@ -114,6 +150,12 @@ export function BlockedImport({ target, onDone }: { target: AppBlockedRef; onDon
               <Text variant="label">Show: {owner?.title ?? "none"}{owner?.year ? ` (${owner.year})` : ""}</Text>
               <Button kind="secondary" label="Wrong show?" onPress={() => setFinding(finding === "series" ? null : "series")} style={styles.start} />
               {finding === "series" ? <ArrFinder app="sonarr" onPick={(s) => void useSeries(s)} /> : null}
+              {series && epsWaiting ? (epsFailed ? (
+                <>
+                  <Text variant="meta" style={styles.warn}>Couldn’t get {series.title}’s episodes from Sonarr.</Text>
+                  <Button kind="secondary" label="Try again" onPress={() => void useSeries(series)} style={styles.start} />
+                </>
+              ) : <Text variant="meta">Loading episodes…</Text>) : null}
             </View>
           ) : null}
           {files.map(({ f, c, skip, episodeIds, placed }) => (
@@ -125,7 +167,7 @@ export function BlockedImport({ target, onDone }: { target: AppBlockedRef; onDon
                 .map((n) => <Text key={n} variant="meta" style={styles.note}>{n}</Text>)}
               {!skip ? (
                 <View style={styles.edit}>
-                  {tv ? (
+                  {tv ? (epsWaiting ? null :
                     <PickerPill title="Which episode" multiple options={episodeOptions} value={episodeIds.map(String)}
                       label={episodeIds.length ? episodeIds.map((id) => episodes.find((e) => e.id === id)?.label ?? "?").join(" + ") : "Pick the episode…"}
                       onChange={(next) => pick(f.name, { episodeIds: (next as string[]).map(Number) })} />
@@ -169,7 +211,7 @@ export function BlockedImport({ target, onDone }: { target: AppBlockedRef; onDon
             <>
               {waiting ? <Text variant="label" style={styles.warn}>May still be importing: no answer came back. Import is off for a couple of minutes while {app} finishes.</Text>
                 : blocker ? <Text variant="label" style={styles.warn}>{blocker}</Text> : null}
-              <HoldButton label="Import it" stages={STAGES} bail="Chickened out. Fair. 🐔" disabled={!!busy || !!blocker || waiting}
+              <HoldButton label="Import it" stages={STAGES} bail="Chickened out. Fair. 🐔" disabled={!!busy || !!blocker || waiting || preview.isFetching}
                 confirmText="Did you look at the files? It goes through Sonarr's or Radarr's own import." onConfirm={() => void go()} />
             </>
           )}
@@ -183,17 +225,26 @@ export function BlockedImport({ target, onDone }: { target: AppBlockedRef; onDon
 function ArrFinder({ app, onPick }: { app: "sonarr" | "radarr"; onPick: (item: AppArrItem) => void }) {
   const client = useApi();
   const [q, setQ] = useState("");
+  const words = q.trim().length >= 2 ? q.trim() : "";
   const found = useQuery({
-    queryKey: ["arr-library", app, q.trim()], enabled: q.trim().length >= 2,
-    queryFn: ({ signal }) => client.arrLibrary(app, q.trim(), signal),
+    queryKey: ["arr-library", app, words], enabled: !!words,
+    queryFn: ({ signal }) => client.arrLibrary(app, words, signal),
   });
+  const name = app === "sonarr" ? "Sonarr" : "Radarr";
   return (
     <View style={styles.finder}>
       <TextInput value={q} onChangeText={setQ} autoFocus placeholder={app === "sonarr" ? "Find the show in Sonarr" : "Find the film in Radarr"}
         placeholderTextColor={color.faint} accessibilityLabel={app === "sonarr" ? "Find the show in Sonarr" : "Find the film in Radarr"} style={styles.input} />
-      {found.data ? (found.data.rows.length ? found.data.rows.map((r) => (
+      {!words ? null : found.data ? (found.data.rows.length ? found.data.rows.map((r) => (
         <Button key={r.id} kind="secondary" label={`${r.title}${r.year ? ` (${r.year})` : ""}`} onPress={() => onPick(r)} />
-      )) : <Text variant="meta">Nothing in {app === "sonarr" ? "Sonarr" : "Radarr"} by that name.</Text>) : null}
+      )) : <Text variant="meta">Nothing in {name} by that name.</Text>)
+        : found.isPaused ? <Text variant="meta">Offline. Plexbie searches when you’re back online.</Text>
+        : found.error && !found.isFetching ? (
+          <>
+            <Text variant="meta" style={styles.warn}>Couldn’t search {name}.</Text>
+            <Button kind="secondary" label="Try again" onPress={() => void found.refetch()} style={styles.start} />
+          </>
+        ) : <Text variant="meta" accessibilityLiveRegion="polite">Searching…</Text>}
     </View>
   );
 }
@@ -206,6 +257,15 @@ export function BlockedList() {
   const list = useQuery({ queryKey: key, queryFn: ({ signal }) => client.adminBlocked(signal), refetchInterval: 120_000 });
   const [open, setOpen] = useState<string | null>(null);
   const rows = list.data?.rows ?? [];
+  if (!list.data && list.error) {
+    return (
+      <>
+        <Heading title="Waiting for you to look" />
+        <Text variant="meta" style={styles.warn}>Couldn’t check for blocked downloads.</Text>
+        <Button kind="secondary" label="Try again" busy={list.isFetching} busyLabel="Checking…" onPress={() => void list.refetch()} style={styles.start} />
+      </>
+    );
+  }
   if (!rows.length) return null;
   return (
     <>
