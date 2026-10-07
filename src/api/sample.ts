@@ -141,7 +141,7 @@ let convos = 0;
 const convo = (minutes: number, channel: string, text: string, title: string | null, direction: "out" | "in",
   more: Partial<SampleMsg> = {}): SampleMsg => ({ id: `20261005T1200000000${String(++convos).padStart(2, "0")}-abcdef`, at: ago(minutes), direction, channel,
   delivered: true, title, text, context: direction === "in" ? (title ? "ticket answer" : "Discord DM") : "", error: null, ...more });
-const SAMPLE_NAMES: Record<string, string> = { dsample: "Alex Kim", p7: "Sam", pgrandad: "grandad" };
+const SAMPLE_NAMES: Record<string, string> = { dsample: "Alex Kim", pgrandad: "grandad" };
 
 /**
  * Everything a visit can change, built afresh for each one: every "Look around" opens the
@@ -150,6 +150,7 @@ const SAMPLE_NAMES: Record<string, string> = { dsample: "Alex Kim", p7: "Sam", p
 function makeSampleState() {
   entries = 0;
   convos = 0;
+  const titles = makeTitles();
   const requests: AppRequest[] = [
     {
       id: "5001", slot: 214, stage: "downloading", seasons: [2], requestedAt: ago(60 * 26), updatedAt: ago(14), help: { id: "h1", reason: "Stuck downloading" },
@@ -250,6 +251,13 @@ function makeSampleState() {
       help: r.id === "5001" ? { id: "h1", reason: "Stuck downloading" } : r.help,
       stuck: r.id === "5001" ? ["Help asked: Stuck downloading", "Download hasn’t moved in 6 hours"] : [],
     })),
+    // Everyone else's requests still waiting for a decision, as Manage → Requests has them.
+    ...admin.pending.filter((p) => !requests.some((r) => r.slot === p.slot)).map((p): AppAdminRequestRow => {
+      const t = titles.find((x) => x.kind === p.kind && x.title === p.title)!;
+      return { id: p.id, slot: p.slot, stage: "requested", seasons: p.seasons ?? undefined, requestedAt: p.requestedAt, updatedAt: p.requestedAt,
+        title: { id: t.id, kind: t.kind, title: t.title, year: t.year, poster: t.poster }, requester: p.requester, status: "pending",
+        approvedBy: null, approvedAt: null, stageSince: p.requestedAt, finishedAt: null, stuck: [] };
+    }),
   ];
   const tickets: Record<string, SampleTicket> = {
     h4: { requestKey: null, owner: null, waiting: false, thread: [entry("note", "Plexbie", BLOCKED_NOTE, 8)] },
@@ -266,18 +274,18 @@ function makeSampleState() {
   };
   const conversations: Record<string, SampleMsg[]> = {
     dsample: [
+      convo(60 * 25, "discord", "Pepper & Carrot season 2 is approved.", "Request approved", "out"),
       convo(60 * 5, "discord", "Good news! Pepper & Carrot is now ready to start on Plex.", null, "out"),
       convo(40, "web", "Stuck downloading. It’s been at 62% since this morning.", "Something wrong with Pepper & Carrot", "in"),
       convo(30, "discord", "Found a copy that works. Is the 4K version OK, or would you rather wait for 1080p?", "🛠️ About your request: Pepper & Carrot", "out"),
       convo(22, "discord", "4K is great, thank you!", "Answer about Pepper & Carrot", "in"),
       convo(6, "discord", "oh and the subtitles on episode 3 are out of sync", null, "in"),
     ],
-    p7: [convo(60 * 5, "discord", "Pepper & Carrot season 2 is approved.", "Request approved", "out")],
     pgrandad: [convo(60 * 24, "none", "Your Plex access is about to lapse.", "Heads up", "out",
       { delivered: false, error: "No phone alerts turned on and no email to send to" })],
   };
   return {
-    requests, titles: makeTitles(), admin, cleanup, joins, help, people, invites, plexInvites, all, tickets,
+    requests, titles, admin, cleanup, joins, help, people, invites, plexInvites, all, tickets,
     languages: [] as string[],         // the language chips, remembered for the visit
     activity: {} as Record<string, { at: string; by: string; did: string }[]>,
     convos: conversations,

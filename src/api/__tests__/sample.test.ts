@@ -154,6 +154,51 @@ test("a request waiting for a decision is in Manage > Requests, and deciding it 
   expect((await answer(sampleApi.title("movie", "693134"))).yourRequest?.stage).toBe("approved");
 });
 
+test("every request waiting for a decision is on All requests too, and the waiting counts agree", async () => {
+  const me = (await sampleApi.session())?.user.name;
+  const pending = (await answer(sampleApi.adminRequests())).pending;
+  expect(pending.some((p) => p.requester !== me)).toBe(true);
+  for (const everything of [false, true]) {
+    const all = await answer(sampleApi.adminAll("", undefined, everything));
+    for (const p of pending) {
+      const row = all.rows.find((r) => r.slot === p.slot);
+      expect(`${p.slot} ${row?.title.title} ${row?.requester} ${row?.status}`).toBe(`${p.slot} ${p.title} ${p.requester} pending`);
+    }
+    expect(all.counts?.waiting).toBe(pending.length);
+  }
+  // Found by a search for who asked, as well.
+  for (const p of pending) expect((await answer(sampleApi.adminAll(p.requester))).rows.map((r) => r.slot)).toContain(p.slot);
+
+  // Deciding someone else's request moves it on under All requests, and the counts still agree.
+  const theirs = pending.find((p) => p.requester !== me)!;
+  await answer(sampleApi.decide(theirs.id, false));
+  const after = await answer(sampleApi.adminAll("", undefined, true));
+  expect(after.rows.find((r) => r.slot === theirs.slot)?.status).toBe("declined");
+  expect(after.counts?.waiting).toBe((await answer(sampleApi.adminRequests())).pending.length);
+});
+
+test("every message from Plexbie that names a request goes to whoever asked for it", async () => {
+  const me = (await sampleApi.session())?.user.name;
+  const catalog = await answer(sampleApi.searchAll(""));
+  const titles = [...catalog.movie, ...catalog.tv, ...catalog.book].map((t) => t.title);
+  const admin = await answer(sampleApi.adminRequests());
+  const asked = [
+    ...(await answer(sampleApi.myRequests())).map((r) => `${r.title.title} by ${me}`),
+    ...(await answer(sampleApi.adminAll("", undefined, true))).rows.map((r) => `${r.title.title} by ${r.requester}`),
+    ...[...admin.pending, ...admin.recent].map((r) => `${r.title} by ${r.requester}`),
+  ];
+  let named = 0;
+  for (const person of await answer(sampleApi.adminMessages())) {
+    for (const m of (await answer(sampleApi.conversation(person.id))).filter((x) => x.direction === "out")) {
+      for (const title of titles.filter((t) => `${m.title ?? ""} ${m.text}`.includes(t))) {
+        named++;
+        expect(asked).toContain(`${title} by ${person.name}`);
+      }
+    }
+  }
+  expect(named).toBeGreaterThan(0);
+});
+
 test("nobody warned is in the top three or watching now, and the top three are the board's", async () => {
   const people = await answer(sampleApi.adminPeople());
   const name = (p: (typeof people)[number]) => p.displayName ?? p.discordName ?? p.plexName;
