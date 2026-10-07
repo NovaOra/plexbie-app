@@ -2,11 +2,12 @@
 // picked from three small dropdowns like the Request page's. A virtualized poster grid;
 // titles with a page open it.
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, RefreshControl, StyleSheet, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { AppLibraryItem } from "../../api/schemas";
 import { useApi, useSession } from "../../auth/session";
+import { announce } from "../../ui/announce";
 import { Button } from "../../ui/Button";
 import { PickerPill } from "../../ui/PickerSheet";
 import { StatusBarScrim } from "../../ui/StatusBarScrim";
@@ -58,6 +59,11 @@ export function LibraryScreen() {
     else list.sort((a, b) => b.addedAt.localeCompare(a.addedAt));
     return list;
   }, [current, genre, sort]);
+  const total = current ? `${shown.length.toLocaleString()} ${shown.length === 1 ? "title" : "titles"}` : null;
+  // After a pick in a dropdown, a screen reader hears how many titles that leaves (opening
+  // the screen doesn't). A new shelf says it once its titles are in.
+  const picked = useRef(false);
+  useEffect(() => { if (picked.current) announce(total); }, [total, shelf, sort, genre]);
 
   const itemWidth = (width - space.l * 2 - GAP * (columns - 1)) / columns;
   const count = (lib: string) => status.data?.libraries.filter((l) => l.kind === lib).reduce((n, l) => n + l.count, 0);
@@ -75,16 +81,16 @@ export function LibraryScreen() {
       <View style={styles.bar}>
         <PickerPill title="Shelf" label={shelfLabel(shelf)} value={shelf}
           options={SHELVES.map(([id]) => ({ value: id, label: shelfLabel(id) }))}
-          onChange={(v) => { setShelf(v as Shelf); setGenre(null); }} />
+          onChange={(v) => { picked.current = true; setShelf(v as Shelf); setGenre(null); }} />
         <PickerPill title="Sort" label={SORTS.find(([id]) => id === sort)?.[1] ?? "Recently added"} value={sort}
-          options={SORTS.map(([value, label]) => ({ value, label }))} onChange={(v) => setSort(v as Sort)} />
+          options={SORTS.map(([value, label]) => ({ value, label }))} onChange={(v) => { picked.current = true; setSort(v as Sort); }} />
         {genres.length > 1 ? (
           <PickerPill title="Genre" label={genre ?? "Any genre"} value={genre ?? ""}
             options={[{ value: "", label: "Any genre" }, ...genres.map((g) => ({ value: g, label: g }))]}
-            onChange={(v) => setGenre((v as string) || null)} />
+            onChange={(v) => { picked.current = true; setGenre((v as string) || null); }} />
         ) : null}
       </View>
-      {current ? <Text variant="eyebrow" style={styles.total}>{shown.length.toLocaleString()} {shown.length === 1 ? "title" : "titles"}</Text> : null}
+      {total ? <Text variant="eyebrow" style={styles.total}>{total}</Text> : null}
     </View>
   );
 

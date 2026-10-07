@@ -3,11 +3,12 @@
 // from Seerr (TMDB): Trending, Popular, Coming soon and Top rated, films and shows
 // together. The same as the website's Request page.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import { checkSignedOut } from "../../api/query";
 import type { AppDiscover, AppTitle } from "../../api/schemas";
 import { useApi, useSession } from "../../auth/session";
+import { announce, useAnnounce } from "../../ui/announce";
 import { Button } from "../../ui/Button";
 import { PickerPill } from "../../ui/PickerSheet";
 import { PressableScale } from "../../ui/Pressable";
@@ -60,6 +61,7 @@ export function Rail({ heading, titles, onMore, busy }: { heading: string; title
         renderItem={({ item }) => <TitleTile title={item} width={width} meta={tileMeta(item)} highlight={item.availability === "available"} />}
         ListFooterComponent={onMore ? (
           <PressableScale onPress={onMore} disabled={busy} accessibilityRole="button" accessibilityLabel={`More ${heading.toLowerCase()}`}
+            accessibilityState={{ busy: !!busy }}
             style={[styles.more, { width }]}>
             <Text variant="label" style={styles.moreText}>{busy ? "Loading…" : "More"}</Text>
           </PressableScale>
@@ -69,23 +71,35 @@ export function Rail({ heading, titles, onMore, busy }: { heading: string; title
   );
 }
 
-/** One shelf, which loads more of itself a page at a time. */
+/** One shelf, which loads more of itself a page at a time. A page that fails leaves More
+ *  in place for another go; one that loads tells a screen reader how many titles it added.
+ *  A page still loading when the shelf goes (a search typed meanwhile) is dropped quietly. */
 function Shelf({ kind, shelfKey, heading, first, firstMore }: { kind: "movie" | "tv"; shelfKey: string; heading: string; first: AppTitle[]; firstMore: boolean }) {
   const client = useApi();
+  const toast = useToast();
   const [titles, setTitles] = useState(first);
   const [page, setPage] = useState(1);
   const [more, setMore] = useState(firstMore);
   const [busy, setBusy] = useState(false);
+  const loading = useRef<AbortController | null>(null);
   useEffect(() => { setTitles(first); setPage(1); setMore(firstMore); }, [first, firstMore]);
+  useEffect(() => () => loading.current?.abort(), []);
   const next = async () => {
+    const ac = new AbortController();
+    loading.current = ac;
     setBusy(true);
     try {
-      const got = await client.shelf(kind, shelfKey, page + 1);
+      const got = await client.shelf(kind, shelfKey, page + 1, ac.signal);
+      if (ac.signal.aborted) return;
+      const added = got.titles.filter((t) => !titles.some((h) => h.id === t.id)).length;
       setTitles((had) => [...had, ...got.titles.filter((t) => !had.some((h) => h.id === t.id))]);
       setPage(got.page);
       setMore(got.more);
-    } catch {
-      setMore(false);
+      announce(added ? `${added} more ${heading.toLowerCase()}` : got.more ? null : `No more ${heading.toLowerCase()}`);
+    } catch (e) {
+      if (ac.signal.aborted) return;
+      checkSignedOut(e);
+      toast({ tone: "error", text: "Couldn’t load more just now", detail: e instanceof Error ? e.message : undefined });
     } finally {
       setBusy(false);
     }
@@ -128,6 +142,16 @@ export function RequestBody({ q, type, setType }: { q: string; type: RequestType
   const genres = [...new Set(kinds.flatMap((k) => byKind[k]?.genres.map((g) => g.name) ?? []))].sort();
   useEffect(() => { if (genre && genres.length && !genres.includes(genre)) setGenre(""); }, [genre, genres]);
 
+  // A search's results, grouped by type; a screen reader hears how many once it settles.
+  const r = results.data;
+  const groups: [RequestType, string, AppTitle[]][] = [["movie", "Films", r?.movie ?? []], ["tv", "Shows", r?.tv ?? []], ["book", "Books", r?.book ?? []]];
+  const shown = groups.filter(([k]) => type === "all" || type === k);
+  const total = shown.reduce((n, [, , t]) => n + t.length, 0);
+  const inType = type === "all" ? "" : TYPES.find(([t]) => t === type)?.[1].toLowerCase() ?? "";
+  const noun = inType ? inType.slice(0, -1) : "result";
+  useAnnounce(!q || !r || results.error ? null
+    : total ? `${total} ${noun}${total === 1 ? "" : "s"} for “${q}”` : `Nothing matched “${q}”${inType ? ` in ${inType}` : ""}`);
+
   // Kept with their account (the website shows the same), then the shelves load again. When
   // the save fails, reading the prefs back puts the dropdown back to what was saved.
   const pickLanguages = async (next: string[]) => {
@@ -161,10 +185,6 @@ export function RequestBody({ q, type, setType }: { q: string; type: RequestType
   );
 
   if (q) {
-    const r = results.data;
-    const groups: [RequestType, string, AppTitle[]][] = [["movie", "Films", r?.movie ?? []], ["tv", "Shows", r?.tv ?? []], ["book", "Books", r?.book ?? []]];
-    const shown = groups.filter(([k]) => type === "all" || type === k);
-    const total = shown.reduce((n, [, , t]) => n + t.length, 0);
     return (
       <View style={styles.stack}>
         {bar}
@@ -175,7 +195,7 @@ export function RequestBody({ q, type, setType }: { q: string; type: RequestType
           </>
         ) : results.isPending ? <View style={styles.skeleton} />
         : total ? shown.map(([k, label, titles]) => <Rail key={k} heading={`${label} (${titles.length})`} titles={titles} />)
-        : <Text variant="body">Nothing matched “{q}”{type === "all" ? "" : ` in ${TYPES.find(([t]) => t === type)?.[1].toLowerCase()}`}. Check the spelling{type === "all" ? "" : ", or set Type to Everything"}.</Text>}
+        : <Text variant="body">Nothing matched “{q}”{inType ? ` in ${inType}` : ""}. Check the spelling{inType ? ", or set Type to Everything" : ""}.</Text>}
       </View>
     );
   }
