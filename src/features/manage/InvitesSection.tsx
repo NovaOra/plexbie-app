@@ -2,7 +2,7 @@
 // Plex invites nobody has accepted yet, and the links already made.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as haptic from "../../ui/haptics";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Share, StyleSheet, TextInput, View } from "react-native";
 import { ApiError } from "../../api/client";
 import { checkSignedOut } from "../../api/query";
@@ -29,7 +29,16 @@ function until(iso: string) {
 }
 const shortDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 
-export function InvitesSection() {
+/**
+ * `fresh` is the new links not yet dismissed, newest first. Manage holds them, so they
+ * outlast a switch to another section (and a link that arrives after one). `onDone` drops
+ * the one for that invite: dismissed, or its link no longer works.
+ */
+export function InvitesSection({ fresh, onMade, onDone }: {
+  fresh: AppNewInvite[];
+  onMade: (made: AppNewInvite) => void;
+  onDone: (id: string) => void;
+}) {
   const confirm = useConfirm();
   const client = useApi();
   const qc = useQueryClient();
@@ -43,8 +52,8 @@ export function InvitesSection() {
   const [days, setDays] = useState(7);
   const [making, setMaking] = useState(false);
   const [problem, setProblem] = useState("");
-  const [made, setMade] = useState<AppNewInvite | null>(null);
   const [renewing, setRenewing] = useState<string | null>(null);
+  const emailField = useRef<TextInput>(null);
 
   const patchInvites = (fn: (d: AppAdminInvite[]) => AppAdminInvite[]) => qc.setQueryData<AppAdminInvite[]>(keyOf("invites"), (d) => (d ? fn(d) : d));
 
@@ -57,7 +66,7 @@ export function InvitesSection() {
     try {
       const out = await client.createInvite({ label: label.trim(), email: email.trim() || undefined, days });
       haptic.success();
-      setMade(out);
+      onMade(out);
       setLabel("");
       setEmail("");
       patchInvites((d) => [out.invite, ...d]);
@@ -77,7 +86,9 @@ export function InvitesSection() {
     try {
       const out = await client.renewInvite(i.id);
       haptic.success();
-      setMade(out);
+      // An open invite's old link stops working, so its card mustn't offer it any more.
+      onDone(i.id);
+      onMade(out);
       patchInvites((d) => [out.invite, ...(i.status === "used" ? d : d.filter((x) => x.id !== i.id))]);
       toast({ text: `New link for ${i.label}`, detail: "It’s at the top of Invites, ready to send." });
     } catch (e) {
@@ -95,7 +106,10 @@ export function InvitesSection() {
       { text: "Keep it", style: "cancel" },
       { text: "Cancel invite", style: "destructive", onPress: async () => {
         const out = await act(null, () => client.revokeInvite(i.id), { done: (o) => ({ text: `Cancelled ${i.label}’s invite`, detail: o.message || undefined }), refresh: ["invites"] });
-        if (out) patchInvites((d) => d.map((x) => (x.id === i.id ? { ...x, status: "revoked" } : x)));
+        if (out) {
+          onDone(i.id);
+          patchInvites((d) => d.map((x) => (x.id === i.id ? { ...x, status: "revoked" } : x)));
+        }
       } },
     ]);
   const remove = (i: AppAdminInvite) =>
@@ -103,7 +117,10 @@ export function InvitesSection() {
       { text: "Keep it", style: "cancel" },
       { text: "Delete", style: "destructive", onPress: async () => {
         const out = await act(null, () => client.deleteInvite(i.id), { done: () => ({ text: `Deleted ${i.label}’s invite` }) });
-        if (out) patchInvites((d) => d.filter((x) => x.id !== i.id));
+        if (out) {
+          onDone(i.id);
+          patchInvites((d) => d.filter((x) => x.id !== i.id));
+        }
       } },
     ]);
 
@@ -115,14 +132,14 @@ export function InvitesSection() {
     <>
       <Heading title="Invite someone" />
       <Text variant="meta">For people who don’t use Discord. They open the link, sign in with Plex, and they’re in. No approval needed: making the link is your yes.</Text>
-      {made ? <FreshLink made={made} onAnother={() => setMade(null)} /> : (
+      {fresh.length ? fresh.map((m) => <FreshLink key={m.invite.id} made={m} last={fresh.length === 1} onDone={() => onDone(m.invite.id)} />) : (
         <View style={[card.box, glass.surface]}>
           <GlassFill radius={radius.m} />
           <Text variant="label" nativeID="inv-name">Who’s it for?</Text>
           <TextInput value={label} onChangeText={setLabel} placeholder="Mum" placeholderTextColor={color.faint} maxLength={60} returnKeyType="next"
-            accessibilityLabel="Who’s it for?" accessibilityLabelledBy="inv-name" style={styles.input} />
+            submitBehavior="submit" onSubmitEditing={() => emailField.current?.focus()} accessibilityLabel="Who’s it for?" accessibilityLabelledBy="inv-name" style={styles.input} />
           <Text variant="label" nativeID="inv-email">Their Plex email <Text variant="meta">(optional)</Text></Text>
-          <TextInput value={email} onChangeText={setEmail} placeholder="name@example.com" placeholderTextColor={color.faint}
+          <TextInput ref={emailField} value={email} onChangeText={setEmail} placeholder="name@example.com" placeholderTextColor={color.faint}
             keyboardType="email-address" autoCapitalize="none" autoCorrect={false} returnKeyType="done" onSubmitEditing={() => void create()}
             accessibilityLabel="Their Plex email, optional" accessibilityLabelledBy="inv-email" style={styles.input} />
           <Text variant="meta">Locks the link to that Plex account, so a forwarded link won’t work for anyone else.</Text>
@@ -189,14 +206,18 @@ export function InvitesSection() {
   );
 }
 
-/** The new link, shown once: send it with the phone's own share sheet (which can also copy it). */
-function FreshLink({ made, onAnother }: { made: AppNewInvite; onAnother: () => void }) {
+/**
+ * The new link, shown once: send it with the phone's own share sheet (which can also copy it).
+ * `last`: no other new link is waiting, so dismissing this one brings the form back.
+ */
+function FreshLink({ made, last, onDone }: { made: AppNewInvite; last: boolean; onDone: () => void }) {
   // It replaced the form: focus moves to it, so "Invite ready" is read straight away.
   const heading = useFocusHere(made.url);
+  const toast = useToast();
   const send = () => void Share.share({
     title: "Your invite to the household Plex",
     message: `Here’s your invite to our Plex, ${made.invite.label}. Open it and sign in with Plex (it’s free if you don’t have an account yet).\n${made.url}`,
-  });
+  }).catch(() => toast({ tone: "error", text: "Couldn’t open sharing", detail: "Press and hold the link to copy it instead." }));
   return (
     <View style={[card.box, glass.surface, styles.fresh]} accessibilityLiveRegion="polite">
       <GlassFill radius={radius.m} />
@@ -209,7 +230,8 @@ function FreshLink({ made, onAnother }: { made: AppNewInvite; onAnother: () => v
         Works once, until {shortDate(made.invite.expiresAt)}{made.invite.email ? `, and only for the Plex account with ${made.invite.email}` : ""}.
         {" "}This is the only time you’ll see the link, so send it now.
       </Text>
-      <Button kind="secondary" label="Make another" onPress={onAnother} style={{ alignSelf: "flex-start" }} />
+      <Button kind="secondary" label={last ? "Make another" : "Done"} onPress={onDone} style={{ alignSelf: "flex-start" }}
+        accessibilityLabel={last ? undefined : `Done with ${made.invite.label}’s link`} />
     </View>
   );
 }
@@ -233,8 +255,10 @@ function PlexInvites({ rows }: { rows: AppPlexInvite[] }) {
     setEditing(null);
     setNext("");
   };
+  // An invite to a Plex username has no email: its name tells it apart, and only plex.tv can change or cancel it.
+  const title = (i: AppPlexInvite) => i.who || i.email || i.name || "A Plex invite";
   const cancel = (i: AppPlexInvite) =>
-    confirm(`Cancel the Plex invite to ${i.who || i.email}?`, "The invite on plex.tv is withdrawn.", [
+    confirm(`Cancel the Plex invite to ${title(i)}?`, "The invite on plex.tv is withdrawn.", [
       { text: "Keep it", style: "cancel" },
       { text: "Cancel invite", style: "destructive", onPress: async () => {
         const out = await act(null, () => client.plexInviteCancel(i.email));
@@ -247,16 +271,17 @@ function PlexInvites({ rows }: { rows: AppPlexInvite[] }) {
       <Heading title="Waiting on Plex" count={rows.length} />
       <Text variant="meta">Plex invites nobody has accepted yet. Sent to the wrong address? Change it and the invite goes to the right one.</Text>
       {rows.map((i) => (
-        <View key={i.email} style={[card.box, glass.surface]}>
+        <View key={i.email || `${i.name}|${i.sentAt}`} style={[card.box, glass.surface]}>
           <GlassFill radius={radius.m} />
           <View style={card.top}>
-            <Initial name={i.who || i.email} />
+            <Initial name={title(i)} />
             <View style={card.body}>
-              <Text variant="title">{i.who || i.email}</Text>
-              <Text variant="meta">{i.who ? `${i.email} · ` : ""}sent {since(i.sentAt)}</Text>
+              <Text variant="title">{title(i)}</Text>
+              <Text variant="meta">{i.who && i.email ? `${i.email} · ` : ""}sent {since(i.sentAt)}</Text>
+              {i.email ? null : <Text variant="meta">Sent to a Plex username, so change or cancel it on plex.tv.</Text>}
             </View>
           </View>
-          {editing === i.email ? (
+          {!i.email ? null : editing === i.email ? (
             <>
               <TextInput value={next} onChangeText={setNext} placeholder="their Plex email" placeholderTextColor={color.faint} autoFocus
                 keyboardType="email-address" autoCapitalize="none" autoCorrect={false} accessibilityLabel="The right email" style={styles.input} />
@@ -269,8 +294,8 @@ function PlexInvites({ rows }: { rows: AppPlexInvite[] }) {
           ) : (
             <View style={card.actions}>
               <Button kind="secondary" label="Change email" onPress={() => { setEditing(i.email); setNext(""); }} style={card.grow}
-                accessibilityLabel={`Change email for ${i.who || i.email}`} />
-              <Button kind="danger" label="Cancel" onPress={() => cancel(i)} style={card.grow} accessibilityLabel={`Cancel the Plex invite to ${i.who || i.email}`} />
+                accessibilityLabel={`Change email for ${title(i)}`} />
+              <Button kind="danger" label="Cancel" onPress={() => cancel(i)} style={card.grow} accessibilityLabel={`Cancel the Plex invite to ${title(i)}`} />
             </View>
           )}
         </View>

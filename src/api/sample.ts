@@ -166,7 +166,10 @@ let sampleInvites: AppAdminInvite[] = [
   { id: "i0", label: "Rosa", email: null, createdBy: "Alex Kim", createdAt: ago(60 * 24 * 9), expiresAt: days(-2),
     status: "used", usedBy: "rosa_m", usedAt: ago(60 * 24 * 8) },
 ];
-let samplePlexInvites: AppPlexInvite[] = [{ email: "jordan@exmaple.com", name: "", sentAt: ago(60 * 5), who: "Jordan" }];
+let samplePlexInvites: AppPlexInvite[] = [
+  { email: "jordan@exmaple.com", name: "", sentAt: ago(60 * 5), who: "Jordan" },
+  { email: "", name: "riley.plex", sentAt: ago(60 * 24 * 2), who: null },
+];
 const newInvite = (label: string, email: string | null, d: number) => {
   const invite: AppAdminInvite = { id: `i${Date.now()}`, label, email, createdBy: "you", createdAt: new Date().toISOString(),
     expiresAt: days(d), status: "active", usedBy: null, usedAt: null };

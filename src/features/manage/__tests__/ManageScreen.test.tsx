@@ -1,7 +1,8 @@
 // Manage opened from an alert (/manage?tab=…&who=…): each alert opens its section, even when
 // the last one said the same, and a DM alert's conversation opens once, not on every
 // return to Messages. Services down and titles leaving show beside the picker, as links
-// big enough to tap.
+// big enough to tap. A new invite link waits there too, and is still on Invites after
+// another section.
 import { beforeEach, expect, jest, test } from "@jest/globals";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react-native";
@@ -40,7 +41,15 @@ jest.mock("../RequestsSection", () => ({ RequestsSection: mockSection("Requests"
 jest.mock("../AllRequestsSection", () => ({ AllRequestsSection: mockSection("All requests"), useAllRequests: () => ({ data: undefined }) }));
 jest.mock("../JoinsSection", () => ({ JoinsSection: mockSection("Joins"), useJoins: () => ({ data: [] }) }));
 jest.mock("../PeopleSection", () => ({ PeopleSection: mockSection("People") }));
-jest.mock("../InvitesSection", () => ({ InvitesSection: mockSection("Invites") }));
+// Invites says how many new links it was handed, and makes one.
+jest.mock("../InvitesSection", () => ({
+  InvitesSection: ({ fresh, onMade }: { fresh: { url: string }[]; onMade: (m: object) => void }) => (
+    <>
+      <MockText>{`Invites section, ${fresh.length} new`}</MockText>
+      <MockText accessibilityRole="button" onPress={() => onMade({ url: "https://plexbie.example/invite/abc", invite: { id: "abc" } })}>Make a link</MockText>
+    </>
+  ),
+}));
 // What Cleanup and Health last said: titles in the warning window, and each service.
 let mockLeaving: { ratingKey: string }[] = [];
 let mockHealth: { name: string; ok: boolean }[] = [];
@@ -112,4 +121,14 @@ test("services down and titles leaving show beside the picker, and open their se
   for (const link of [down, leaving]) expect(StyleSheet.flatten(link.props.style).minHeight).toBeGreaterThanOrEqual(TOUCH);
   await fireEvent.press(down);
   expect(screen.getByText("Health section")).toBeTruthy();
+});
+
+test("a new invite link waits beside the picker and is still on Invites after another section", async () => {
+  await render(page());
+  await pick("invites");
+  await fireEvent.press(screen.getByRole("button", { name: "Make a link" }));
+  await pick("people");
+  expect(screen.getByRole("button", { name: "Invites, 1 waiting. Opens it." })).toBeTruthy();
+  await pick("invites");
+  expect(screen.getByText("Invites section, 1 new")).toBeTruthy();
 });

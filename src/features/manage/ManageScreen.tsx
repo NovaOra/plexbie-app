@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { KeyboardAvoidingView, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { KEYBOARD_BEHAVIOR, useScrollToEnd } from "../../ui/keyboard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { AppNewInvite } from "../../api/schemas";
 import { useSession } from "../../auth/session";
 import { PickerPill } from "../../ui/PickerSheet";
 import { StatusBarScrim } from "../../ui/StatusBarScrim";
@@ -44,6 +45,12 @@ export function ManageScreen() {
     // Used up: the next alert with the same address changes them again, and opens its section.
     if (params.tab || params.who) router.setParams({ tab: undefined, who: undefined });
   }, [params.tab, params.who]);
+  // New invite links are shown only once: held here until dismissed, so leaving Invites
+  // (even while one is being made) doesn't lose them. Only this server's.
+  const [fresh, setFresh] = useState<{ server: string; links: AppNewInvite[] }>({ server, links: [] });
+  const freshLinks = fresh.server === server ? fresh.links : [];
+  const holdLink = (made: AppNewInvite) => setFresh((f) => ({ server, links: [made, ...(f.server === server ? f.links : [])] }));
+  const dropLink = (id: string) => setFresh((f) => ({ ...f, links: f.links.filter((m) => m.invite.id !== id) }));
   const end = useScrollToEnd();
   const newMessages = useMessagePeople().data?.filter((p) => p.unread > 0).length ?? 0;
   const { waiting } = useRequestsCount();
@@ -68,7 +75,7 @@ export function ManageScreen() {
   };
   const tabs: [Tab, string, number][] = [
     // The website's names and order.
-    ["tickets", "Tickets", tickets], ["requests", "Requests", waiting], ["all", "All requests", stuck], ["joins", "Join requests", joinsWaiting], ["invites", "Invites", 0], ["people", "People", 0],
+    ["tickets", "Tickets", tickets], ["requests", "Requests", waiting], ["all", "All requests", stuck], ["joins", "Join requests", joinsWaiting], ["invites", "Invites", freshLinks.length], ["people", "People", 0],
     ["cleanup", "Cleanup", leaving], ["discord", "Discord", 0], ["messages", "Messages", newMessages], ["health", "Health", down],
   ];
 
@@ -94,7 +101,7 @@ export function ManageScreen() {
         </View>
         <View style={styles.section}>
           {tab === "tickets" ? <TicketsSection /> : tab === "requests" ? <RequestsSection /> : tab === "all" ? <AllRequestsSection /> : tab === "joins" ? <JoinsSection /> : tab === "people" ? <PeopleSection />
-            : tab === "invites" ? <InvitesSection /> : tab === "cleanup" ? <CleanupSection onFieldFocus={end.onFocus} /> : tab === "messages" ? <MessagesSection key={who ?? "all"} who={who} onClose={() => setWho(undefined)} onComposerFocus={end.onFocus} />
+            : tab === "invites" ? <InvitesSection fresh={freshLinks} onMade={holdLink} onDone={dropLink} /> : tab === "cleanup" ? <CleanupSection onFieldFocus={end.onFocus} /> : tab === "messages" ? <MessagesSection key={who ?? "all"} who={who} onClose={() => setWho(undefined)} onComposerFocus={end.onFocus} />
             : tab === "health" ? <HealthSection /> : <DiscordSection />}
         </View>
       </ScrollView>
