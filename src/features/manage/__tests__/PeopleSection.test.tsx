@@ -1,9 +1,12 @@
 // Manage → People: Unlink and picking who to link are sent once, however fast they're
-// tapped, and Unlink waits while its unlink is on its way.
+// tapped, and Unlink waits while its unlink is on its way. Saying which Plex account someone
+// is takes a pick and a confirm, the search stays while it filters, and the link sheet
+// starts fresh for each person and says why a link failed.
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import type { Ack, AppAdminPerson } from "../../../api/schemas";
+import type { ConfirmButton } from "../../../ui/Confirm";
 import { PeopleSection } from "../PeopleSection";
 
 jest.mock("react-native-worklets", () => jest.requireActual("react-native-worklets/src/mock"));
@@ -24,13 +27,15 @@ jest.mock("../../../ui/haptics", () => ({ tap: () => undefined, select: () => un
 jest.mock("../../../ui/Glass", () => ({ GlassFill: () => null, glass: { surface: {} } }));
 const mockToast = jest.fn();
 jest.mock("../../../ui/Toast", () => ({ useToast: () => mockToast }));
-jest.mock("../../../ui/Confirm", () => ({ useConfirm: () => jest.fn() }));
+const mockConfirm = jest.fn<(title: string, message: string, buttons: ConfirmButton[]) => void>();
+jest.mock("../../../ui/Confirm", () => ({ useConfirm: () => mockConfirm }));
 
 const mockClient = {
   adminPeople: jest.fn<() => Promise<AppAdminPerson[]>>(),
   linkCandidates: jest.fn<() => Promise<{ discord: { id: string; name: string; username: string }[] }>>(),
   linkPerson: jest.fn<() => Promise<Ack>>(),
   unlinkPerson: jest.fn<() => Promise<Ack>>(),
+  matchPerson: jest.fn<(plexName: string, account: string) => Promise<Ack>>(),
 };
 jest.mock("../../../auth/session", () => ({
   useApi: () => mockClient,
@@ -95,4 +100,80 @@ test("picking who to link, tapped twice, links once and says nothing went wrong"
   await settle();
   expect(mockClient.linkPerson).toHaveBeenCalledTimes(1);
   expect(mockToast).toHaveBeenCalledTimes(1);
+});
+
+test("saying which Plex account someone is takes a pick, then a confirm", async () => {
+  mockClient.adminPeople.mockResolvedValue([person({ hasAccess: false, candidates: ["samriv", "srivers"] })]);
+  mockClient.matchPerson.mockResolvedValue({ ok: true, message: "Matched" } as Ack);
+  await show();
+  await fireEvent.press(screen.getByLabelText("srivers, Plex account for Sam Rivers"));
+  // A tap only picks the account: nothing is sent yet.
+  expect(mockClient.matchPerson).not.toHaveBeenCalled();
+  expect(screen.getByLabelText("srivers, Plex account for Sam Rivers").props.accessibilityState?.checked).toBe(true);
+  await fireEvent.press(screen.getByLabelText("That’s them: srivers is Sam Rivers"));
+  expect(mockClient.matchPerson).not.toHaveBeenCalled();
+  expect(mockConfirm).toHaveBeenCalledTimes(1);
+  const [title, , buttons] = mockConfirm.mock.calls[0];
+  expect(title).toBe("Sam Rivers is srivers on Plex?");
+  await act(async () => { await buttons.find((b) => b.style !== "cancel")!.onPress!(); });
+  await settle();
+  expect(mockClient.matchPerson).toHaveBeenCalledTimes(1);
+  expect(mockClient.matchPerson).toHaveBeenCalledWith("samr", "srivers");
+});
+
+test("a picked account that's no longer offered can't be sent", async () => {
+  const before = [person({ hasAccess: false, candidates: ["samriv", "srivers"] })];
+  mockClient.adminPeople.mockResolvedValue(before);
+  await show();
+  // The accounts are one choice, read out as a group.
+  expect(screen.getByLabelText("Plex account for Sam Rivers").props.accessibilityRole).toBe("radiogroup");
+  await fireEvent.press(screen.getByLabelText("srivers, Plex account for Sam Rivers"));
+  expect(screen.getByLabelText("That’s them: srivers is Sam Rivers")).toBeTruthy();
+  // The list refreshes and srivers went to someone else in the meantime.
+  await act(async () => { qc.setQueryData(["admin", "https://plexbie.example", "people"], [person({ hasAccess: false, candidates: ["samriv"] })]); });
+  await settle();
+  expect(screen.queryByLabelText("That’s them: srivers is Sam Rivers")).toBeNull();
+  expect(screen.getByLabelText("samriv, Plex account for Sam Rivers").props.accessibilityState?.checked).toBe(false);
+});
+
+test("the search stays while it filters, after the list gets shorter", async () => {
+  const five = ["samr", "jo", "kim", "lee", "max"].map((n, i) => person({ plexName: n, displayName: i ? null : "Sam Rivers" }));
+  mockClient.adminPeople.mockResolvedValue(five);
+  await show();
+  await fireEvent.changeText(screen.getByLabelText("Find someone"), "max");
+  // Someone else is removed: four left, and the filter is still applied.
+  await act(async () => { qc.setQueryData(["admin", "https://plexbie.example", "people"], five.slice(1)); });
+  await settle();
+  expect(screen.getByText("Who’s on Plex · 4")).toBeTruthy();
+  expect(screen.getByLabelText("Find someone")).toBeTruthy();
+  await fireEvent.changeText(screen.getByLabelText("Find someone"), "");
+  expect(screen.queryByLabelText("Find someone")).toBeNull();
+});
+
+test("the link sheet starts fresh for each person: a new member list and an empty search", async () => {
+  mockClient.adminPeople.mockResolvedValue([person({}), person({ plexName: "jo", displayName: "Jo Park" })]);
+  await show();
+  await fireEvent.press(screen.getByLabelText("Link Discord, Sam Rivers"));
+  await screen.findByLabelText("Link to Sam");
+  // Dragging the list puts the keyboard away, so the rows under it and Cancel can be reached.
+  let list = screen.getByLabelText("Link to Sam").parent;
+  while (list && list.props.keyboardShouldPersistTaps === undefined) list = list.parent;
+  expect(list?.props.keyboardDismissMode).toBe("on-drag");
+  await fireEvent.changeText(screen.getByLabelText("Search Discord members"), "zz");
+  await fireEvent.press(screen.getByLabelText("Cancel"));
+  mockClient.linkCandidates.mockResolvedValue({ discord: [{ id: "43", name: "Jo", username: "jo" }] });
+  await fireEvent.press(screen.getByLabelText("Link Discord, Jo Park"));
+  expect(screen.getByLabelText("Search Discord members").props.value).toBe("");
+  expect(await screen.findByLabelText("Link to Jo")).toBeTruthy();
+  expect(mockClient.linkCandidates).toHaveBeenCalledTimes(2);
+});
+
+test("a link that fails says why in the sheet", async () => {
+  mockClient.adminPeople.mockResolvedValue([person({})]);
+  mockClient.linkPerson.mockRejectedValue(new Error("Sam is already linked to jo."));
+  await show();
+  await fireEvent.press(screen.getByLabelText("Link Discord, Sam Rivers"));
+  await screen.findByLabelText("Link to Sam");
+  await act(async () => { await mockPresses["Link to Sam"](); });
+  expect(screen.getByText("Sam is already linked to jo.")).toBeTruthy();
 });

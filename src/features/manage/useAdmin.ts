@@ -27,7 +27,8 @@ export function useAdminKey() {
  * `recheck`) at once, and keeps `id` busy until that's in, so it isn't simply tried again.
  * Several can be on their way at once, each busy until its own is in; another call with an
  * id that's still on its way is ignored (null, nothing toasted). A refusal because the
- * sign-in has ended signs out, as it does for a read.
+ * sign-in has ended signs out, as it does for a read. `onFail` hears the failure as toasted,
+ * for a sheet the toast would sit behind.
  * `busy` is the latest id still on its way (or null); `isBusy(id)` asks about one.
  */
 export function useAct() {
@@ -40,7 +41,10 @@ export function useAct() {
   const act = useCallback(async (
     id: string | null,
     call: () => Promise<Ack>,
-    opts: { done?: (out: Ack) => ToastIn | null; failText?: string; refresh?: Section[]; reward?: boolean; recheck?: () => Promise<unknown> } = {},
+    opts: {
+      done?: (out: Ack) => ToastIn | null; failText?: string; refresh?: Section[]; reward?: boolean; recheck?: () => Promise<unknown>;
+      onFail?: (t: ToastIn) => void;
+    } = {},
   ): Promise<Ack | null> => {
     if (id) {
       if (inFlight.current.has(id)) return null;
@@ -61,9 +65,11 @@ export function useAct() {
       checkSignedOut(e);
       haptic.error();
       unsure = e instanceof ApiError && e.unanswered;
-      toast(unsure ? { tone: "error", text: "No answer yet", detail: "It may have gone through. Check before trying again." }
+      const t: ToastIn = unsure ? { tone: "error", text: "No answer yet", detail: "It may have gone through. Check before trying again." }
         : { tone: "error", text: opts.failText ?? (e instanceof Error ? e.message : "That didn’t work."),
-          detail: opts.failText && e instanceof Error ? e.message : undefined });
+          detail: opts.failText && e instanceof Error ? e.message : undefined };
+      toast(t);
+      opts.onFail?.(t);
       return null;
     } finally {
       if (unsure) {

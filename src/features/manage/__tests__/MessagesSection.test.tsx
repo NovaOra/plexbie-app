@@ -1,6 +1,7 @@
 // Manage → Messages, one conversation: "Add to their ticket" is its own stop for a screen
 // reader, a send the bot refused still shows what it logged, and Android Back (or the
-// on-screen one) goes back to everyone and tells Manage the conversation is closed.
+// on-screen one) goes back to everyone and tells Manage the conversation is closed. The
+// search stays while it filters, after the list gets shorter.
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
@@ -107,4 +108,17 @@ test("the on-screen back tells Manage the conversation is closed", async () => {
   await fireEvent.press(await screen.findByLabelText("Back to everyone"));
   expect(screen.getByText(/^Every message Plexbie sends/)).toBeTruthy();
   expect(onClose).toHaveBeenCalledTimes(1);
+});
+
+test("the search stays while it filters, after the list gets shorter", async () => {
+  const six = ["d1", "d2", "d3", "d4", "d5", "d6"].map((id, i) => ({ ...sam, id, name: i ? `Person ${i}` : "Sam Rivers" }));
+  mockClient.adminMessages.mockResolvedValue(six);
+  await render(<QueryClientProvider client={qc}><MessagesSection /></QueryClientProvider>);
+  await fireEvent.changeText(await screen.findByLabelText("Find someone"), "Person 5");
+  await act(async () => { qc.setQueryData(["admin", "https://plexbie.example", "messages"], six.slice(1)); });
+  await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+  expect(screen.getByText("Messages · 5")).toBeTruthy();
+  expect(screen.getByLabelText("Find someone")).toBeTruthy();
+  await fireEvent.changeText(screen.getByLabelText("Find someone"), "");
+  expect(screen.queryByLabelText("Find someone")).toBeNull();
 });

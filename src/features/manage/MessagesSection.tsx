@@ -51,7 +51,7 @@ export function MessagesSection({ who, onClose, onComposerFocus }: { who?: strin
     <>
       <Heading title="Messages" count={rows.length} />
       <Text variant="meta">Every message Plexbie sends someone and how it got there, and what they send Plexbie: DMs, “Something wrong?” and answers on their tickets. Kept for 90 days.</Text>
-      {rows.length > 5 ? (
+      {rows.length > 5 || query ? (
         <TextInput value={query} onChangeText={setQuery} placeholder="Find someone" placeholderTextColor={color.faint}
           autoCorrect={false} autoCapitalize="none" accessibilityLabel="Find someone" style={styles.search} />
       ) : null}
