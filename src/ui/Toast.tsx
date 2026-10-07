@@ -2,6 +2,7 @@
 // (clear of the tab bar and the keyboard), gone after a few seconds or on a tap.
 // Screen readers hear it as it appears.
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { usePathname } from "expo-router";
 import { AccessibilityInfo, Pressable, StyleSheet, View } from "react-native";
 import Animated, { FadeInUp, FadeOutUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -27,20 +28,34 @@ export function useToast() {
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<Shown | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const last = useRef({ key: 0, at: 0, reader: false });
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
 
   const show = useCallback((t: ToastIn) => {
     clearTimeout(timer.current);
-    setToast({ ...t, key: Date.now() });
+    // Its own key, so a timer set for an earlier toast never closes this one.
+    const key = last.current.key + 1;
+    last.current = { key, at: Date.now(), reader: false };
+    setToast({ ...t, key });
     AccessibilityInfo.announceForAccessibility(
       [t.text, t.detail, t.action ? `${t.action.label} is available` : null].filter(Boolean).join(". "));
-    // With a screen reader on, a toast stays until it's dismissed: there's no racing a
-    // timer to reach Undo. Otherwise a few seconds, longer when there's something to do.
+    // With a screen reader on, 15 seconds: time to reach Undo, without it sitting over
+    // Back for good. Otherwise a few seconds, longer when there's something to do.
     void AccessibilityInfo.isScreenReaderEnabled().then((reader) => {
-      if (!reader) timer.current = setTimeout(() => setToast(null), t.tone === "error" || t.action ? 6000 : 4000);
+      if (last.current.key !== key) return;
+      last.current.reader = reader;
+      clearTimeout(timer.current);
+      timer.current = setTimeout(() => setToast((now) => (now?.key === key ? null : now)),
+        reader ? 15000 : t.tone === "error" || t.action ? 6000 : 4000);
     });
   }, []);
   useEffect(() => () => clearTimeout(timer.current), []);
+  // With a screen reader on, the toast goes with the screen it was about. One shown just
+  // before the move ("Sent", then back to the last screen) stays to be read there.
+  useEffect(() => {
+    if (last.current.reader && Date.now() - last.current.at > 1000) setToast(null);
+  }, [pathname]);
   const act = () => { const a = toast?.action; setToast(null); a?.onPress(); };
 
   return (
