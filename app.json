@@ -2,7 +2,7 @@
   "expo": {
     "name": "Plexbie",
     "slug": "plexbie",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/brand/icon-1024.png",
     "userInterfaceStyle": "dark",
@@ -17,7 +17,7 @@
           "altstore"
         ]
       },
-      "buildNumber": "23"
+      "buildNumber": "24"
     },
     "android": {
       "package": "com.plexbie.app",
@@ -29,7 +29,7 @@
       "predictiveBackGestureEnabled": false,
       "allowBackup": false,
       "googleServicesFile": "./google-services.json",
-      "versionCode": 23,
+      "versionCode": 24,
       "blockedPermissions": [
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.READ_EXTERNAL_STORAGE",
