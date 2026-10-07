@@ -16,7 +16,13 @@ jest.mock("expo-file-system", () => {
   }
   return { File, Paths: { document: "documents" } };
 });
-jest.mock("expo-notifications", () => ({ registerTaskAsync: async () => undefined, BackgroundNotificationTaskResult: {} }));
+// Notifications refused for Plexbie, and the phone won't ask again.
+jest.mock("expo-notifications", () => ({
+  registerTaskAsync: async () => undefined,
+  BackgroundNotificationTaskResult: {},
+  getPermissionsAsync: async () => ({ granted: false, canAskAgain: false }),
+  requestPermissionsAsync: async () => ({ granted: false, canAskAgain: false }),
+}));
 jest.mock("expo-task-manager", () => ({ defineTask: () => undefined }));
 jest.mock("../../../../modules/plexbie-live", () => ({
   liveSupported: true,
@@ -27,7 +33,7 @@ jest.mock("../../../../modules/plexbie-live", () => ({
 
 // An Android phone with the native module: one that draws live progress.
 jest.replaceProperty(Platform, "OS", "android");
-const { handleLive, setLiveForThisPhone } = require("../live") as typeof import("../live");
+const { handleLive, previewLive, setLiveForThisPhone } = require("../live") as typeof import("../live");
 
 const update = { plexbie: "live", op: "show", id: "req-1", title: "Sintel", text: "Downloading, 40%", percent: 40 } as const;
 
@@ -51,4 +57,9 @@ test("once alerts are off here, an update still on its way is taken down instead
   setLiveForThisPhone(true);
   await handleLive(update);
   expect(showLive).toHaveBeenCalled();
+});
+
+test("a preview with notifications refused says so, and draws nothing", async () => {
+  await expect(previewLive()).resolves.toBe("denied");
+  expect(showLive).not.toHaveBeenCalled();
 });

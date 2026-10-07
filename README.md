@@ -43,7 +43,9 @@ the status bar. The bot sends silent updates (`core/live_progress.py` there) and
 them in its own module, `modules/plexbie-live`, even when it's closed. Nothing shows before a
 request is downloading, and a stuck one is taken down, as are all of them when alerts are turned
 off or someone signs out. Tapping it opens the request, with Home
-behind it (Back goes there, even when the tap started the app). It's on the You screen, with a preview.
+behind it (Back goes there, even when the tap started the app). It's on the You screen, with a preview;
+if notifications are off for Plexbie, the preview says so and opens the phone's settings, and
+the message goes once they're allowed and the app is back.
 
 **Vibration:** Plexbie's own patterns (a little fanfare when a request is sent), and alerts that
 buzz tap-tap-buzz on Android. One switch on the You screen turns all of it off.
@@ -54,6 +56,10 @@ for the project's own household; every other Plexbie's members turn on its websi
 alerts instead, which each install sends itself. The app says so and opens the website.
 Turning alerts off counts once the server has heard it: if it can't be reached, the switch stays
 on and says why, so the phone isn't left getting alerts that look switched off.
+The You screen checks again whenever the app or the screen comes back, so alerts allowed in the
+phone's settings show straight away (this check is the phone's own, so it works offline too).
+With alerts on and a Plexbie that sends app alerts, **Send a test** asks the server for one
+(`POST /api/push/test`), to every phone and browser the person has alerts on in.
 Tapping an alert opens its page once, over Home (Back goes there), even when the tap starts the
 app; signing out and back in doesn't open it again. One tapped while signed out, or in the sample household,
 opens nothing: the app can't tell which server sent it.
@@ -125,7 +131,7 @@ npm run ios                  # prebuild, pod install, build, open the Simulator
 
 - `npm start`: Metro for an installed dev build (`expo start --dev-client`).
 - `npm run typecheck`, `npm run lint`, `npm run doctor`.
-- `npm test`: the unit tests (Jest with jest-expo, no device needed): sign-in (PKCE, the state check, refusals), signing out (and telling the server later when it can't be reached), turning alerts off, server addresses, where alerts open, and the checks on the bot's answers (sample answers in `src/api/__fixtures__/`, typed with the bot's own API types).
+- `npm test`: the unit tests (Jest with jest-expo, no device needed): sign-in (PKCE, the state check, refusals), signing out (and telling the server later when it can't be reached), turning alerts off, the alert rows on You (one answer shared by all of them, checked again on return), server addresses, where alerts open, and the checks on the bot's answers (sample answers in `src/api/__fixtures__/`, typed with the bot's own API types).
 - `npm run types:sync`: copy the bot's API types again after they change (set `PLEXBIE_REPO` if the bot's checkout isn't `../plexbie`).
 - `node scripts/brand-assets.mjs`: rebuild the icons from the logo.
 

@@ -634,5 +634,6 @@ export const sampleApi: Api = {
   inboxSettings: async (autoreply) => { await pause(300); sampleAutoreply = autoreply; return ok(autoreply ? "Plexbie answers new DMs." : "Plexbie won’t answer DMs by itself."); },
   registerPush: async () => null,
   unregisterPush: async () => null,
+  pushTest: async () => { await pause(300); return ok("Sent. It should pop up in a moment."); },
   logout: async () => null,
 };

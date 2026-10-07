@@ -90,13 +90,20 @@ if (liveAvailable) {
   void Notifications.registerTaskAsync(LIVE_TASK).catch(() => undefined);
 }
 
+/** Whether notifications are allowed for Plexbie in the phone's settings. */
+export async function notificationsAllowed(): Promise<boolean> {
+  return (await Notifications.getPermissionsAsync()).granted;
+}
+
 let previewing = false;
-/** "Show me": one made-up request going through it in about 15 seconds, then gone. */
-export async function previewLive(): Promise<void> {
-  if (!liveAvailable || previewing) return;
+/** "Show me": one made-up request going through it in about 15 seconds, then gone. Says how
+ *  it went: "denied" when notifications are off for Plexbie, so nothing could show. */
+export async function previewLive(): Promise<"shown" | "denied" | "busy" | "unavailable"> {
+  if (!liveAvailable) return "unavailable";
+  if (previewing) return "busy";
   let perm = await Notifications.getPermissionsAsync();
   if (!perm.granted && perm.canAskAgain) perm = await Notifications.requestPermissionsAsync();
-  if (!perm.granted) return;
+  if (!perm.granted) return "denied";
   previewing = true;
   const id = "preview", wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
   try {
@@ -113,4 +120,5 @@ export async function previewLive(): Promise<void> {
     await endLive(id);
     previewing = false;
   }
+  return "shown";
 }

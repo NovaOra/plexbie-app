@@ -231,6 +231,8 @@ export function api(conn: Connection) {
     registerPush: (token: string, platform: string, channel?: string, live?: boolean) =>
       request(conn, "/api/push/app", NothingSchema, json({ token, platform, channel, live })),
     unregisterPush: (token: string) => request(conn, "/api/push/app/remove", NothingSchema, json({ token })),
+    /** A test alert to every phone and browser this person has alerts on in. `ok` false: there were none. */
+    pushTest: () => request(conn, "/api/push/test", AckSchema, json({})),
     /** Ends this session on the server too, so a copied token stops working. */
     logout: () => request(conn, "/api/logout", NothingSchema, { method: "POST" }),
   };

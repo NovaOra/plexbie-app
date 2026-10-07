@@ -1,16 +1,19 @@
 // "Phone alerts" with a switch: on the You screen, and offered once after a request.
+import { focusManager, useMutation } from "@tanstack/react-query";
+import { useFocusEffect } from "expo-router";
 import { Linking, Platform, StyleSheet, View } from "react-native";
 import { useApi, useSession } from "../../auth/session";
 import { useAnnounce } from "../../ui/announce";
 import { SwitchRow } from "../../ui/SwitchRow";
 import { Button } from "../../ui/Button";
 import { Text } from "../../ui/Text";
+import { useToast } from "../../ui/Toast";
 import { color, radius, space } from "../../ui/theme";
 import { usePush } from "./usePush";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { hapticsOn, setHapticsOn } from "../../ui/haptics";
 import { refreshPush } from "./push";
-import { liveAvailable, liveOn, livePinned, previewLive, setLiveOn, setLivePinned } from "./live";
+import { liveAvailable, liveOn, livePinned, notificationsAllowed, previewLive, setLiveOn, setLivePinned } from "./live";
 import { canPromote } from "../../../modules/plexbie-live";
 import { GlassFill, glass } from "../../ui/Glass";
 
@@ -24,11 +27,26 @@ const IPHONE_WHY = "Apple only lets apps from its paid developer program get ale
 /** A Plexbie that doesn't send app alerts: its website does, on any phone. */
 const SERVER_WHY = "Your Plexbie doesn’t send alerts to the app. Its website can: open it in your browser and turn alerts on there.";
 
+/** The phone didn't answer whether alerts are on (its Keychain or permissions failed). */
+const FAILED_WHY = "Couldn’t check this phone’s alerts just now. Come back to this screen to try again.";
+
 export function PushRow() {
-  const { status, serverOff, busy, problem, set } = usePush();
+  const { status, serverOff, failed, busy, problem, set } = usePush();
+  const client = useApi();
+  const toast = useToast();
   const { state } = useSession();
   const site = state.phase === "signedIn" && !state.sample ? state.server : null;
   useAnnounce(problem);
+  // "Send a test": the bot sends one to every phone and browser this person has alerts on in.
+  // Nothing sent can be the server's side too (Expo refused it, or it was down), so the
+  // answer doesn't blame this phone.
+  const test = useMutation({
+    mutationFn: () => client.pushTest(),
+    onSuccess: (out) => toast(out.ok ? { text: out.message || "Sent. It should pop up in a moment." }
+      : { text: "The test didn’t reach any of your devices", tone: "error",
+          detail: "Your Plexbie couldn’t send it just now. If this keeps happening, turn Phone alerts off and on again." }),
+    onError: (e) => toast({ text: "Couldn’t send a test", detail: e.message || undefined, tone: "error" }),
+  });
   if (status === null) return null;
   return (
     <View style={[styles.card, glass.surface]}>
@@ -41,7 +59,7 @@ export function PushRow() {
       ) : (
         <View style={{ gap: 2 }}>
           <Text variant="title" accessibilityRole="header">Phone alerts</Text>
-          <Text variant="meta">{status === "unavailable" ? (serverOff ? SERVER_WHY : IPHONE ? IPHONE_WHY : "Not set up in this build of the app yet.")
+          <Text variant="meta">{status === "unavailable" ? (serverOff ? SERVER_WHY : failed ? FAILED_WHY : IPHONE ? IPHONE_WHY : "Not set up in this build of the app yet.")
             : "Turned off for Plexbie in your phone’s settings."}</Text>
         </View>
       )}
@@ -50,6 +68,10 @@ export function PushRow() {
           style={styles.start} />
       ) : null}
       {status === "denied" ? <Button kind="secondary" label="Open settings" onPress={() => void Linking.openSettings()} style={styles.start} /> : null}
+      {status === "on" && !serverOff ? (
+        <Button kind="secondary" label="Send a test" busy={test.isPending} busyLabel="Sending…" disabled={busy}
+          onPress={() => test.mutate()} style={styles.start} />
+      ) : null}
       {problem ? <Text variant="meta" style={styles.bad} accessibilityRole="alert">{problem}</Text> : null}
     </View>
   );
@@ -77,12 +99,23 @@ export function VibrationRow() {
   );
 }
 
+const PREVIEW_REFUSED = "Notifications are off for Plexbie, so the preview can’t show. Turn them on in your phone’s settings.";
+
 /** Live progress on or off (Android): needs alerts, since the updates come the same way. */
 export function LiveRow() {
   const client = useApi();
   const { status } = usePush();
   const [on, setOn] = useState(liveOn);
   const [pinned, setPinned] = useState(livePinned);
+  /** "Show me" couldn't show: notifications are off for Plexbie in the phone's settings. */
+  const [refused, setRefused] = useState(false);
+  useAnnounce(refused ? PREVIEW_REFUSED : null);
+  // Back from the phone's settings (or back on this screen) with notifications allowed: the message goes.
+  const recheck = useCallback(() => {
+    if (refused) void notificationsAllowed().then((ok) => { if (ok) setRefused(false); }, () => undefined);
+  }, [refused]);
+  useFocusEffect(recheck);
+  useEffect(() => focusManager.subscribe((front) => { if (front) recheck(); }), [recheck]);
   if (!liveAvailable || status === null) return null;
   const why = status !== "on" ? "Turn on phone alerts first: live progress comes the same way. “Show me” plays a preview."
     : `While one of your requests downloads, it stays in your notifications${canPromote() ? " and the status bar" : ""}, `
@@ -105,7 +138,16 @@ export function LiveRow() {
             : "It goes with your silent notifications, without the % in the status bar."} Android doesn’t let it be both.</Text>
         </SwitchRow>
       ) : null}
-      <Button kind="secondary" label="Show me" onPress={() => void previewLive()} style={styles.start} />
+      <Button kind="secondary" label="Show me" onPress={() => {
+        setRefused(false);
+        void previewLive().then((how) => { if (how === "denied") setRefused(true); });
+      }} style={styles.start} />
+      {refused ? (
+        <>
+          <Text variant="meta" style={styles.bad}>{PREVIEW_REFUSED}</Text>
+          <Button kind="secondary" label="Open settings" onPress={() => void Linking.openSettings()} style={styles.start} />
+        </>
+      ) : null}
     </View>
   );
 }
