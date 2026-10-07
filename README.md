@@ -149,7 +149,7 @@ npm run ios                  # prebuild, pod install, build, open the Simulator
 
 - `npm start`: Metro for an installed dev build (`expo start --dev-client`).
 - `npm run typecheck`, `npm run lint`, `npm run doctor`.
-- `npm test`: the unit tests (Jest with jest-expo, no device needed): sign-in (PKCE, the state check, refusals), signing out (and telling the server later when it can't be reached), turning alerts off, the sample household (each visit starts from the same one, and a blocked import there goes through), the alert rows on You (one answer shared by all of them, checked again on return), server addresses, where alerts and the app's own links open, and the checks on the bot's answers (sample answers in `src/api/__fixtures__/`, typed with the bot's own API types).
+- `npm test`: the unit tests (Jest with jest-expo, no device needed): sign-in (PKCE, the state check, refusals), signing out (and telling the server later when it can't be reached), turning alerts off, the sample household (each visit starts from the same one, and a blocked import there goes through), the alert rows on You (one answer shared by all of them, checked again on return), server addresses, where alerts and the app's own links open, the release build's own signing key (`plugins/`), and the checks on the bot's answers (sample answers in `src/api/__fixtures__/`, typed with the bot's own API types).
 - CI (`.github/workflows/ci.yml`, on every push to `main` and every pull request): `npm run typecheck`, `npm test`
   and `npm run types:check` against the bot's `main`, checked out beside the app. A fork whose bot repo lives
   elsewhere sets the Actions variable `PLEXBIE_BOT_REPO` (`owner/name`).
@@ -191,11 +191,31 @@ own Apple ID, and the bot hands each member their own source address on the webs
   # android/app/build/outputs/apk/debug/app-debug.apk
   adb install -r android/app/build/outputs/apk/debug/app-debug.apk   # or copy it to the phone and open it
   ```
-- **Standalone APK** (code inside, no Mac needed; signed with the debug key, fine for your own phone):
+- **Standalone APK** (code inside, no Mac needed), signed with a key of your own. A release build won't use
+  the debug key: every Expo project ships the same public one, so anyone could sign an "update" that installs
+  over yours. Make the key once (`keytool` comes with Java; it asks for a password):
   ```bash
-  cd android && ./gradlew assembleRelease
+  mkdir -p ~/.plexbie
+  keytool -genkeypair -keystore ~/.plexbie/plexbie-release.keystore -alias plexbie -keyalg RSA -keysize 4096 -validity 10000
+  ```
+  Then a properties file beside it, say `~/.plexbie/release-signing.properties` (`chmod 600` it; `storeFile` is
+  absolute or relative to this file, the key's password is the keystore's own, and a `\` in a password is written `\\`):
+  ```properties
+  storeFile=plexbie-release.keystore
+  storePassword=<the password>
+  keyAlias=plexbie
+  keyPassword=<the password>
+  ```
+  And build with it, giving the file's full path (`PLEXBIE_SIGNING=<the path>` works too; a relative path counts
+  from the app folder, not from `android/`; without either, the release build stops):
+  ```bash
+  cd android && ./gradlew assembleRelease -Pplexbie.signing=$HOME/.plexbie/release-signing.properties
   # android/app/build/outputs/apk/release/app-release.apk
   ```
+  Sign every update with that same key, and keep it and its password safe: Android installs an update over the
+  app only when the keys match, so a lost key means uninstalling the app (and signing in again) to install a new one.
+  One you built earlier with the debug key won't take an update signed with yours: uninstall it first. Debug builds
+  and EAS builds don't need the key (EAS signs with its own credentials).
 
 On the phone, allow *Install unknown apps* for whatever opens the APK (Files, a browser). On GrapheneOS that's per app, under *Settings → Apps*.
 

@@ -84,8 +84,10 @@ git -C "$bot" diff --quiet FETCH_HEAD -- web/src/api/types.ts \
 npm run -s types:check
 
 npx expo prebuild --platform android --no-install >/dev/null
+# Gradle signs it with the release key already (plugins/withReleaseSigning.js; it stops without
+# one); the re-sign below stays, with the certificate check after it.
 (cd android && ./gradlew app:assembleRelease -x lint -x test -q \
-  --init-script ../scripts/no-lint-vital.gradle -PreactNativeArchitectures=arm64-v8a)
+  --init-script ../scripts/no-lint-vital.gradle -PreactNativeArchitectures=arm64-v8a -Pplexbie.signing="$SIGNING")
 built=android/app/build/outputs/apk/release/app-release.apk
 built_code=$(node -p "require('./android/app/build/outputs/apk/release/output-metadata.json').elements[0].versionCode")
 [[ "$built_code" == "$code" ]] || { echo "Built versionCode $built_code, expected $code." >&2; exit 1; }

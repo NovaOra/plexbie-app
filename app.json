@@ -63,7 +63,8 @@
         {
           "addGeneratedScheme": false
         }
-      ]
+      ],
+      "./plugins/withReleaseSigning"
     ],
     "scheme": [
       "com.plexbie.app"
