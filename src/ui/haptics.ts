@@ -8,26 +8,21 @@
 //   reward    a request was sent: a little rising "ba-da-ding"
 //   knock     an alert arrived while the app is open: knock-knock
 import * as Haptics from "expo-haptics";
-import { File, Paths } from "expo-file-system";
 import { Platform } from "react-native";
+import { flagSetting } from "./flagSetting";
 
-/** The setting, in the app's own documents folder: not a secret, so not the Keychain. */
-const setting = () => new File(Paths.document, "plexbie-haptics.txt");
+/** The setting, in the app's own documents folder. */
+const setting = flagSetting("plexbie-haptics.txt", true);
 
-let on = (() => {
-  try { const f = setting(); return !(f.exists && f.textSync().trim() === "off"); } catch { return true; }
-})();
-
-export const hapticsOn = () => on;
+export const hapticsOn = setting.get;
 
 export async function setHapticsOn(next: boolean): Promise<void> {
-  on = next;
-  try { setting().write(next ? "on" : "off"); } catch { /* stays for this run */ }
+  setting.set(next);
   if (next) success();
 }
 
-const later = (ms: number, f: () => Promise<void>) => setTimeout(() => { if (on) void f().catch(() => undefined); }, ms);
-const now = (f: () => Promise<void>) => { if (on) void f().catch(() => undefined); };
+const later = (ms: number, f: () => Promise<void>) => setTimeout(() => { if (setting.get()) void f().catch(() => undefined); }, ms);
+const now = (f: () => Promise<void>) => { if (setting.get()) void f().catch(() => undefined); };
 
 // Android: the phone's own haptic effects (performHapticFeedback), which each maker tunes for
 // its motor and which follow the system's touch-feedback setting. expo-haptics' own Android

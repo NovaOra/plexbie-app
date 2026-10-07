@@ -6,6 +6,7 @@ import { File, Paths } from "expo-file-system";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import { endAllLive, endLive, liveSupported, showLive } from "../../../modules/plexbie-live";
+import { flagSetting } from "../../ui/flagSetting";
 
 export const LIVE_TASK = "plexbie-live-progress";
 /** A live notification goes by itself this long after its last update (the bot sends one
@@ -15,44 +16,27 @@ const LIVE_TIMEOUT = 30 * 60_000;
 /** This phone can show it: Android, with the native module in the build. */
 export const liveAvailable = Platform.OS === "android" && liveSupported;
 
-const setting = () => new File(Paths.document, "plexbie-live.txt");
-let on = (() => {
-  try { const f = setting(); return !(f.exists && f.textSync().trim() === "off"); } catch { return true; }
-})();
-
-const pinSetting = () => new File(Paths.document, "plexbie-live-pin.txt");
-let pin = (() => {
-  try { const f = pinSetting(); return !(f.exists && f.textSync().trim() === "off"); } catch { return true; }
-})();
+const setting = flagSetting("plexbie-live.txt", true);
+const pinSetting = flagSetting("plexbie-live-pin.txt", true);
 
 /** In the status bar (the default): a Live Update, with its % in the status bar and its
  *  place at the top of the shade. Off: an ordinary silent notification, down with the
  *  others. Android doesn't let one be both. */
-export const livePinned = () => pin;
-export function setLivePinned(next: boolean) {
-  pin = next;
-  try { pinSetting().write(next ? "on" : "off"); } catch { /* stays for this run */ }
-}
+export const livePinned = pinSetting.get;
+export const setLivePinned = pinSetting.set;
 
-const forPhoneSetting = () => new File(Paths.document, "plexbie-live-alerts.txt");
-let forPhone = (() => {
-  try { const f = forPhoneSetting(); return !(f.exists && f.textSync().trim() === "off"); } catch { return true; }
-})();
+const forPhoneSetting = flagSetting("plexbie-live-alerts.txt", true);
 
 /** Off once alerts are turned off here or the person signs out, until alerts are turned on
  *  again: updates the bot sends before it hears that aren't drawn. A file, not the Keychain,
  *  so the background task can read it with the phone locked. */
-export function setLiveForThisPhone(next: boolean) {
-  forPhone = next;
-  try { forPhoneSetting().write(next ? "on" : "off"); } catch { /* stays for this run */ }
-}
+export const setLiveForThisPhone = forPhoneSetting.set;
 
 /** Live progress on (the default) or off, on this phone. */
-export const liveOn = () => liveAvailable && on;
+export const liveOn = () => liveAvailable && setting.get();
 
 export async function setLiveOn(next: boolean): Promise<void> {
-  on = next;
-  try { setting().write(next ? "on" : "off"); } catch { /* stays for this run */ }
+  setting.set(next);
   if (!next) await endAllLive();
 }
 
@@ -102,12 +86,12 @@ function newest(live: Live): boolean {
 
 export async function handleLive(live: Live): Promise<void> {
   if (!newest(live)) return;
-  if (live.op === "end" || !liveOn() || !forPhone) { await endLive(live.id); return; }
+  if (live.op === "end" || !liveOn() || !forPhoneSetting.get()) { await endLive(live.id); return; }
   const slot = typeof live.slot === "number" && Number.isInteger(live.slot) && live.slot > 0 ? live.slot : null;
   const percent = typeof live.percent === "number" ? Math.max(0, Math.min(100, Math.round(live.percent))) : null;
   const stage = live.stage === "unpacking" || live.stage === "importing" ? live.stage : "downloading";
   await showLive(live.id, slot, String(live.title ?? "Your request").slice(0, 120), String(live.text ?? "").slice(0, 200),
-    stage, percent, LIVE_TIMEOUT, pin);
+    stage, percent, LIVE_TIMEOUT, pinSetting.get());
 }
 
 if (liveAvailable) {
@@ -140,12 +124,12 @@ export async function previewLive(): Promise<"shown" | "denied" | "busy" | "unav
   try {
     for (let pct = 0; pct <= 100; pct += 10) {
       const left = Math.max(1, Math.round((100 - pct) / 20));
-      await showLive(id, null, "Sintel (a preview)", `Downloading, ${pct}%. About ${left} min left`, "downloading", pct, LIVE_TIMEOUT, pin);
+      await showLive(id, null, "Sintel (a preview)", `Downloading, ${pct}%. About ${left} min left`, "downloading", pct, LIVE_TIMEOUT, pinSetting.get());
       await wait(900);
     }
-    await showLive(id, null, "Sintel (a preview)", "Unpacking, 1 of 2", "unpacking", 50, LIVE_TIMEOUT, pin);
+    await showLive(id, null, "Sintel (a preview)", "Unpacking, 1 of 2", "unpacking", 50, LIVE_TIMEOUT, pinSetting.get());
     await wait(2000);
-    await showLive(id, null, "Sintel (a preview)", "Downloaded. Adding it to Plex", "importing", 100, LIVE_TIMEOUT, pin);
+    await showLive(id, null, "Sintel (a preview)", "Downloaded. Adding it to Plex", "importing", 100, LIVE_TIMEOUT, pinSetting.get());
     await wait(2500);
   } finally {
     await endLive(id);
