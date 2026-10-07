@@ -11,10 +11,10 @@ import { PickerPill } from "../../ui/PickerSheet";
 import { StatusBarScrim } from "../../ui/StatusBarScrim";
 import { ScreenTitle } from "../../ui/ScreenTitle";
 import { Text } from "../../ui/Text";
-import { color, space } from "../../ui/theme";
-import { CleanupSection } from "./CleanupSection";
+import { color, space, TOUCH } from "../../ui/theme";
+import { CleanupSection, useCleanup } from "./CleanupSection";
 import { DiscordSection } from "./DiscordSection";
-import { HealthSection } from "./HealthSection";
+import { HealthSection, useHealth } from "./HealthSection";
 import { InvitesSection } from "./InvitesSection";
 import { MessagesSection, useMessagePeople } from "./MessagesSection";
 import { JoinsSection, useJoins } from "./JoinsSection";
@@ -51,14 +51,17 @@ export function ManageScreen() {
   const joinsWaiting = joins.data?.filter((j) => j.status === "pending").length ?? 0;
   const stuck = useAllRequests().data?.counts?.stuck ?? 0;
   const tickets = useTickets().data?.counts.action ?? 0;
+  const leaving = useCleanup().data?.warning.length ?? 0;
+  const down = useHealth().data?.filter((h) => !h.ok).length ?? 0;
   const [pulling, setPulling] = useState(false);
   const onRefresh = useCallback(async () => {
     setPulling(true);
     try { await qc.refetchQueries({ queryKey: ["admin", server] }); } finally { setPulling(false); }
   }, [qc, server]);
 
-  /** "Requests · 4 waiting" (or "All requests · 2 stuck", "Tickets · 1 open"): the section, and what's waiting in it. */
-  const word = (id: Tab) => (id === "all" ? "stuck" : id === "tickets" ? "open" : id === "messages" ? "new" : "waiting");
+  /** "Requests · 4 waiting" (or "All requests · 2 stuck", "Tickets · 1 open", "Health · 1 down"): the section, and what's waiting in it. */
+  const word = (id: Tab) => (id === "all" ? "stuck" : id === "tickets" ? "open" : id === "messages" ? "new"
+    : id === "health" ? "down" : id === "cleanup" ? "leaving" : "waiting");
   const sectionLabel = (id: Tab) => {
     const [, label, n] = tabs.find(([t]) => t === id)!;
     return n ? `${label} · ${n} ${word(id)}` : label;
@@ -66,7 +69,7 @@ export function ManageScreen() {
   const tabs: [Tab, string, number][] = [
     // The website's names and order.
     ["tickets", "Tickets", tickets], ["requests", "Requests", waiting], ["all", "All requests", stuck], ["joins", "Join requests", joinsWaiting], ["invites", "Invites", 0], ["people", "People", 0],
-    ["cleanup", "Cleanup", 0], ["discord", "Discord", 0], ["messages", "Messages", newMessages], ["health", "Health", 0],
+    ["cleanup", "Cleanup", leaving], ["discord", "Discord", 0], ["messages", "Messages", newMessages], ["health", "Health", down],
   ];
 
   return (
@@ -104,6 +107,6 @@ const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: color.field },
   content: { paddingHorizontal: space.l, gap: space.s },
   picker: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: space.m, paddingVertical: space.s },
-  waiting: { color: color.screen, minHeight: 40, textAlignVertical: "center", lineHeight: 40 },
+  waiting: { color: color.screen, minHeight: TOUCH, textAlignVertical: "center", lineHeight: TOUCH },
   section: { gap: space.m },
 });

@@ -29,11 +29,15 @@ function clockText(reason: string, when?: string) {
   return `Last watched ${shortDate(when)}`;
 }
 
+/** Cleanup's settings and titles on the clock: this section, and the "N leaving" beside Manage's section picker. */
+export function useCleanup() {
+  const client = useApi();
+  return useQuery({ queryKey: useAdminKey()("cleanup"), queryFn: ({ signal }) => client.adminCleanup(signal), staleTime: 60_000 });
+}
+
 /** `onFieldFocus` scrolls Manage to its end, so the title search at the bottom shows above the keyboard. */
 export function CleanupSection({ onFieldFocus }: { onFieldFocus?: () => void }) {
-  const client = useApi();
-  const key = useAdminKey()("cleanup");
-  const cleanup = useQuery({ queryKey: key, queryFn: ({ signal }) => client.adminCleanup(signal), staleTime: 60_000 });
+  const cleanup = useCleanup();
   const [view, setView] = useState<View3>("soon");
   const d = cleanup.data;
   if (!d) {

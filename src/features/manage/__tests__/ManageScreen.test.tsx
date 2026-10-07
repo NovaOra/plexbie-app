@@ -1,11 +1,13 @@
 // Manage opened from an alert (/manage?tab=…&who=…): each alert opens its section, even when
 // the last one said the same, and a DM alert's conversation opens once, not on every
-// return to Messages.
+// return to Messages. Services down and titles leaving show beside the picker, as links
+// big enough to tap.
 import { beforeEach, expect, jest, test } from "@jest/globals";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import { Text as MockText } from "react-native";
+import { StyleSheet, Text as MockText } from "react-native";
 import { router } from "expo-router";
+import { TOUCH } from "../../../ui/theme";
 import { ManageScreen } from "../ManageScreen";
 
 // The route's params, as the router holds them: an alert replaces them, setParams merges.
@@ -39,8 +41,11 @@ jest.mock("../AllRequestsSection", () => ({ AllRequestsSection: mockSection("All
 jest.mock("../JoinsSection", () => ({ JoinsSection: mockSection("Joins"), useJoins: () => ({ data: [] }) }));
 jest.mock("../PeopleSection", () => ({ PeopleSection: mockSection("People") }));
 jest.mock("../InvitesSection", () => ({ InvitesSection: mockSection("Invites") }));
-jest.mock("../CleanupSection", () => ({ CleanupSection: mockSection("Cleanup") }));
-jest.mock("../HealthSection", () => ({ HealthSection: mockSection("Health") }));
+// What Cleanup and Health last said: titles in the warning window, and each service.
+let mockLeaving: { ratingKey: string }[] = [];
+let mockHealth: { name: string; ok: boolean }[] = [];
+jest.mock("../CleanupSection", () => ({ CleanupSection: mockSection("Cleanup"), useCleanup: () => ({ data: { warning: mockLeaving } }) }));
+jest.mock("../HealthSection", () => ({ HealthSection: mockSection("Health"), useHealth: () => ({ data: mockHealth }) }));
 jest.mock("../DiscordSection", () => ({ DiscordSection: mockSection("Discord") }));
 jest.mock("../MessagesSection", () => ({
   useMessagePeople: () => ({ data: [] }),
@@ -58,6 +63,8 @@ const pick = (tab: string) => fireEvent.press(screen.getByRole("button", { name:
 
 beforeEach(() => {
   mockParams = {};
+  mockLeaving = [];
+  mockHealth = [];
   jest.mocked(router.setParams).mockClear();
 });
 
@@ -91,4 +98,18 @@ test("closing the conversation forgets it, and a new alert about it opens it aga
   mockParams = { tab: "messages", who: "d1" };
   await rerender(page());
   expect(screen.getByText("Messages section, open on d1")).toBeTruthy();
+});
+
+test("services down and titles leaving show beside the picker, and open their section", async () => {
+  mockLeaving = [{ ratingKey: "1" }, { ratingKey: "2" }];
+  mockHealth = [{ name: "Plex", ok: true }, { name: "Sonarr", ok: false }];
+  await render(page());
+  const down = screen.getByRole("button", { name: "Health, 1 down. Opens it." });
+  const leaving = screen.getByRole("button", { name: "Cleanup, 2 leaving. Opens it." });
+  expect(down).toHaveTextContent("Health · 1 down");
+  expect(leaving).toHaveTextContent("Cleanup · 2 leaving");
+  // The app's touch size, like every other control.
+  for (const link of [down, leaving]) expect(StyleSheet.flatten(link.props.style).minHeight).toBeGreaterThanOrEqual(TOUCH);
+  await fireEvent.press(down);
+  expect(screen.getByText("Health section")).toBeTruthy();
 });
