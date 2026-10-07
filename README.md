@@ -47,7 +47,9 @@ shade with a bar that fills up until it's on Plex; on Android 16 it's a Live Upd
 the status bar. The bot sends silent updates (`core/live_progress.py` there) and the app draws
 them in its own module, `modules/plexbie-live`, even when it's closed. Nothing shows before a
 request is downloading, and a stuck one is taken down, as are all of them when alerts are turned
-off or someone signs out. Tapping it opens the request, with Home
+off or someone signs out. A phone that was offline can get updates late and out of order; with a
+Plexbie that dates them, one older than the last drawn for that request is left alone, so a
+request that has finished doesn't come back. Tapping it opens the request, with Home
 behind it (Back goes there, even when the tap started the app); signed out, it opens once the
 sign-in is done. It's on the You screen, with a preview;
 if notifications are off for Plexbie, the preview says so and opens the phone's settings, and

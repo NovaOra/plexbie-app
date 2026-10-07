@@ -63,3 +63,28 @@ test("a preview with notifications refused says so, and draws nothing", async ()
   await expect(previewLive()).resolves.toBe("denied");
   expect(showLive).not.toHaveBeenCalled();
 });
+
+// A phone that was offline can get the bot's updates late and out of order: one older than
+// the last it drew for that request is left alone, so a late "show" can't bring back one that
+// has ended. Updates from a bot that doesn't date them are drawn as they come.
+test("an update older than the last one for its request is left alone", async () => {
+  setLiveForThisPhone(true);
+  await handleLive({ plexbie: "live", op: "end", id: "req-2", ts: 2_000 });
+  expect(endLive).toHaveBeenCalledWith("req-2");
+
+  await handleLive({ ...update, id: "req-2", ts: 1_000 });
+  expect(showLive).not.toHaveBeenCalled();
+
+  await handleLive({ ...update, id: "req-3", ts: 1_000 });
+  expect(showLive).toHaveBeenCalledTimes(1);
+
+  await handleLive({ ...update, id: "req-2", ts: 3_000 });
+  expect(showLive).toHaveBeenCalledTimes(2);
+
+  jest.mocked(endLive).mockClear();
+  await handleLive({ plexbie: "live", op: "end", id: "req-2", ts: 2_500 });
+  expect(endLive).not.toHaveBeenCalled();
+
+  await handleLive({ ...update, id: "req-2" });
+  expect(showLive).toHaveBeenCalledTimes(3);
+});

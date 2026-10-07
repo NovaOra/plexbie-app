@@ -57,7 +57,7 @@ export async function setLiveOn(next: boolean): Promise<void> {
 }
 
 type Live = { plexbie: "live"; op: "show" | "end"; id: string; slot?: number | null; title?: string; text?: string;
-  stage?: string; percent?: number | null };
+  stage?: string; percent?: number | null; ts?: number };
 
 /** The update in a notification's data, however Expo and FCM wrapped it. */
 export function liveIn(data: unknown): Live | null {
@@ -70,7 +70,38 @@ export function liveIn(data: unknown): Live | null {
   return null;
 }
 
+/** The newest update drawn per request ("ts", when the bot sent it) and when it came, by this
+ *  phone's clock. A phone that was offline can get updates late and out of order, and a late
+ *  "show" mustn't bring back one that has ended. A file, so the background task, which can
+ *  start afresh, sees what the app drew; kept an hour. */
+const seenSetting = () => new File(Paths.document, "plexbie-live-seen.json");
+const SEEN_FOR = 60 * 60_000;
+type Seen = Record<string, { ts: number; at: number }>;
+let seenHere: Seen = {};
+
+/** False for an update older than the last one drawn for its request; otherwise it's noted.
+ *  One from a bot that doesn't date them is drawn as it comes. */
+function newest(live: Live): boolean {
+  const ts = live.ts;
+  if (typeof ts !== "number" || !Number.isFinite(ts)) return true;
+  let seen = seenHere;
+  try {
+    const f = seenSetting();
+    if (f.exists) { const v: unknown = JSON.parse(f.textSync()); if (v && typeof v === "object") seen = v as Seen; }
+  } catch { /* what this run noted */ }
+  const now = Date.now(), kept: Seen = Object.create(null);
+  for (const [id, s] of Object.entries(seen)) {
+    if (s && typeof s.ts === "number" && typeof s.at === "number" && now - s.at < SEEN_FOR) kept[id] = s;
+  }
+  if (kept[live.id] && ts < kept[live.id].ts) return false;
+  kept[live.id] = { ts, at: now };
+  seenHere = kept;
+  try { seenSetting().write(JSON.stringify(kept)); } catch { /* noted for this run */ }
+  return true;
+}
+
 export async function handleLive(live: Live): Promise<void> {
+  if (!newest(live)) return;
   if (live.op === "end" || !liveOn() || !forPhone) { await endLive(live.id); return; }
   const slot = typeof live.slot === "number" && Number.isInteger(live.slot) && live.slot > 0 ? live.slot : null;
   const percent = typeof live.percent === "number" ? Math.max(0, Math.min(100, Math.round(live.percent))) : null;
@@ -87,7 +118,7 @@ if (liveAvailable) {
     if (live) await handleLive(live);
     return Notifications.BackgroundNotificationTaskResult.NoData;
   });
-  void Notifications.registerTaskAsync(LIVE_TASK).catch(() => undefined);
+  void Notifications.registerTaskAsync(LIVE_TASK).catch((e) => console.warn("Live progress: couldn't register its background task", e));
 }
 
 /** Whether notifications are allowed for Plexbie in the phone's settings. */
