@@ -12,6 +12,7 @@ import { ApiError } from "../../api/client";
 import { queryClient } from "../../api/query";
 import { discordSession, mobileInfo, token } from "../../api/__fixtures__/bot";
 import { forgetPush, savedPush } from "../../features/push/push";
+import { helpDrafts } from "../../features/request/helpDrafts";
 import { normalizeServer, SessionProvider, SignInError, useSession } from "../session";
 
 // The Keychain / Keystore, in memory. Keys in __locked can't be read or written (a locked iPhone);
@@ -476,6 +477,12 @@ describe("signing out", () => {
   const both = [["/api/push/app/remove", `Bearer ${token.token}`, { token: PUSH }], ["/api/logout", `Bearer ${token.token}`, undefined]];
 
   beforeEach(() => { seen = []; jest.mocked(forgetPush).mockClear(); });
+
+  test("a help note not sent goes with the sign-in: the next person doesn't see it", async () => {
+    helpDrafts.set(`${SERVER} 7`, { reason: "stuck", note: "It’s been at 0% since this morning" });
+    await signOutWith(200);
+    expect(helpDrafts.size).toBe(0);
+  });
 
   test("the bot is told: this phone's alerts stop, then the sign-in ends there too", async () => {
     await signOutWith(200);

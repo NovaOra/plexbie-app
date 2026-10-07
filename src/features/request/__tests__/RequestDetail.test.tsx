@@ -32,11 +32,16 @@ jest.mock("expo-image", () => ({ Image: () => null }));
 jest.mock("../../../ui/haptics", () => ({ tap: () => undefined, select: () => undefined, reward: () => undefined, error: () => undefined, success: () => undefined }));
 jest.mock("../../../ui/Glass", () => ({ Ambient: () => null, GlassFill: () => null, FrostedTop: () => null, glass: { surface: {} } }));
 jest.mock("../StageBox", () => ({ StageBox: () => null, SeasonsBox: () => null }));
+// No navigator here; asking before a typed answer is lost has tests of its own. This only
+// keeps whether the screen says there's an answer to lose.
+const mockDraftGuard = jest.fn((_dirty: boolean) => () => undefined);
+jest.mock("../../../ui/useDraftGuard", () => ({ useDraftGuard: (dirty: boolean) => mockDraftGuard(dirty) }));
 
 const rows = myRequests as unknown as AppRequest[];
 let mockSlot = rows[0].slot;
 beforeEach(() => {
   mockRefetch.mockReset();
+  mockDraftGuard.mockClear();
   mockSlot = rows[0].slot;
 });
 
@@ -68,4 +73,16 @@ test("the request, its title the heading", async () => {
   await render(<RequestDetail />);
   expect(screen.getByRole("header", { name: rows[0].title.title })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Back" })).toBeTruthy();
+});
+
+test("a typed answer is one to lose only while its box is there", async () => {
+  mockAnswer = { data: rows, error: null, refetch: mockRefetch };
+  const view = await render(<RequestDetail />);
+  await fireEvent.changeText(screen.getByLabelText("Your answer"), "Only episode 4.");
+  expect(mockDraftGuard).toHaveBeenLastCalledWith(true);
+  // The next poll: the admin isn't waiting on an answer any more, and the box goes.
+  mockAnswer = { data: rows.map((r, i) => (i === 0 && r.help ? { ...r, help: { ...r.help, waiting: false } } : r)), error: null, refetch: mockRefetch };
+  await view.rerender(<RequestDetail />);
+  expect(screen.queryByLabelText("Your answer")).toBeNull();
+  expect(mockDraftGuard).toHaveBeenLastCalledWith(false);
 });

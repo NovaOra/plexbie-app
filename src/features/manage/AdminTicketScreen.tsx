@@ -17,6 +17,7 @@ import { GlassFill, glass } from "../../ui/Glass";
 import { useScrollToField } from "../../ui/keyboard";
 import { Text } from "../../ui/Text";
 import { color, font, radius, space, TOUCH } from "../../ui/theme";
+import { useDraftGuard } from "../../ui/useDraftGuard";
 import { useMe } from "../me/useMe";
 import { StageBox } from "../request/StageBox";
 import { formatSlot, seasonsLabel, since } from "../requests/stage";
@@ -42,6 +43,9 @@ export function AdminTicketScreen() {
   const [solving, setSolving] = useState(false);
   const [last, setLast] = useState("");
   const field = useScrollToField();
+  // The note or reply, or the last word while solving it, unless it's on its way. A closed
+  // ticket shows neither box.
+  useDraftGuard(t?.status === "open" && ((!!text.trim() && busy !== "send") || (solving && !!last.trim() && busy !== "solve")));
 
   /** Runs an action, then reads the ticket back (and, a moment later, the lists it's on). */
   const run = async (busyKey: string, call: () => Promise<Ack>, done?: string) => {

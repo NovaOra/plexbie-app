@@ -19,6 +19,7 @@ import { GlassFill, glass } from "../../ui/Glass";
 import { SeasonsBox, StageBox } from "./StageBox";
 import { useScrollToField } from "../../ui/keyboard";
 import { useToast } from "../../ui/Toast";
+import { useDraftGuard } from "../../ui/useDraftGuard";
 import { Thread } from "../tickets/Thread";
 
 const HELP_REASON: Record<string, string> = {
@@ -85,6 +86,8 @@ function YourTicket({ request: r, ticket, onFocus }: { request: AppRequest; tick
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState("");
   const solved = ticket.status === "resolved";
+  // Only while the answer box is there to see.
+  useDraftGuard(!!ticket.waiting && !solved && !!text.trim() && !busy);
   const reason = HELP_REASON[ticket.reason] ?? ticket.reason.toLowerCase();
   const answer = async () => {
     if (!text.trim() || !r.id) return;

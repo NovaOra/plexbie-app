@@ -16,6 +16,7 @@ import { useScrollToField } from "../../ui/keyboard";
 import { SwitchRow } from "../../ui/SwitchRow";
 import { Text } from "../../ui/Text";
 import { color, font, radius, space, TOUCH } from "../../ui/theme";
+import { useDraftGuard } from "../../ui/useDraftGuard";
 import { SeasonsBox, StageBox } from "../request/StageBox";
 import { KIND_LABEL, formatSlot, seasonsLabel, since, stageLabel } from "../requests/stage";
 import { SEARCH_DONE, SearchFixes, StuckBox, card } from "./bits";
@@ -45,6 +46,9 @@ export function AdminRequestScreen() {
   const [tell, setTell] = useState(false);
   const [message, setMessage] = useState("");
   const field = useScrollToField();
+  const openTicket = r?.tickets.find((t) => t.status === "open");
+  // An open ticket takes the writing box's place, so there's nothing on screen to lose.
+  useDraftGuard(writing && !openTicket && (!!note.trim() || (tell && !!message.trim())) && busy !== "ticket");
 
   const after = () => setTimeout(() => {
     void qc.invalidateQueries({ queryKey: detailKey });
@@ -70,7 +74,6 @@ export function AdminRequestScreen() {
 
   if (!r) return <DetailFallback error={error} errorTitle="Couldn’t load this request." onRetry={() => void refetch()} />;
 
-  const openTicket = r.tickets.find((t) => t.status === "open");
   // Only an approved request can be searched for (not one waiting for a decision, or declined).
   const video = (r.title.kind === "tv" || r.title.kind === "movie") && !["requested", "declined", "closed"].includes(r.stage);
   const history = [

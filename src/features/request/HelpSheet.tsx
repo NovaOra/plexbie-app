@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as haptic from "../../ui/haptics";
 import { router, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { KEYBOARD_BEHAVIOR, useScrollToField } from "../../ui/keyboard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,8 +16,10 @@ import { Chip } from "../../ui/Chip";
 import { Text } from "../../ui/Text";
 import { useToast } from "../../ui/Toast";
 import { color, font, radius, space } from "../../ui/theme";
+import { useDraftGuard } from "../../ui/useDraftGuard";
 import { formatSlot, seasonsLabel } from "../requests/stage";
 import { useRequests } from "../requests/useRequests";
+import { helpDrafts as drafts } from "./helpDrafts";
 
 const REASONS: [HelpReason, string][] = [
   ["stuck", "Stuck downloading"],
@@ -37,10 +39,15 @@ export function HelpSheet() {
   const { state } = useSession();
   const qc = useQueryClient();
   const toast = useToast();
-  const [reason, setReason] = useState<HelpReason | null>(null);
-  const [note, setNote] = useState("");
+  const draftKey = `${state.phase === "signedIn" ? state.server : ""} ${slot}`;
+  const [reason, setReason] = useState<HelpReason | null>(() => drafts.get(draftKey)?.reason ?? null);
+  const [note, setNote] = useState(() => drafts.get(draftKey)?.note ?? "");
   const field = useScrollToField();
   const [problem, setProblem] = useState("");
+  useEffect(() => {
+    if (note.trim()) drafts.set(draftKey, { reason, note });
+    else drafts.delete(draftKey);
+  }, [draftKey, reason, note]);
 
   const ask = useMutation({
     mutationFn: () => client.askHelp(r!.id!, reason!, note.trim()),
@@ -50,10 +57,14 @@ export function HelpSheet() {
       qc.setQueryData<AppRequest[]>(["requests", state.phase === "signedIn" ? state.server : ""],
         (rows) => rows?.map((x) => (x.slot === r!.slot ? { ...x, help: out.help } : x)));
       toast({ text: "Sent to the admins", detail: out.message || undefined });
+      drafts.delete(draftKey);
+      sent();
       router.back();
     },
     onError: (e) => setProblem(e.message || "That didn’t send. Try again in a minute."),
   });
+  // While it's sending, there's nothing to lose; nor when there's no box to have typed in.
+  const sent = useDraftGuard(!!r?.id && !!note.trim() && !ask.isPending, () => drafts.delete(draftKey));
 
   useAnnounce(problem);                  // before any early return: hooks run in the same order every render
   if (!r?.id) {
