@@ -153,8 +153,10 @@ export type AppCommunity = z.infer<typeof CommunitySchema>;
 /** Your watch-party credit (GET /api/watchparty). */
 export const WatchPartySchema = z.looseObject({ seconds: z.number().catch(0), sessions: z.number().catch(0), last: z.string().nullable().catch(null) });
 
-/** An admin action's answer: whether it worked, and a sentence about it. */
-export const AckSchema = z.looseObject({ ok: z.boolean().catch(true), message: z.string().catch("") });
+/** An admin action's answer: whether it worked, and a sentence about it. `told`, on a reply
+ *  to a ticket's member, "Solved", or a ticket opened to tell them: whether it reached them
+ *  (false: it reached nobody, and `message` says so). Absent when nobody was to be told. */
+export const AckSchema = z.looseObject({ ok: z.boolean().catch(true), message: z.string().catch(""), told: opt(z.boolean()) });
 export type Ack = z.infer<typeof AckSchema>;
 
 export const HelpAnswerSchema = AckSchema.extend({ help: z.looseObject({ id: z.string(), reason: z.string() }) });

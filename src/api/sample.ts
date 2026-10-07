@@ -247,6 +247,14 @@ function memberTicket(help: { id: string; reason: string }): AppMemberTicket {
   };
 }
 const say = (id: string, kind: string, text: string, by = ME) => { ticketOf(id).thread.push(entry(kind, by, text)); };
+/** h2's member can’t be reached (closed DMs, no alerts, no email): an admin’s reply or
+ *  “Solved” on it says so, and so does its timeline; on any other ticket it arrives. */
+const told = (h: { id: string; who: string }, said: string, done: string) => {
+  if (h.id !== "h2") return { ok: true, told: true, message: said };
+  const why = "Plexbie couldn’t DM them on Discord, and no phone alert or email reached them either.";
+  say(h.id, "action", `This didn’t reach ${h.who}: ${why}`, "Plexbie");
+  return { ok: true, told: false, message: `${done}, but it didn’t reach ${h.who}: ${why} Tell them another way.` };
+};
 /** A solved ticket stops making its request look stuck on All requests (and a reopened one starts again). */
 const markHelp = (id: string, open: boolean) => {
   const h = sampleHelp.find((x) => x.id === id);
@@ -456,7 +464,7 @@ export const sampleApi: Api = {
     await pause(400);
     const h = helpFor(id);
     say(id, kind, text);
-    return ok(kind === "reply" ? `Sent to ${h.who}.` : "Note added. Only admins see it.");
+    return kind === "reply" ? told(h, `Sent to ${h.who} (Discord DM).`, "Added to the ticket") : ok("Note added. Only admins see it.");
   },
   ticketStatus: async (id, status, message) => {
     await pause(400);
@@ -469,7 +477,7 @@ export const sampleApi: Api = {
       t.waiting = false;
       sampleHelp = sampleHelp.map((x) => (x.id === id ? { ...x, status: "resolved" } : x));
       markHelp(id, false);
-      return ok(`Solved. ${h.who} has been told.`);
+      return told(h, `Resolved, and ${h.who} has been told (Discord DM).`, "Resolved");
     }
     if (h.status !== "open") { sampleHelp = sampleHelp.map((x) => (x.id === id ? { ...x, status: "open" } : x)); markHelp(id, true); say(id, "status", "Reopened"); }
     else say(id, "status", "Back with the admins");
@@ -504,7 +512,8 @@ export const sampleApi: Api = {
     sampleTickets[help.id] = { requestKey: key, owner: null, waiting: false, thread: [entry("note", ME, note)] };
     if (tell && message?.trim()) say(help.id, "reply", message.trim());
     sampleAll = sampleAll.map((x) => (x.id === key ? { ...x, help, stuck: [`Help asked: ${help.reason}`, ...x.stuck] } : x));
-    return { ok: true, message: `Ticket opened${tell ? `, and ${r?.requester ?? "they"} has been told` : ""}. It’s on Manage → Tickets.`, help };
+    return { ok: true, message: `Ticket opened${tell ? `, and ${r?.requester ?? "they"} has been told (Discord DM)` : ""}. It’s on Manage → Tickets.`,
+      help, ...(tell ? { told: true } : {}) };
   },
   requestSearch: async (key, how) => {
     await pause(500);
@@ -523,7 +532,8 @@ export const sampleApi: Api = {
     say(id, "status", "Solved");
     sampleHelp = sampleHelp.map((h) => (h.id === id ? { ...h, status: "resolved" } : h));
     markHelp(id, false);
-    return ok("They’ve been told.");
+    const who = sampleHelp.find((h) => h.id === id)?.who ?? "Someone";
+    return told({ id, who }, `Resolved, and ${who} has been told (Discord DM).`, "Resolved");
   },
   adminPeople: async () => { await pause(350); return samplePeople; },
   linkCandidates: async () => ({ discord: [{ id: "203", name: "Rosa M", username: "rosam" }, { id: "204", name: "Dev", username: "devr" }] }),

@@ -18,7 +18,9 @@ export function useAdminKey() {
 /**
  * Runs an admin action: marks `key` busy, toasts the outcome, refreshes the sections it
  * touched a moment later (the bot posts to Discord and Plex first). Returns the answer,
- * or null when it failed (already toasted), so callers only handle success.
+ * or null when it failed (already toasted), so callers only handle success. When it went
+ * through but the member it was meant for wasn't told (`told: false`), it still counts as
+ * done, but the toast says "Not delivered" with the bot's sentence instead of the success.
  */
 export function useAct() {
   const qc = useQueryClient();
@@ -34,8 +36,10 @@ export function useAct() {
     try {
       const out = await call();
       if (out.ok === false) throw new Error(out.message || "That didn’t work.");
-      if (opts.reward) haptic.reward(); else haptic.success();
-      const t = opts.done ? opts.done(out) : { text: out.message || "Done" };
+      const missed = out.told === false;
+      if (missed) haptic.error(); else if (opts.reward) haptic.reward(); else haptic.success();
+      const t: ToastIn | null = missed ? { tone: "error", text: "Not delivered", detail: out.message || undefined }
+        : opts.done ? opts.done(out) : { text: out.message || "Done" };
       if (t) toast(t);
       return out;
     } catch (e) {
