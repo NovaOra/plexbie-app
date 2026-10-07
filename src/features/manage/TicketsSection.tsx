@@ -12,11 +12,10 @@ import { PickerPill } from "../../ui/PickerSheet";
 import { PressableScale } from "../../ui/Pressable";
 import { Text } from "../../ui/Text";
 import { color, radius, space } from "../../ui/theme";
-import { formatSlot, since } from "../requests/stage";
+import { formatSlot, seasonsLabel, since } from "../requests/stage";
 import { useMe } from "../me/useMe";
 import { TicketPill, ticketState } from "../tickets/Thread";
 import { AllClear } from "./bits";
-import { seasonsChip } from "./RequestsSection";
 import { useAdminKey } from "./useAdmin";
 
 type Show = "action" | "waiting" | "mine" | "solved" | "everything";
@@ -67,7 +66,7 @@ export function TicketsSection() {
 
 function TicketRow({ t }: { t: AppAdminTicketRow }) {
   const state = ticketState(t);
-  const seasons = seasonsChip(t.seasons);
+  const seasons = seasonsLabel(t.seasons);
   const asked = t.openedBy ? `opened by ${t.openedBy}` : `asked by ${t.who}`;
   return (
     <PressableScale haptic="none" onPress={() => router.push({ pathname: "/manage-ticket/[id]", params: { id: t.id } })}

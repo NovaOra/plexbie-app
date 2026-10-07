@@ -13,7 +13,7 @@ import { Button } from "../../ui/Button";
 import { DetailFallback, DetailPage, TitleHead, detailStyles } from "../../ui/DetailPage";
 import { Text } from "../../ui/Text";
 import { color, font, radius, space } from "../../ui/theme";
-import { formatSlot, since } from "../requests/stage";
+import { KIND_LABEL, formatSlot, isBook, seasonsLabel, since } from "../requests/stage";
 import { useRequests } from "../requests/useRequests";
 import { GlassFill, glass } from "../../ui/Glass";
 import { SeasonsBox, StageBox } from "./StageBox";
@@ -21,18 +21,10 @@ import { useScrollToField } from "../../ui/keyboard";
 import { useToast } from "../../ui/Toast";
 import { Thread } from "../tickets/Thread";
 
-const KIND: Record<string, string> = { movie: "Film", tv: "TV", audiobook: "Audiobook", ebook: "Ebook" };
 const HELP_REASON: Record<string, string> = {
   stuck: "stuck downloading", notfound: "can’t be found", quality: "wrong version or quality",
   episodes: "wrong or missing episodes", playback: "won’t play", other: "something else",
 };
-
-
-export function seasonsText(s: AppRequest["seasons"]) {
-  if (s === "all") return "All seasons";
-  if (s === "latest") return "Latest season + new episodes";
-  return s?.length ? (s.length === 1 ? `Season ${s[0]}` : `Seasons ${s.join(", ")}`) : null;
-}
 
 export function RequestDetail() {
   const { slot } = useLocalSearchParams<{ slot: string }>();
@@ -47,14 +39,14 @@ export function RequestDetail() {
   }
 
   const ended = r.stage === "declined" || r.stage === "closed";
-  const book = r.title.kind === "audiobook" || r.title.kind === "ebook";
+  const book = isBook(r.title.kind);
   const canAsk = !!r.id && !ended && !r.help;
 
   return (
     <DetailPage scroll={field.scroll}>
-        <TitleHead title={r.title} eyebrow={[`No. ${formatSlot(r.slot)}`, KIND[r.title.kind], r.format && book ? r.format : null].filter(Boolean).join(" · ")}
+        <TitleHead title={r.title} eyebrow={[`No. ${formatSlot(r.slot)}`, KIND_LABEL[r.title.kind], r.format && book ? r.format : null].filter(Boolean).join(" · ")}
           heading={heading}>
-          {seasonsText(r.seasons) ? <Text variant="meta">{seasonsText(r.seasons)}</Text> : null}
+          {seasonsLabel(r.seasons, { long: true }) ? <Text variant="meta">{seasonsLabel(r.seasons, { long: true })}</Text> : null}
         </TitleHead>
 
         <StageBox r={r} />

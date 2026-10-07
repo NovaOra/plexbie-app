@@ -6,7 +6,7 @@ import type { AppRequest } from "../../api/schemas";
 import { Text } from "../../ui/Text";
 import { color, font, radius, space } from "../../ui/theme";
 import { GlassFill, glass } from "../../ui/Glass";
-import { isLive, stageHelp, stageLabel } from "../requests/stage";
+import { home, isLive, stageHelp, stageLabel } from "../requests/stage";
 
 const EASE = cubicBezier(0.23, 1, 0.32, 1);
 
@@ -15,15 +15,13 @@ const STEP: Record<string, number> = {
   requested: 0, approved: 1, upcoming: 1, searching: 1, downloading: 2, unpacking: 2, importing: 3, available: 4,
 };
 
-const placeOf = (r: AppRequest) => (r.title.kind === "audiobook" || r.title.kind === "ebook" ? "Audiobookshelf" : "Plex");
-
 export function StageBox({ r }: { r: AppRequest }) {
   const reduced = useReducedMotion();
   const live = isLive(r.stage);
   const ended = r.stage === "declined" || r.stage === "closed";
   const step = STEP[r.stage];
   const percent = typeof r.progress?.percent === "number" ? Math.max(0, Math.min(100, r.progress.percent)) : null;
-  const place = placeOf(r);
+  const place = home(r.title.kind);
   // The website's words for the same steps (its downloading and unpacking are one step here).
   const steps = ["Requested", "Approved", "Downloading", `Adding to ${place}`, `On ${place}`];
   return (
@@ -67,7 +65,7 @@ export function StageBox({ r }: { r: AppRequest }) {
 }
 
 export function SeasonsBox({ r }: { r: AppRequest }) {
-  const place = placeOf(r);
+  const place = home(r.title.kind);
   return (
     <>
       {r.progress?.seasons?.length ? (

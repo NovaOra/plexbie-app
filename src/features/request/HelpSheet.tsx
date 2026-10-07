@@ -16,9 +16,8 @@ import { Chip } from "../../ui/Chip";
 import { Text } from "../../ui/Text";
 import { useToast } from "../../ui/Toast";
 import { color, font, radius, space } from "../../ui/theme";
-import { formatSlot } from "../requests/stage";
+import { formatSlot, seasonsLabel } from "../requests/stage";
 import { useRequests } from "../requests/useRequests";
-import { seasonsText } from "./RequestDetail";
 
 const REASONS: [HelpReason, string][] = [
   ["stuck", "Stuck downloading"],
@@ -72,7 +71,7 @@ export function HelpSheet() {
     setProblem("");
     ask.mutate();
   };
-  const seasons = seasonsText(r.seasons);
+  const seasons = seasonsLabel(r.seasons, { long: true });
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={KEYBOARD_BEHAVIOR}>

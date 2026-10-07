@@ -6,18 +6,11 @@ import { PressableScale } from "../../ui/Pressable";
 import { Text } from "../../ui/Text";
 import { useLargeText } from "../../ui/useColumns";
 import { color, font, radius, space } from "../../ui/theme";
-import { formatSlot, isLive, since, stageHelp, stageLabel } from "./stage";
+import { KIND_LABEL, formatSlot, isLive, seasonsLabel, since, stageHelp, stageLabel } from "./stage";
 import { GlassFill, glass } from "../../ui/Glass";
 import { Poster } from "../../ui/Poster";
 
-const KIND: Record<string, string | undefined> = { movie: "Film", tv: "TV", audiobook: "Audiobook", ebook: "Ebook" };
 const EASE = cubicBezier(0.23, 1, 0.32, 1);
-
-function seasonsText(s: AppRequest["seasons"]) {
-  if (s === "all") return "All seasons";
-  if (s === "latest") return "Latest season";
-  return s?.length ? s.map((n) => `S${n}`).join(", ") : null;
-}
 
 /** One request, as its "slot" on the schedule: number, poster, title, where it is now.
  *  On Manage → All requests it also says who asked (`by`) and why it looks stuck (`stuck`). */
@@ -29,7 +22,7 @@ export const RequestCard = memo(function RequestCard({ request: r, onPress, by, 
   const muted = r.stage === "declined" || r.stage === "closed";
   const percent = typeof r.progress?.percent === "number" ? Math.max(0, Math.min(100, r.progress.percent)) : null;
   const detail = r.progress?.detail || stageHelp(r.stage, r.title.kind, r.format);
-  const eyebrow = [`No. ${formatSlot(r.slot)}`, KIND[r.title.kind], seasonsText(r.seasons)].filter(Boolean).join(" · ");
+  const eyebrow = [`No. ${formatSlot(r.slot)}`, KIND_LABEL[r.title.kind], seasonsLabel(r.seasons)].filter(Boolean).join(" · ");
 
   const large = useLargeText();
   const reduced = useReducedMotion();

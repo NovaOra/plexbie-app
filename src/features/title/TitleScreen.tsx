@@ -21,15 +21,12 @@ import { Text } from "../../ui/Text";
 import { color, font, radius, space } from "../../ui/theme";
 import { useArt } from "../art";
 import { PushOffer } from "../push/PushRow";
-import { formatSlot, stageHelp, stageLabel } from "../requests/stage";
+import { KIND_LABEL, formatSlot, home, isBook, stageHelp, stageLabel } from "../requests/stage";
 import { newestAired, openSeasons, seasonSummary, seasonsToSend, sendLabel, type SeasonPick } from "./seasons";
 import { MoreLikeThis } from "../search/Discover";
 import { Ambient, GlassFill, glass } from "../../ui/Glass";
 
 const KINDS: MediaKind[] = ["movie", "tv", "audiobook", "ebook"];
-const KIND_LABEL: Record<string, string> = { movie: "Film", tv: "TV", audiobook: "Audiobook", ebook: "Ebook" };
-const isBook = (k: string) => k === "audiobook" || k === "ebook";
-const home = (k: string) => (isBook(k) ? "Audiobookshelf" : "Plex");
 
 export function TitleScreen() {
   const params = useLocalSearchParams<{ kind: string; id: string }>();

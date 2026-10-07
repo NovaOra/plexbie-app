@@ -2,8 +2,21 @@
 // reads the same thing in Discord, on the site and in the app.
 import type { RequestStage } from "../../api/types";
 
-const isBook = (kind?: string | null) => kind === "audiobook" || kind === "ebook";
-const home = (kind?: string | null) => (isBook(kind) ? "Audiobookshelf" : "Plex");
+export const isBook = (kind?: string | null) => kind === "audiobook" || kind === "ebook";
+/** Where a title lives once it's in: books on Audiobookshelf, the rest on Plex. */
+export const home = (kind?: string | null) => (isBook(kind) ? "Audiobookshelf" : "Plex");
+
+/** A kind the app doesn't know yet (a newer bot) has no label here. */
+export const KIND_LABEL: Record<string, string | undefined> = { movie: "Film", tv: "TV", audiobook: "Audiobook", ebook: "Ebook" };
+
+/** The seasons asked for: "S1, S2" on a card or chip, spelled out ("Seasons 1, 2") with `long`. */
+export function seasonsLabel(s: number[] | "all" | "latest" | null | undefined, { long = false } = {}) {
+  if (s === "all") return "All seasons";
+  if (s === "latest") return long ? "Latest season + new episodes" : "Latest season";
+  if (!s?.length) return null;
+  if (!long) return s.map((n) => `S${n}`).join(", ");
+  return s.length === 1 ? `Season ${s[0]}` : `Seasons ${s.join(", ")}`;
+}
 
 const LABEL: Record<RequestStage, string> = {
   requested: "Requested", approved: "Approved", upcoming: "Upcoming", searching: "Searching", downloading: "Downloading",

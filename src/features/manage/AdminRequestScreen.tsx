@@ -16,13 +16,10 @@ import { useScrollToField } from "../../ui/keyboard";
 import { SwitchRow } from "../../ui/SwitchRow";
 import { Text } from "../../ui/Text";
 import { color, font, radius, space, TOUCH } from "../../ui/theme";
-import { seasonsText } from "../request/RequestDetail";
 import { SeasonsBox, StageBox } from "../request/StageBox";
-import { formatSlot, since, stageLabel } from "../requests/stage";
+import { KIND_LABEL, formatSlot, seasonsLabel, since, stageLabel } from "../requests/stage";
 import { card } from "./bits";
 import { useAct, useAdminKey } from "./useAdmin";
-
-const KIND: Record<string, string> = { movie: "Film", tv: "TV", audiobook: "Audiobook", ebook: "Ebook" };
 
 /** A ticket in the request's history, in a sentence. */
 function ticketLine(t: AppAdminTicket) {
@@ -83,8 +80,8 @@ export function AdminRequestScreen() {
 
   return (
     <DetailPage scroll={field.scroll}>
-        <TitleHead title={r.title} eyebrow={[`No. ${formatSlot(r.slot)}`, KIND[r.title.kind]].filter(Boolean).join(" · ")} heading={heading}>
-          {seasonsText(r.seasons) ? <Text variant="meta">{seasonsText(r.seasons)}</Text> : null}
+        <TitleHead title={r.title} eyebrow={[`No. ${formatSlot(r.slot)}`, KIND_LABEL[r.title.kind]].filter(Boolean).join(" · ")} heading={heading}>
+          {seasonsLabel(r.seasons, { long: true }) ? <Text variant="meta">{seasonsLabel(r.seasons, { long: true })}</Text> : null}
           <Text variant="meta">Asked {since(r.requestedAt)} by {r.requester} · via {r.via}</Text>
         </TitleHead>
 

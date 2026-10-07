@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as haptic from "../../ui/haptics";
 import { StyleSheet, View } from "react-native";
 import Animated, { FadeOut, LinearTransition } from "react-native-reanimated";
-import type { AppAdminHelp, AppAdminRequest, AppAdminRequests } from "../../api/schemas";
+import type { AppAdminRequest, AppAdminRequests } from "../../api/schemas";
 import { useApi } from "../../auth/session";
 import { Button } from "../../ui/Button";
 import { useConfirm } from "../../ui/Confirm";
@@ -13,18 +13,10 @@ import { Poster } from "../../ui/Poster";
 import { Text } from "../../ui/Text";
 import { useToast } from "../../ui/Toast";
 import { color, radius, space } from "../../ui/theme";
-import { formatSlot, since } from "../requests/stage";
+import { KIND_LABEL, formatSlot, seasonsLabel, since } from "../requests/stage";
 import { AllClear, Heading, Pill, card } from "./bits";
 import { useAdminKey } from "./useAdmin";
 import { GlassFill, glass } from "../../ui/Glass";
-
-const KIND: Record<string, string> = { movie: "Film", tv: "TV", audiobook: "Audiobook", ebook: "Ebook" };
-
-export function seasonsChip(s: AppAdminRequest["seasons"] | AppAdminHelp["seasons"]) {
-  if (s === "all") return "All seasons";
-  if (s === "latest") return "Latest season";
-  return s?.length ? s.map((n) => `S${n}`).join(", ") : null;
-}
 
 export function useRequestsCount() {
   const client = useApi();
@@ -98,9 +90,9 @@ export function RequestsSection() {
           <View style={card.top}>
             <Poster poster={r.poster} title={r.title} id={r.id} style={styles.poster} />
             <View style={card.body}>
-              <Text variant="eyebrow">No. {formatSlot(r.slot)} · {KIND[r.kind] ?? r.kind}</Text>
+              <Text variant="eyebrow">No. {formatSlot(r.slot)} · {KIND_LABEL[r.kind] ?? r.kind}</Text>
               <Text variant="title" numberOfLines={2}>{r.title}</Text>
-              {seasonsChip(r.seasons) ? <Pill label={seasonsChip(r.seasons)!} /> : null}
+              {seasonsLabel(r.seasons) ? <Pill label={seasonsLabel(r.seasons)!} /> : null}
               <Text variant="meta">{r.requester} asked {since(r.requestedAt)}</Text>
             </View>
           </View>

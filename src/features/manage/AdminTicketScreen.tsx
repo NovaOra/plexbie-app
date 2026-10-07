@@ -19,11 +19,10 @@ import { Text } from "../../ui/Text";
 import { color, font, radius, space, TOUCH } from "../../ui/theme";
 import { useMe } from "../me/useMe";
 import { StageBox } from "../request/StageBox";
-import { formatSlot, since } from "../requests/stage";
+import { formatSlot, seasonsLabel, since } from "../requests/stage";
 import { Thread, TicketPill, ticketState } from "../tickets/Thread";
 import { card } from "./bits";
 import { BlockedImport } from "./BlockedImport";
-import { seasonsChip } from "./RequestsSection";
 import { useAct, useAdminKey } from "./useAdmin";
 
 export function AdminTicketScreen() {
@@ -60,7 +59,7 @@ export function AdminTicketScreen() {
   const open = t.status === "open";
   const mine = !!me && t.owner === me;
   const video = t.kind === "tv" || t.kind === "movie";
-  const seasons = seasonsChip(t.seasons);
+  const seasons = seasonsLabel(t.seasons);
   const them = t.who.split(" ")[0] || t.who;       // "Wait on Jordan" fits a half-width button
   const send = async () => {
     if (!text.trim()) return;
