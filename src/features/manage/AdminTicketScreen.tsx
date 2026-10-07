@@ -32,12 +32,13 @@ export function AdminTicketScreen() {
   const key = useAdminKey();
   const qc = useQueryClient();
   const heading = useFocusHere();
-  const me = useMe().data?.user.name;
+  const who = useMe();
+  const me = who.data?.user.name;
   const detailKey = [...key("tickets"), "ticket", id] as const;
   const { data: t, error, refetch } = useQuery({
     queryKey: detailKey, queryFn: ({ signal }) => client.adminTicket(id, signal), refetchInterval: 30_000,
   });
-  const { busy, act } = useAct();
+  const { busy, isBusy, act } = useAct();
   const [kind, setKind] = useState<"note" | "reply">("note");
   const [text, setText] = useState("");
   const [solving, setSolving] = useState(false);
@@ -45,7 +46,7 @@ export function AdminTicketScreen() {
   const field = useScrollToField();
   // The note or reply, or the last word while solving it, unless it's on its way. A closed
   // ticket shows neither box.
-  useDraftGuard(t?.status === "open" && ((!!text.trim() && busy !== "send") || (solving && !!last.trim() && busy !== "solve")));
+  useDraftGuard(t?.status === "open" && ((!!text.trim() && !isBusy("send")) || (solving && !!last.trim() && !isBusy("solve"))));
 
   /** Runs an action, then reads the ticket back (and, a moment later, the lists it's on). */
   const run = async (busyKey: string, call: () => Promise<Ack>, done?: string) => {
@@ -88,10 +89,17 @@ export function AdminTicketScreen() {
             <TicketPill label={state.label} tone={state.tone} />
             <TicketPill label={t.owner ? `${t.owner} has it` : "Nobody has it yet"} tone="plain" />
           </View>
-          {open ? (
+          {/* Taking it and letting it go are the same call, so the button waits until it's
+              known whether the ticket is yours. */}
+          {!open ? null : who.data ? (
             <Button kind="secondary" label={mine ? "Let it go" : t.owner ? "Take it over" : "Take it"} busy={busy === "take"} busyLabel="…"
               disabled={!!busy} onPress={() => void run("take", () => client.ticketTake(id))} />
-          ) : null}
+          ) : who.error ? (
+            <Button kind="secondary" label="Try again" busy={who.isFetching} busyLabel="Checking…" onPress={() => void who.refetch()}
+              accessibilityLabel="Couldn’t check whether it’s yours. Try again" />
+          ) : (
+            <Button kind="secondary" label="…" busy onPress={() => undefined} accessibilityLabel="Checking whether it’s yours" />
+          )}
         </View>
 
         {t.request ? (
@@ -119,7 +127,7 @@ export function AdminTicketScreen() {
               accessibilityLabel={`Last word to ${t.who}, optional`} accessibilityLabelledBy="ticket-last" style={[styles.input, styles.inputReply]} />
             <View style={card.actions}>
               <Button kind="secondary" label="Back" onPress={() => { setSolving(false); setLast(""); }} style={card.grow} />
-              <Button label="Solve it" busy={busy === "solve"} busyLabel="Solving…" onPress={() => void solve()} style={card.grow} />
+              <Button label="Solve it" busy={busy === "solve"} busyLabel="Solving…" disabled={!!busy} onPress={() => void solve()} style={card.grow} />
             </View>
           </View>
         ) : (

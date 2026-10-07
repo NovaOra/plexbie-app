@@ -86,7 +86,7 @@ function Conversation({ person, onBack, onComposerFocus }: { person: AppMessageP
   const key = useAdminKey()("messages");
   const valid = WHO.test(person.id);
   const res = useQuery({ queryKey: [...key, person.id], queryFn: ({ signal }) => client.conversation(person.id, signal), enabled: valid });
-  const { busy, act } = useAct();
+  const { isBusy, act } = useAct();
   const me = useMe().data?.user.name ?? "you";
   const [text, setText] = useState("");
   const reload = () => void qc.invalidateQueries({ queryKey: key });
@@ -123,7 +123,7 @@ function Conversation({ person, onBack, onComposerFocus }: { person: AppMessageP
           {person.done ? <Text variant="meta">Marked done{person.done.by ? ` by ${person.done.by}` : ""} {since(person.done.at)}</Text> : null}
         </View>
       </View>
-      <Button kind="secondary" label={handled ? "Mark unread" : "Done"} busy={busy === "done"} busyLabel="Saving…"
+      <Button kind="secondary" label={handled ? "Mark unread" : "Done"} busy={isBusy("done")} busyLabel="Saving…"
         onPress={() => void done(!handled)} style={{ alignSelf: "flex-start" }}
         accessibilityLabel={handled ? `Mark the conversation with ${person.name} unread` : `Mark the conversation with ${person.name} done`} />
       {!valid ? <Text variant="meta">This person’s messages can’t be opened here.</Text> : null}
@@ -154,7 +154,7 @@ function Conversation({ person, onBack, onComposerFocus }: { person: AppMessageP
                 {incoming && m.ticket ? <Text variant="meta">On their ticket</Text> : null}
               </View>
               {incoming && !m.ticket && person.ticket && m.context === "Discord DM" ? (
-                <Button kind="secondary" label={`Add to their ticket on ${person.ticket.title}`} busy={busy === m.id} busyLabel="Adding…"
+                <Button kind="secondary" label={`Add to their ticket on ${person.ticket.title}`} busy={isBusy(m.id)} busyLabel="Adding…"
                   onPress={() => void toTicket(m.id)} style={{ alignSelf: "flex-start" }} />
               ) : null}
             </View>
@@ -169,7 +169,7 @@ function Conversation({ person, onBack, onComposerFocus }: { person: AppMessageP
             placeholder="Type a message" placeholderTextColor={color.faint}
             accessibilityLabel={`Message ${person.name} as Plexbie`} accessibilityLabelledBy="reply-as-plexbie" style={styles.reply} />
           <Text variant="meta">{person.id.startsWith("d") ? "A Discord DM from Plexbie" : "A phone alert, else an email"}, signed “— {me} (admin)”</Text>
-          <Button label="Send as Plexbie" busy={busy === "send"} busyLabel="Sending…" disabled={!text.trim()} onPress={() => void send()} />
+          <Button label="Send as Plexbie" busy={isBusy("send")} busyLabel="Sending…" disabled={!text.trim()} onPress={() => void send()} />
         </View>
       ) : null}
     </>

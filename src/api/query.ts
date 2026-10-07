@@ -8,7 +8,9 @@ let onSignedOut: () => void = () => {};
 /** The session sets this: what to do when the server says the sign-in has ended. */
 export function whenSignedOut(fn: () => void) { onSignedOut = fn; }
 
-const check = (e: unknown) => { if (e instanceof ApiError && e.signedOut) onSignedOut(); };
+/** For a write made with the client itself (not a mutation): signs out when its error says
+ *  the sign-in has ended, as every query and mutation here does. */
+export const checkSignedOut = (e: unknown) => { if (e instanceof ApiError && e.signedOut) onSignedOut(); };
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,6 +20,6 @@ export const queryClient = new QueryClient({
     // is undone, rather than waiting to go out minutes or hours later, or never.
     mutations: { retry: false, networkMode: "always" },
   },
-  queryCache: new QueryCache({ onError: check }),
-  mutationCache: new MutationCache({ onError: check }),
+  queryCache: new QueryCache({ onError: checkSignedOut }),
+  mutationCache: new MutationCache({ onError: checkSignedOut }),
 });

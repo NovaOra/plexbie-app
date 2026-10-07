@@ -2,7 +2,7 @@
 // link or unlink Discord, say which Plex account a missing person really is, keep someone
 // forever (with Undo), or remove them from Plex (after a confirm).
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, Modal, StyleSheet, TextInput, View } from "react-native";
 import { SwitchRow } from "../../ui/SwitchRow";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -27,7 +27,7 @@ export function PeopleSection() {
   const keyOf = useAdminKey();
   const key = keyOf("people");
   const people = useQuery({ queryKey: key, queryFn: ({ signal }) => client.adminPeople(signal), staleTime: 60_000 });
-  const { busy, act } = useAct();
+  const { isBusy, act } = useAct();
   const [query, setQuery] = useState("");
   const [linking, setLinking] = useState<AppAdminPerson | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -51,7 +51,7 @@ export function PeopleSection() {
   }
 
   const link = async (p: AppAdminPerson, m: { id: string; name: string }, quiet = false) => {
-    const out = await act(null, () => client.linkPerson(p.plexName, m.id), {
+    const out = await act(`link:${p.plexName}`, () => client.linkPerson(p.plexName, m.id), {
       done: (o) => (quiet ? null : { text: `Linked ${p.plexName}`, detail: p.tracked === false ? `${o.message} They’re tracked for inactivity from now on.` : o.message || undefined }),
       refresh: ["people"],
     });
@@ -60,7 +60,7 @@ export function PeopleSection() {
   };
   const unlink = async (p: AppAdminPerson) => {
     const was = p.discordId ? { id: p.discordId, name: p.discordName ?? "" } : null;
-    const out = await act(null, () => client.unlinkPerson(p.plexName), {
+    const out = await act(`unlink:${p.plexName}`, () => client.unlinkPerson(p.plexName), {
       done: (o) => ({ text: `Unlinked ${p.plexName}`, detail: o.message || undefined, action: was ? { label: "Undo", onPress: () => void link(p, was, true) } : undefined }),
     });
     if (out) patch((d) => d.map((x) => (x.plexName === p.plexName ? { ...x, linked: false, discordName: null, discordId: null } : x)));
@@ -116,7 +116,7 @@ export function PeopleSection() {
         const fill = p.removalIn === null ? 1 : total ? Math.min(1, p.daysIdle / total) : 0;
         const tone = p.removalIn === null || p.neverRemove ? "safe" : p.removalIn <= 7 ? "hot" : p.daysIdle >= p.warnAfter ? "warm" : "calm";
         return (
-          <View key={p.plexName} style={[card.box, glass.surface, busy === p.plexName && styles.busy]}>
+          <View key={p.plexName} style={[card.box, glass.surface, isBusy(p.plexName) && styles.busy]}>
             <GlassFill radius={radius.m} />
             <View style={card.top}>
               <Initial name={name} />
@@ -135,7 +135,7 @@ export function PeopleSection() {
                   {p.linked ? (
                     <>
                       <Text variant="meta">Discord: <Text variant="meta" style={styles.ink}>{p.discordName ?? "linked"}</Text></Text>
-                      <TextButton label="Unlink" onPress={() => void unlink(p)} a11y={`Unlink Discord, ${name}`} />
+                      <TextButton label="Unlink" onPress={() => void unlink(p)} disabled={isBusy(`unlink:${p.plexName}`)} a11y={`Unlink Discord, ${name}`} />
                     </>
                   ) : <TextButton label="Link Discord" onPress={() => setLinking(p)} a11y={`Link Discord, ${name}`} />}
                   {p.tracked === false || renaming === p.plexName ? null : (
@@ -153,7 +153,7 @@ export function PeopleSection() {
                   returnKeyType="done" onSubmitEditing={() => { if (newName.trim()) void rename(p); }} style={styles.search} />
                 <View style={card.actions}>
                   <Button kind="secondary" label="Back" onPress={() => setRenaming(null)} style={card.grow} accessibilityLabel={`Back, keep ${name}`} />
-                  <Button label="Save" busy={busy === p.plexName} disabled={!newName.trim()} onPress={() => void rename(p)} style={card.grow}
+                  <Button label="Save" busy={isBusy(p.plexName)} disabled={!newName.trim()} onPress={() => void rename(p)} style={card.grow}
                     accessibilityLabel={`Save name for ${p.plexName}`} />
                 </View>
               </View>
@@ -186,7 +186,7 @@ export function PeopleSection() {
                 <SwitchRow label={`Never remove, ${name}`} value={!!p.neverRemove} onValueChange={(on) => void keep(p, on)} style={styles.keep}>
                   <Text variant="label">Never remove</Text>
                 </SwitchRow>
-                <Button kind="danger" label="Remove" disabled={busy === p.plexName} onPress={() => remove(p)} accessibilityLabel={`Remove ${name} from Plex`} />
+                <Button kind="danger" label="Remove" disabled={isBusy(p.plexName)} onPress={() => remove(p)} accessibilityLabel={`Remove ${name} from Plex`} />
               </View>
             )}
           </View>
@@ -199,9 +199,9 @@ export function PeopleSection() {
   );
 }
 
-function TextButton({ label, onPress, a11y }: { label: string; onPress: () => void; a11y: string }) {
+function TextButton({ label, onPress, a11y, disabled }: { label: string; onPress: () => void; a11y: string; disabled?: boolean }) {
   return (
-    <PressableScale haptic="none" onPress={onPress} accessibilityLabel={a11y} style={styles.textButton}>
+    <PressableScale haptic="none" onPress={onPress} disabled={disabled} accessibilityLabel={a11y} style={styles.textButton}>
       <Text variant="label" style={styles.textButtonText}>{label}</Text>
     </PressableScale>
   );
@@ -217,6 +217,8 @@ function LinkSheet({ person, onClose, onPick }: {
   const candidates = useQuery({ queryKey: key, queryFn: ({ signal }) => client.linkCandidates(signal), enabled: !!person, staleTime: 60_000 });
   const [q, setQ] = useState("");
   const [problem, setProblem] = useState("");
+  // One pick at a time: a second tap while the first is being linked isn't a failure.
+  const picking = useRef(false);
   useEffect(() => { setProblem(""); }, [person]);
   useAnnounce(problem);
   const words = q.trim().toLowerCase();
@@ -239,7 +241,12 @@ function LinkSheet({ person, onClose, onPick }: {
           ListEmptyComponent={candidates.data ? <Text variant="meta">Nobody matches.</Text> : <Text variant="meta">Loading members…</Text>}
           renderItem={({ item: m }) => (
             <PressableScale haptic="none" accessibilityLabel={`Link to ${m.name}`} style={styles.member}
-              onPress={async () => { setProblem(""); if (!(await onPick(m))) setProblem(`Couldn’t link ${m.name}. Try again.`); }}>
+              onPress={async () => {
+                if (picking.current) return;
+                picking.current = true;
+                setProblem("");
+                try { if (!(await onPick(m))) setProblem(`Couldn’t link ${m.name}. Try again.`); } finally { picking.current = false; }
+              }}>
               <Initial name={m.name} />
               <View style={{ flex: 1 }}>
                 <Text variant="label">{m.name}</Text>

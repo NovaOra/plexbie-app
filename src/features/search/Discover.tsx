@@ -5,12 +5,14 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
+import { checkSignedOut } from "../../api/query";
 import type { AppDiscover, AppTitle } from "../../api/schemas";
 import { useApi, useSession } from "../../auth/session";
 import { Button } from "../../ui/Button";
 import { PickerPill } from "../../ui/PickerSheet";
 import { PressableScale } from "../../ui/Pressable";
 import { Text } from "../../ui/Text";
+import { useToast } from "../../ui/Toast";
 import { useLargeText } from "../../ui/useColumns";
 import { color, radius, space } from "../../ui/theme";
 import { TitleTile } from "../titles/TitleTile";
@@ -109,6 +111,7 @@ export function RequestBody({ q, type, setType }: { q: string; type: RequestType
   const client = useApi();
   const server = useServer();
   const qc = useQueryClient();
+  const toast = useToast();
   const kinds: ("movie" | "tv")[] = type === "movie" ? ["movie"] : type === "tv" ? ["tv"] : type === "all" ? ["movie", "tv"] : [];
   const browsing = !q && kinds.length > 0;
   const prefs = useQuery({ queryKey: ["prefs", server], queryFn: ({ signal }) => client.prefs(signal), staleTime: 30 * 60_000 });
@@ -125,11 +128,15 @@ export function RequestBody({ q, type, setType }: { q: string; type: RequestType
   const genres = [...new Set(kinds.flatMap((k) => byKind[k]?.genres.map((g) => g.name) ?? []))].sort();
   useEffect(() => { if (genre && genres.length && !genres.includes(genre)) setGenre(""); }, [genre, genres]);
 
-  // Kept with their account (the website shows the same), then the shelves load again.
+  // Kept with their account (the website shows the same), then the shelves load again. When
+  // the save fails, reading the prefs back puts the dropdown back to what was saved.
   const pickLanguages = async (next: string[]) => {
     qc.setQueryData(["prefs", server], (d: typeof prefs.data) => (d ? { ...d, languages: next } : d));
     try {
       await client.saveLanguages(next);
+    } catch (e) {
+      checkSignedOut(e);
+      toast({ tone: "error", text: "Couldn’t save languages", detail: e instanceof Error ? e.message : undefined });
     } finally {
       await qc.invalidateQueries({ predicate: (x) => ["prefs", "discover", "shelf"].includes(String(x.queryKey[0])) });
     }

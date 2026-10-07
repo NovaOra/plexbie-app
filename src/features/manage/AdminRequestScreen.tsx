@@ -30,6 +30,9 @@ function ticketLine(t: AppAdminTicket) {
   return head + note + end;
 }
 
+/** A ticket can be opened while a search is on its way; the spinner stays on that search. */
+const SEARCHES: HelpSearch[] = ["again", "episodes", "name"];
+
 export function AdminRequestScreen() {
   const { key: id } = useLocalSearchParams<{ key: string }>();
   const client = useApi();
@@ -40,7 +43,7 @@ export function AdminRequestScreen() {
   const { data: r, error, refetch } = useQuery({
     queryKey: detailKey, queryFn: ({ signal }) => client.adminRequest(id, signal), refetchInterval: 30_000,
   });
-  const { busy, act } = useAct();
+  const { busy, isBusy, act } = useAct();
   const [writing, setWriting] = useState(false);
   const [note, setNote] = useState("");
   const [tell, setTell] = useState(false);
@@ -48,7 +51,7 @@ export function AdminRequestScreen() {
   const field = useScrollToField();
   const openTicket = r?.tickets.find((t) => t.status === "open");
   // An open ticket takes the writing box's place, so there's nothing on screen to lose.
-  useDraftGuard(writing && !openTicket && (!!note.trim() || (tell && !!message.trim())) && busy !== "ticket");
+  useDraftGuard(writing && !openTicket && (!!note.trim() || (tell && !!message.trim())) && !isBusy("ticket"));
 
   const after = () => setTimeout(() => {
     void qc.invalidateQueries({ queryKey: detailKey });
@@ -95,7 +98,7 @@ export function AdminRequestScreen() {
 
         <Facts r={r} />
 
-        {video ? <SearchFixes kind={r.title.kind} busy={busy} onSearch={(how) => void search(how)} /> : null}
+        {video ? <SearchFixes kind={r.title.kind} busy={SEARCHES.find(isBusy) ?? busy} onSearch={(how) => void search(how)} /> : null}
 
         {openTicket ? (
           <View style={[detailStyles.box, glass.surface]} accessibilityRole="summary">
@@ -127,7 +130,7 @@ export function AdminRequestScreen() {
             ) : null}
             <View style={card.actions}>
               <Button kind="secondary" label="Back" onPress={() => { setWriting(false); setNote(""); }} style={card.grow} />
-              <Button label="Open the ticket" busy={busy === "ticket"} busyLabel="Opening…" disabled={!note.trim()}
+              <Button label="Open the ticket" busy={isBusy("ticket")} busyLabel="Opening…" disabled={!note.trim()}
                 onPress={() => void ticket()} style={card.grow} />
             </View>
           </View>

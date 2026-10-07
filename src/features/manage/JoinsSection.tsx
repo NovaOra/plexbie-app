@@ -26,7 +26,7 @@ export function JoinsSection() {
   const qc = useQueryClient();
   const key = useAdminKey()("joins");
   const joins = useJoins();
-  const { busy, act } = useAct();
+  const { isBusy, act } = useAct();
 
   if (!joins.data) {
     return joins.error ? (
@@ -67,9 +67,9 @@ export function JoinsSection() {
           </View>
           {j.messageId ? (
             <View style={card.actions}>
-              <Button label="Invite to Plex" busy={busy === j.key} busyLabel="Inviting…" onPress={() => void decide(j, true)} style={card.grow}
+              <Button label="Invite to Plex" busy={isBusy(j.key)} busyLabel="Inviting…" onPress={() => void decide(j, true)} style={card.grow}
                 accessibilityLabel={`Invite ${j.name} to Plex`} />
-              <Button kind="danger" label="Deny" disabled={busy === j.key} onPress={() => confirmDeny(j)} style={card.grow}
+              <Button kind="danger" label="Deny" disabled={isBusy(j.key)} onPress={() => confirmDeny(j)} style={card.grow}
                 accessibilityLabel={`Deny ${j.name}`} />
             </View>
           ) : <Text variant="meta">Answer this one in Discord.</Text>}

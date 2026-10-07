@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-quer
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { Pressable, Text } from "react-native";
 import { ApiError } from "../../../api/client";
+import { whenSignedOut } from "../../../api/query";
 import type { Ack } from "../../../api/schemas";
 import { useAct, type Section } from "../useAdmin";
 
@@ -83,4 +84,64 @@ test("a refusal is still a refusal, with the bot's reason", async () => {
   expect(mockToast).toHaveBeenCalledWith({ tone: "error", text: "Not imported", detail: "Already imported." });
   expect(recheck).not.toHaveBeenCalled();
   expect(busy()).toBe(false);
+});
+
+// Two writes at once: each button stays busy until its own write is in, and a second press
+// of the same one while it's on its way isn't sent again.
+function Pair({ calls }: { calls: Record<string, () => Promise<Ack>> }) {
+  const { busy, isBusy, act: run } = useAct();
+  return (
+    <>
+      {Object.entries(calls).map(([id, call]) => (
+        <Pressable key={id} accessibilityRole="button" accessibilityLabel={id} accessibilityState={{ busy: isBusy(id) }}
+          onPress={() => void run(id, call)}>
+          <Text>{id}</Text>
+        </Pressable>
+      ))}
+      <Text testID="latest">{busy ?? "none"}</Text>
+    </>
+  );
+}
+const showPair = async (calls: Record<string, () => Promise<Ack>>) => {
+  await render(<QueryClientProvider client={qc}><Pair calls={calls} /></QueryClientProvider>);
+  await settle();
+};
+const busyOf = (id: string) => screen.getByLabelText(id).props.accessibilityState.busy;
+
+test("one write finishing leaves another still on its way busy", async () => {
+  const a = deferred<Ack>(), b = deferred<Ack>();
+  await showPair({ a: () => a.promise, b: () => b.promise });
+  await fireEvent.press(screen.getByLabelText("a"));
+  await fireEvent.press(screen.getByLabelText("b"));
+  await act(async () => { b.resolve({ ok: true, message: "Done" } as Ack); });
+  await settle();
+  expect(busyOf("a")).toBe(true);
+  expect(busyOf("b")).toBe(false);
+  expect(screen.getByTestId("latest").props.children).toBe("a");
+  await act(async () => { a.resolve({ ok: true, message: "Done" } as Ack); });
+  await settle();
+  expect(busyOf("a")).toBe(false);
+  expect(screen.getByTestId("latest").props.children).toBe("none");
+});
+
+test("a second press while the same write is on its way isn't sent again", async () => {
+  const a = deferred<Ack>();
+  const call = jest.fn(() => a.promise);
+  await showPair({ a: call });
+  await fireEvent.press(screen.getByLabelText("a"));
+  await fireEvent.press(screen.getByLabelText("a"));
+  await act(async () => { a.resolve({ ok: true, message: "Done" } as Ack); });
+  await settle();
+  expect(call).toHaveBeenCalledTimes(1);
+  expect(mockToast).toHaveBeenCalledTimes(1);
+});
+
+test("a write refused because the sign-in has ended signs out, as a read does", async () => {
+  const ended = jest.fn();
+  whenSignedOut(ended);
+  await show({ call: () => Promise.reject(new ApiError(401, "Sign in again.", "http")) });
+  await fireEvent.press(screen.getByRole("button"));
+  await settle();
+  expect(ended).toHaveBeenCalledTimes(1);
+  whenSignedOut(() => undefined);
 });

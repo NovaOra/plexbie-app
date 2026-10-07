@@ -5,6 +5,7 @@ import * as haptic from "../../ui/haptics";
 import { useState } from "react";
 import { Share, StyleSheet, TextInput, View } from "react-native";
 import { ApiError } from "../../api/client";
+import { checkSignedOut } from "../../api/query";
 import type { AppAdminInvite, AppNewInvite, AppPlexInvite } from "../../api/schemas";
 import { useApi } from "../../auth/session";
 import { useAnnounce, useFocusHere } from "../../ui/announce";
@@ -61,6 +62,7 @@ export function InvitesSection() {
       setEmail("");
       patchInvites((d) => [out.invite, ...d]);
     } catch (e) {
+      checkSignedOut(e);
       if (e instanceof ApiError && e.unanswered) {
         // It may have been made: the list below shows it once it's in.
         setProblem("No answer yet. It may have gone through: check Open invites below before trying again.");
@@ -79,6 +81,7 @@ export function InvitesSection() {
       patchInvites((d) => [out.invite, ...(i.status === "used" ? d : d.filter((x) => x.id !== i.id))]);
       toast({ text: `New link for ${i.label}`, detail: "It’s at the top of Invites, ready to send." });
     } catch (e) {
+      checkSignedOut(e);
       if (e instanceof ApiError && e.unanswered) {
         toast({ tone: "error", text: "No answer yet", detail: "It may have gone through. Check before trying again." });
         await qc.invalidateQueries({ queryKey: keyOf("invites") });
@@ -217,7 +220,7 @@ function PlexInvites({ rows }: { rows: AppPlexInvite[] }) {
   const client = useApi();
   const qc = useQueryClient();
   const key = useAdminKey()("plexinvites");
-  const { busy, act } = useAct();
+  const { isBusy, act } = useAct();
   const [editing, setEditing] = useState<string | null>(null);
   const [next, setNext] = useState("");
   if (!rows.length) return null;
@@ -259,7 +262,7 @@ function PlexInvites({ rows }: { rows: AppPlexInvite[] }) {
                 keyboardType="email-address" autoCapitalize="none" autoCorrect={false} accessibilityLabel="The right email" style={styles.input} />
               <View style={card.actions}>
                 <Button kind="secondary" label="Back" onPress={() => { setEditing(null); setNext(""); }} style={card.grow} />
-                <Button label="Send invite" busy={busy === i.email} busyLabel="Sending…" disabled={!EMAIL.test(next.trim())}
+                <Button label="Send invite" busy={isBusy(i.email)} busyLabel="Sending…" disabled={!EMAIL.test(next.trim())}
                   onPress={() => void change(i)} style={card.grow} />
               </View>
             </>
