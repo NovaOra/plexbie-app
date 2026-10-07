@@ -10,6 +10,7 @@ import { PressableScale } from "./Pressable";
 import { Text } from "./Text";
 import { color, EASE_OUT, font, radius, space, TOUCH } from "./theme";
 import { GlassFill, glass } from "./Glass";
+import { useLargeText } from "./useColumns";
 
 export interface PickerOption { value: string; label: string }
 
@@ -37,6 +38,7 @@ export function PickerPill({ title, label, options, value, multiple, onChange }:
   onChange: (next: string | string[]) => void;
 }) {
   const insets = useSafeAreaInsets();
+  const large = useLargeText();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<string[]>([]);
   const chosen = (v: string) => (multiple ? draft.includes(v) : value === v);
@@ -53,7 +55,7 @@ export function PickerPill({ title, label, options, value, multiple, onChange }:
       <PressableScale haptic="none" onPress={show} accessibilityRole="button" accessibilityLabel={`${title}: ${label}`}
         accessibilityHint="Opens the choices" style={[styles.pill, glass.surface]}>
         <GlassFill radius={20} interactive />
-        <Text variant="label" style={styles.pillText} numberOfLines={1}>{label}</Text>
+        <Text variant="label" style={styles.pillText} numberOfLines={large ? undefined : 1}>{label}</Text>
         <Text style={styles.caret} accessible={false}>▾</Text>
       </PressableScale>
       <Modal visible={open} transparent statusBarTranslucent navigationBarTranslucent animationType="none" onRequestClose={() => setOpen(false)}>
@@ -88,8 +90,10 @@ export function PickerPill({ title, label, options, value, multiple, onChange }:
 }
 
 const styles = StyleSheet.create({
+  // As wide as its row allows, so "Waiting for a decision · 3" isn't cut off; at large text
+  // sizes the words wrap, and the padding keeps a second line off the border.
   pill: {
-    flexDirection: "row", alignItems: "center", gap: space.xs, minHeight: 40, paddingHorizontal: space.m, maxWidth: 220,
+    flexDirection: "row", alignItems: "center", gap: space.xs, minHeight: 40, paddingHorizontal: space.m, paddingVertical: space.xs, maxWidth: "100%",
     borderRadius: radius.pill, borderWidth: 1.5, borderColor: color.slate, backgroundColor: color.panel,
   },
   pillText: { color: color.ink, fontSize: 15, flexShrink: 1 },

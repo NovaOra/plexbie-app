@@ -2,11 +2,12 @@
 // Sonarr or Radarr, so Import stays off for as long as the app would have waited, even after
 // leaving and coming back; a plain refusal leaves it on, and looks inside again from scratch.
 // Another show's episodes load before they can be picked (a slower answer for an earlier pick
-// is dropped, a failure says so), two files can't be one film, and a look inside, the list or
-// a search that fails says so with Try again.
+// is dropped, a failure says so) and their dropdown is only as wide as its choice, two files
+// can't be one film, and a look inside, the list or a search that fails says so with Try again.
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { StyleSheet } from "react-native";
 import { ApiError } from "../../../api/client";
 import type { Ack, AppArrEpisode, AppArrItem } from "../../../api/schemas";
 import type { BlockedChoice } from "../../../api/types";
@@ -172,6 +173,13 @@ test("another show's episodes load before they can be picked, and a slower answe
 
   await fireEvent.press(screen.getByRole("button", { name: /^Which episode → S03E01/ }));
   expect(importOff()).toBe(false);
+});
+
+test("the episode dropdown sits in a row, so it's as wide as its choice rather than the whole card", async () => {
+  await showTv("t3");
+  let node = screen.getByText(/^Which episode: /).parent;
+  while (node && !Object.keys(StyleSheet.flatten(node.props.style) ?? {}).length) node = node.parent;
+  expect(StyleSheet.flatten(node?.props.style).flexDirection).toBe("row");
 });
 
 test("episodes that couldn't be had say so, with Try again", async () => {

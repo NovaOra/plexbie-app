@@ -167,11 +167,11 @@ export function BlockedImport({ target, onDone }: { target: AppBlockedRef; onDon
                 .map((n) => <Text key={n} variant="meta" style={styles.note}>{n}</Text>)}
               {!skip ? (
                 <View style={styles.edit}>
-                  {tv ? (epsWaiting ? null :
+                  {tv ? (epsWaiting ? null : <View style={styles.pills}>
                     <PickerPill title="Which episode" multiple options={episodeOptions} value={episodeIds.map(String)}
                       label={episodeIds.length ? episodeIds.map((id) => episodes.find((e) => e.id === id)?.label ?? "?").join(" + ") : "Pick the episode…"}
                       onChange={(next) => pick(f.name, { episodeIds: (next as string[]).map(Number) })} />
-                  ) : (
+                  </View>) : (
                     <>
                       <Text variant="meta">Film: {c.movieLabel ?? (f.movie ? `${f.movie.title}${f.movie.year ? ` (${f.movie.year})` : ""}` : "none")}</Text>
                       <Button kind="secondary" label="Wrong film?" onPress={() => setFinding(finding === f.name ? null : f.name)} style={styles.start} />

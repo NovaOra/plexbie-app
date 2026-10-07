@@ -10,7 +10,7 @@ import { KEYBOARD_BEHAVIOR } from "../../ui/keyboard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { AppSession } from "../../api/schemas";
 import { useApi, useSession } from "../../auth/session";
-import { useAnnounce } from "../../ui/announce";
+import { announce, useAnnounce } from "../../ui/announce";
 import { Button } from "../../ui/Button";
 import { StatusBarScrim } from "../../ui/StatusBarScrim";
 import { ScreenTitle } from "../../ui/ScreenTitle";
@@ -18,6 +18,8 @@ import { Text } from "../../ui/Text";
 import { color, font, radius, space, TOUCH } from "../../ui/theme";
 import { EMAIL } from "../../ui/format";
 import { Ambient } from "../../ui/Glass";
+
+const BAD_EMAIL = "That doesn’t look like an email address.";
 
 export function JoinScreen({ me }: { me: AppSession }) {
   const insets = useSafeAreaInsets();
@@ -46,8 +48,15 @@ export function JoinScreen({ me }: { me: AppSession }) {
         : null;
 
   useAnnounce(ask.error?.message);
-  const submit = () => {
+  // The line under the field turns into this. Said out loud as well: when the field is
+  // left with a bad address, and on each press of Ask to join. (Not a live region too, or
+  // Android would read it twice.)
+  const check = (asking: boolean) => {
+    if (!valid && (asking || !touched)) announce(BAD_EMAIL);
     setTouched(true);
+  };
+  const submit = () => {
+    check(true);
     if (valid) ask.mutate();
   };
 
@@ -85,7 +94,7 @@ export function JoinScreen({ me }: { me: AppSession }) {
                   <TextInput
                     value={email}
                     onChangeText={setEmail}
-                    onBlur={() => setTouched(true)}
+                    onBlur={() => check(false)}
                     onSubmitEditing={submit}
                     placeholder="you@example.com"
                     placeholderTextColor={color.faint}
@@ -100,7 +109,7 @@ export function JoinScreen({ me }: { me: AppSession }) {
                     style={[styles.input, touched && !valid && styles.inputBad]}
                   />
                   <Text variant="meta" style={touched && !valid ? styles.bad : undefined}>
-                    {touched && !valid ? "That doesn’t look like an email address." : "Only the admins see it, and only to send the Plex invite."}
+                    {touched && !valid ? BAD_EMAIL : "Only the admins see it, and only to send the Plex invite."}
                   </Text>
                 </View>
                 {ask.error ? <Text variant="meta" style={styles.bad} accessibilityRole="alert">{ask.error.message}</Text> : null}

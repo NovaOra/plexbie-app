@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DEFAULT_SERVER, SignInError, normalizeServer, useSession, type Via } from "../../auth/session";
 import { PressableScale } from "../../ui/Pressable";
 import { ScreenTitle } from "../../ui/ScreenTitle";
+import { StatusBarScrim } from "../../ui/StatusBarScrim";
 import { useAnnounce } from "../../ui/announce";
 import { Text } from "../../ui/Text";
 import { TOUCH, color, font, radius, space } from "../../ui/theme";
@@ -165,6 +166,7 @@ export function SignInScreen() {
           <Text variant="label" style={styles.quietText}>Look around with sample data</Text>
         </PressableScale>
       </ScrollView>
+      <StatusBarScrim />
     </KeyboardAvoidingView>
   );
 }
