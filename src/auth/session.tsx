@@ -25,11 +25,12 @@ import { ApiError, api, pub } from "../api/client";
 import { forgetCache } from "../api/persist";
 import { queryClient, whenSignedOut } from "../api/query";
 import { SAMPLE_SERVER, sampleApi } from "../api/sample";
-import { disablePush } from "../features/push/push";
+import { forgetPush, savedPush } from "../features/push/push";
 import { newPkce } from "./pkce";
 
 const KEY = "plexbie.signin";                 // {server, token, expiresAt}, one item so they can't disagree
 const KEY_LAST_SERVER = "plexbie.lastServer"; // remembered for the sign-in screen, not a secret
+const KEY_SIGNOUTS = "plexbie.signout";       // sign-outs the server hasn't heard about yet (see tellSignOuts)
 const STORE: SecureStore.SecureStoreOptions = { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY };
 /** No Plexbie is assumed: each household types its own address (plexbie.<their domain>). */
 export const DEFAULT_SERVER = "";
@@ -147,6 +148,82 @@ async function movedTo(server: string, token: string): Promise<string | null> {
   }
 }
 
+/** A sign-out still to tell its server about: the session to end there, and this phone's
+ *  alerts token to remove. Kept like the sign-in itself, and only until the server knows. */
+type SignOut = { server: string; token: string; expiresAt?: number; push: string | null };
+
+let signOutsChanging: Promise<unknown> = Promise.resolve();
+/** Changes the saved sign-outs, one change at a time; returns what's left. */
+function changeSignOuts(change: (list: SignOut[]) => SignOut[]): Promise<SignOut[]> {
+  const next = signOutsChanging.then(async () => {
+    // Not read (a locked phone, say): nothing changes, and the saved ones wait for next time.
+    const saved = await SecureStore.getItemAsync(KEY_SIGNOUTS, STORE);
+    let list: SignOut[] = [];
+    try {
+      const raw = JSON.parse(saved ?? "[]") as unknown;
+      if (Array.isArray(raw)) list = raw.filter((o) => typeof o?.server === "string" && typeof o?.token === "string");
+    } catch { /* not a list: nothing to tell */ }
+    const left = change(list).slice(-5);
+    if (left.length) await SecureStore.setItemAsync(KEY_SIGNOUTS, JSON.stringify(left), STORE);
+    else await SecureStore.deleteItemAsync(KEY_SIGNOUTS, STORE);
+    return left;
+  });
+  signOutsChanging = next.catch(() => undefined);
+  return next;
+}
+
+/** Worth trying again later: the server wasn't reached, or was busy or down. */
+const later = (e: unknown) => !(e instanceof ApiError) || e.status === 0 || e.status === 429 || e.status >= 500;
+
+/**
+ * Tells the server about a sign-out: this phone stops getting that person's alerts, then the
+ * session ends there too, so a copy of its token stops working. True once that's done, or
+ * when nothing is left to do (the server ended it already, or turns it down for good).
+ */
+async function tellServer(out: SignOut): Promise<boolean> {
+  const client = api({ server: out.server, token: out.token });
+  try {
+    // Alerts on again here since (signed back in): that token is the new sign-in's now, and
+    // the logout below drops only what the old one registered.
+    if (out.push && out.push !== (await savedPush())) await client.unregisterPush(out.push);
+  } catch (e) {
+    if (later(e)) return false;
+    if (e instanceof ApiError && e.signedOut) return true;   // ended there already; its alerts went with it
+  }
+  try {
+    await client.logout();
+    return true;
+  } catch (e) {
+    return !later(e);
+  }
+}
+
+let telling: Promise<void> | null = null;
+let tellAgain = false;
+/** Sign-outs the server hasn't heard about: told now, and again on each launch (and each
+ *  return to the app) until it has. One at a time: a sign-out while that runs is told
+ *  right after. */
+function tellSignOuts(): Promise<void> {
+  if (telling) { tellAgain = true; return telling; }
+  telling = (async () => {
+    do { tellAgain = false; await tellSignOutsOnce(); } while (tellAgain);
+  })().finally(() => { telling = null; });
+  return telling;
+}
+
+/** One whose sign-in has run out needs nothing more: the server no longer takes it. */
+async function tellSignOutsOnce(): Promise<void> {
+  try {
+    const now = Date.now() / 1000;
+    const list = await changeSignOuts((l) => l.filter((o) => !o.expiresAt || o.expiresAt > now));
+    for (const out of list) {
+      if (await tellServer(out)) await changeSignOuts((l) => l.filter((o) => o.token !== out.token));
+    }
+  } catch {
+    // The next launch tries again.
+  }
+}
+
 function useSessionState() {
   const [state, setStateRaw] = useState<State>({ phase: "loading" });
   const current = useRef(state);
@@ -154,6 +231,8 @@ function useSessionState() {
   const signingIn = useRef(false);
 
   useEffect(() => {
+    void tellSignOuts();
+    const back = AppState.addEventListener("change", (s) => { if (s === "active") void tellSignOuts(); });
     (async () => {
       const [saved, last] = await Promise.all([SecureStore.getItemAsync(KEY, STORE), SecureStore.getItemAsync(KEY_LAST_SERVER, STORE)]);
       const s = saved ? JSON.parse(saved) as { server?: string; token?: string; expiresAt?: number } : null;
@@ -168,25 +247,32 @@ function useSessionState() {
         }
       } else {
         // Ended while the app was closed: nothing of that sign-in stays on the phone.
-        if (s) await Promise.all([SecureStore.deleteItemAsync(KEY, STORE), forgetCache(), disablePush(null)]);
+        if (s) await Promise.all([SecureStore.deleteItemAsync(KEY, STORE), forgetCache(), forgetPush()]);
         setState({ phase: "signedOut", server: last ?? DEFAULT_SERVER, notice: s ? "Your sign-in has ended. Sign in again." : undefined });
       }
     })().catch(() => setState({ phase: "signedOut", server: DEFAULT_SERVER }));
+    return () => back.remove();
   }, [setState]);
 
-  /** Signed out at once on this phone; the server is told in the background. */
+  /** Signed out at once on this phone; the server is told in the background, and on later
+   *  launches until it hears it. */
   const signOut = useCallback(async (notice?: string) => {
     const was = current.current;
     if (was.phase !== "signedIn") return;
     await forgetEverything();
     setState({ phase: "signedOut", server: was.sample ? DEFAULT_SERVER : was.server, notice });
-    await SecureStore.deleteItemAsync(KEY, STORE);
     if (!was.sample && was.token) {
-      // This phone stops getting the last person's alerts, then the session ends on the server.
-      const client = api({ server: was.server, token: was.token });
-      void disablePush(client).finally(() => client.logout().catch(() => undefined));
+      // Saved before the sign-in is deleted, so it can't be lost in between.
+      const token = was.token;
+      const expiresAt = await SecureStore.getItemAsync(KEY, STORE)
+        .then((saved) => (JSON.parse(saved ?? "{}") as { expiresAt?: number }).expiresAt).catch(() => undefined);
+      const out: SignOut = { server: was.server, token, expiresAt, push: await forgetPush().catch(() => null) };
+      const kept = await changeSignOuts((list) => [...list.filter((o) => o.token !== token), out]).then(() => true, () => false);
+      await SecureStore.deleteItemAsync(KEY, STORE);
+      void (kept ? tellSignOuts() : tellServer(out));
     } else {
-      void disablePush(null);
+      await SecureStore.deleteItemAsync(KEY, STORE);
+      void forgetPush();
     }
   }, [setState]);
 

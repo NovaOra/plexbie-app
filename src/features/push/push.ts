@@ -8,9 +8,10 @@ import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
+import { endAllLive } from "../../../modules/plexbie-live";
 import type { Api } from "../../api/client";
 import * as haptics from "../../ui/haptics";
-import { liveIn, liveOn } from "./live";
+import { liveIn, liveOn, setLiveForThisPhone } from "./live";
 
 const KEY = "plexbie.pushToken";
 const STORE: SecureStore.SecureStoreOptions = { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY };
@@ -84,6 +85,7 @@ export async function enablePush(client: Api): Promise<PushState> {
   const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId: projectId()! });
   await client.registerPush(token, Platform.OS, alertChannel(), liveOn());
   await SecureStore.setItemAsync(KEY, token, STORE);
+  setLiveForThisPhone(true);
   return "on";
 }
 
@@ -101,13 +103,32 @@ export async function refreshPush(client: Api): Promise<void> {
   }
 }
 
-/** Tells the bot to stop, and forgets the token. Best-effort on the bot's side. */
-export async function disablePush(client: Api | null): Promise<PushState> {
+/** The alerts switch: tells the bot to stop, then forgets the token. If the bot didn't hear
+ *  it, that's the error the switch shows, and the token stays so trying again can remove it
+ *  (otherwise alerts would keep coming while the switch says off). */
+export async function disablePush(client: Api): Promise<PushState> {
   const saved = await SecureStore.getItemAsync(KEY, STORE);
-  if (saved && client) await client.unregisterPush(saved).catch(() => undefined);
+  if (saved) await client.unregisterPush(saved);
   await SecureStore.deleteItemAsync(KEY, STORE);
+  // No end message comes for a request still downloading now: take its progress down.
+  setLiveForThisPhone(false);
+  await endAllLive();
   return pushPossible() ? "off" : "unavailable";
 }
+
+/** Signing out: forgets the token on this phone and takes down live progress, and draws
+ *  none of the updates the bot may still send before it hears. Returns the token, so the
+ *  sign-out can still tell the bot to drop it (auth/session.tsx), however long that takes. */
+export async function forgetPush(): Promise<string | null> {
+  const saved = await SecureStore.getItemAsync(KEY, STORE).catch(() => null);
+  await SecureStore.deleteItemAsync(KEY, STORE);
+  setLiveForThisPhone(false);
+  await endAllLive();
+  return saved;
+}
+
+/** The token this phone has alerts on with now, if any. */
+export const savedPush = () => SecureStore.getItemAsync(KEY, STORE);
 
 /** Where tapping an alert goes: the bot's website paths, mapped to the app's screens. The
  *  household's pages are at the site's root; alerts from older bots say /app/...

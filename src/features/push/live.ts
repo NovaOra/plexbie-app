@@ -34,6 +34,19 @@ export function setLivePinned(next: boolean) {
   try { pinSetting().write(next ? "on" : "off"); } catch { /* stays for this run */ }
 }
 
+const forPhoneSetting = () => new File(Paths.document, "plexbie-live-alerts.txt");
+let forPhone = (() => {
+  try { const f = forPhoneSetting(); return !(f.exists && f.textSync().trim() === "off"); } catch { return true; }
+})();
+
+/** Off once alerts are turned off here or the person signs out, until alerts are turned on
+ *  again: updates the bot sends before it hears that aren't drawn. A file, not the Keychain,
+ *  so the background task can read it with the phone locked. */
+export function setLiveForThisPhone(next: boolean) {
+  forPhone = next;
+  try { forPhoneSetting().write(next ? "on" : "off"); } catch { /* stays for this run */ }
+}
+
 /** Live progress on (the default) or off, on this phone. */
 export const liveOn = () => liveAvailable && on;
 
@@ -58,7 +71,7 @@ export function liveIn(data: unknown): Live | null {
 }
 
 export async function handleLive(live: Live): Promise<void> {
-  if (live.op === "end" || !liveOn()) { await endLive(live.id); return; }
+  if (live.op === "end" || !liveOn() || !forPhone) { await endLive(live.id); return; }
   const slot = typeof live.slot === "number" && Number.isInteger(live.slot) && live.slot > 0 ? live.slot : null;
   const percent = typeof live.percent === "number" ? Math.max(0, Math.min(100, Math.round(live.percent))) : null;
   const stage = live.stage === "unpacking" || live.stage === "importing" ? live.stage : "downloading";

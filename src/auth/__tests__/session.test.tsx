@@ -11,17 +11,23 @@ import { Platform } from "react-native";
 import { ApiError } from "../../api/client";
 import { queryClient } from "../../api/query";
 import { discordSession, mobileInfo, token } from "../../api/__fixtures__/bot";
+import { forgetPush, savedPush } from "../../features/push/push";
 import { normalizeServer, SessionProvider, SignInError, useSession } from "../session";
 
-// The Keychain / Keystore, in memory.
+// The Keychain / Keystore, in memory. Keys in __locked can't be read (a locked iPhone).
 jest.mock("expo-secure-store", () => {
   const items = new Map<string, string>();
+  const locked = new Set<string>();
   return {
     WHEN_UNLOCKED_THIS_DEVICE_ONLY: 1,
-    getItemAsync: async (k: string) => items.get(k) ?? null,
+    getItemAsync: async (k: string) => {
+      if (locked.has(k)) throw new Error("User interaction is not allowed.");
+      return items.get(k) ?? null;
+    },
     setItemAsync: async (k: string, v: string) => { items.set(k, v); },
     deleteItemAsync: async (k: string) => { items.delete(k); },
     __items: items,
+    __locked: locked,
   };
 });
 jest.mock("expo-web-browser", () => ({
@@ -36,10 +42,10 @@ jest.mock("expo-linking", () => ({
 }));
 jest.mock("expo-image", () => ({ Image: { clearMemoryCache: async () => true } }));
 jest.mock("../../api/persist", () => ({ forgetCache: async () => undefined }));
-jest.mock("../../features/push/push", () => ({ disablePush: async () => "off" }));
+jest.mock("../../features/push/push", () => ({ forgetPush: jest.fn(async () => null), savedPush: jest.fn(async () => null) }));
 
 const SERVER = "https://plexbie.example";
-const items = (SecureStore as unknown as { __items: Map<string, string> }).__items;
+const { __items: items, __locked: locked } = SecureStore as unknown as { __items: Map<string, string>; __locked: Set<string> };
 const openSheet = jest.mocked(WebBrowser.openAuthSessionAsync);
 const fetchMock = jest.fn<(url: string, init?: RequestInit) => Promise<Response>>();
 
@@ -302,6 +308,110 @@ test("a sign-in the server says has ended signs this phone out", async () => {
   });
   await waitFor(() => expect(result.current.state).toEqual({ phase: "signedOut", server: SERVER, notice: "Your sign-in has ended. Sign in again." }));
   expect(items.has("plexbie.signin")).toBe(false);
+});
+
+describe("signing out", () => {
+  const PUSH = "ExponentPushToken[made-up-for-tests]";
+  let seen: { path: string; auth?: string; body?: unknown }[];
+
+  /** The bot answers each call with `status` (0: can't be reached). */
+  function answering(status: number) {
+    fetchMock.mockImplementation(async (url: string, init: RequestInit = {}) => {
+      seen.push({ path: url.slice(SERVER.length), auth: (init.headers as Record<string, string> | undefined)?.Authorization,
+        body: init.body ? JSON.parse(String(init.body)) : undefined });
+      if (!status) throw new TypeError("Network request failed");
+      if (url.endsWith("/api/mobile")) return new Response(JSON.stringify({ ...mobileInfo, home: null }), { status: 200 });
+      return new Response(JSON.stringify(status < 300 ? { ok: true } : { error: "No." }), { status });
+    });
+  }
+
+  /** Signed in with alerts on, then signs out while the bot answers `status`. */
+  async function signOutWith(status: number) {
+    items.set("plexbie.signin", JSON.stringify({ server: SERVER, ...token, expiresAt: Date.now() / 1000 + 3600 }));
+    jest.mocked(forgetPush).mockResolvedValueOnce(PUSH);
+    answering(200);
+    const hook = await renderHook(() => useSession(), { wrapper });
+    await waitFor(() => expect(hook.result.current.state.phase).toBe("signedIn"));
+    seen = [];
+    answering(status);
+    await act(async () => { await hook.result.current.signOut(); });
+    expect(hook.result.current.state).toEqual({ phase: "signedOut", server: SERVER });
+    expect(items.has("plexbie.signin")).toBe(false);
+    return hook;
+  }
+
+  /** The next launch, with the bot answering `status`. */
+  async function relaunch(status: number) {
+    seen = [];
+    answering(status);
+    const { result } = await renderHook(() => useSession(), { wrapper });
+    await waitFor(() => expect(result.current.state.phase).toBe("signedOut"));
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+  }
+
+  const told = () => seen.filter((s) => s.path !== "/api/mobile").map((s) => [s.path, s.auth, s.body]);
+  const both = [["/api/push/app/remove", `Bearer ${token.token}`, { token: PUSH }], ["/api/logout", `Bearer ${token.token}`, undefined]];
+
+  beforeEach(() => { seen = []; jest.mocked(forgetPush).mockClear(); });
+
+  test("the bot is told: this phone's alerts stop, then the sign-in ends there too", async () => {
+    await signOutWith(200);
+    expect(forgetPush).toHaveBeenCalled();
+    await waitFor(() => expect(told()).toEqual(both));
+    await waitFor(() => expect(items.has("plexbie.signout")).toBe(false));
+  });
+
+  test("a bot that can't be reached is told on the next launch, and on each one until it hears it", async () => {
+    const hook = await signOutWith(0);
+    await waitFor(() => expect(seen.length).toBeGreaterThan(0));
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(items.has("plexbie.signout")).toBe(true);
+    await hook.unmount();
+
+    await relaunch(503);
+    expect(told().length).toBeGreaterThan(0);
+    expect(items.has("plexbie.signout")).toBe(true);
+
+    await relaunch(200);
+    await waitFor(() => expect(told()).toEqual(both));
+    await waitFor(() => expect(items.has("plexbie.signout")).toBe(false));
+  });
+
+  test("signed back in with alerts on again: only the old sign-in ends, the alerts token stays the new one's", async () => {
+    const hook = await signOutWith(0);
+    await hook.unmount();
+    jest.mocked(savedPush).mockResolvedValue(PUSH);
+    try {
+      await relaunch(200);
+      await waitFor(() => expect(items.has("plexbie.signout")).toBe(false));
+      expect(told()).toEqual([["/api/logout", `Bearer ${token.token}`, undefined]]);
+    } finally {
+      jest.mocked(savedPush).mockResolvedValue(null);
+    }
+  });
+
+  test("sign-outs that can't be read just now are kept for the next launch", async () => {
+    const hook = await signOutWith(0);
+    await hook.unmount();
+    locked.add("plexbie.signout");
+    try {
+      await relaunch(200);
+      expect(told()).toEqual([]);
+      expect(items.has("plexbie.signout")).toBe(true);
+    } finally {
+      locked.clear();
+    }
+    await relaunch(200);
+    await waitFor(() => expect(told()).toEqual(both));
+    await waitFor(() => expect(items.has("plexbie.signout")).toBe(false));
+  });
+
+  test("a sign-in the bot has already ended needs nothing more", async () => {
+    const hook = await signOutWith(0);
+    await hook.unmount();
+    await relaunch(401);
+    await waitFor(() => expect(items.has("plexbie.signout")).toBe(false));
+  });
 });
 
 describe("normalizeServer", () => {

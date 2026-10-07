@@ -28,7 +28,11 @@ export function usePush() {
     setBusy(true);
     setProblem(null);
     try { setStatus(on ? await enablePush(client) : await disablePush(client)); }
-    catch (e) { setProblem(e instanceof Error ? e.message : "Couldn’t change alerts just now."); }
+    catch (e) {
+      const why = e instanceof Error ? e.message : "Couldn’t change alerts just now.";
+      // Turning off: the bot didn't hear it, so it still sends them.
+      setProblem(on ? why : `Alerts are still on. ${why}`);
+    }
     finally { setBusy(false); }
   }, [client]);
   return { status: serverOff && status !== "on" ? "unavailable" as const : status, serverOff, busy, problem, set };

@@ -38,7 +38,8 @@ browser.
 shade with a bar that fills up until it's on Plex; on Android 16 it's a Live Update, a chip in
 the status bar. The bot sends silent updates (`core/live_progress.py` there) and the app draws
 them in its own module, `modules/plexbie-live`, even when it's closed. Nothing shows before a
-request is downloading, and a stuck one is taken down. Tapping it opens the request, with Home
+request is downloading, and a stuck one is taken down, as are all of them when alerts are turned
+off or someone signs out. Tapping it opens the request, with Home
 behind it (Back goes there, even when the tap started the app). It's on the You screen, with a preview.
 
 **Vibration:** Plexbie's own patterns (a little fanfare when a request is sent), and alerts that
@@ -48,6 +49,8 @@ buzz tap-tap-buzz on Android. One switch on the You screen turns all of it off.
 bot, off by default). App alerts go through the Plexbie project's Expo account, so they're
 for the project's own household; every other Plexbie's members turn on its website's
 alerts instead, which each install sends itself. The app says so and opens the website.
+Turning alerts off counts once the server has heard it: if it can't be reached, the switch stays
+on and says why, so the phone isn't left getting alerts that look switched off.
 Tapping an alert opens its page once, over Home (Back goes there), even when the tap starts the
 app; signing out and back in doesn't open it again. One tapped while signed out, or in the sample household,
 opens nothing: the app can't tell which server sent it.
@@ -119,7 +122,7 @@ npm run ios                  # prebuild, pod install, build, open the Simulator
 
 - `npm start`: Metro for an installed dev build (`expo start --dev-client`).
 - `npm run typecheck`, `npm run lint`, `npm run doctor`.
-- `npm test`: the unit tests (Jest with jest-expo, no device needed): sign-in (PKCE, the state check, refusals), server addresses, where alerts open, and the checks on the bot's answers (sample answers in `src/api/__fixtures__/`, typed with the bot's own API types).
+- `npm test`: the unit tests (Jest with jest-expo, no device needed): sign-in (PKCE, the state check, refusals), signing out (and telling the server later when it can't be reached), turning alerts off, server addresses, where alerts open, and the checks on the bot's answers (sample answers in `src/api/__fixtures__/`, typed with the bot's own API types).
 - `npm run types:sync`: copy the bot's API types again after they change (set `PLEXBIE_REPO` if the bot's checkout isn't `../plexbie`).
 - `node scripts/brand-assets.mjs`: rebuild the icons from the logo.
 
@@ -190,6 +193,7 @@ They need a free Expo account (`npx eas-cli login`). They're optional; everythin
   - Sign-in runs on the bot, in the system browser sheet, with PKCE. The app receives a one-time code and swaps it for a Plexbie session token.
   - The token lives in the Keychain or Keystore (this device only, never backed up) and is never logged or put in a URL.
   - The Plex token never leaves the bot.
+  - Signing out is immediate on the phone. The server is told too (this phone's alerts stop and the session ends there, so a copy of the token stops working); if it can't be reached, that sign-out is kept in the Keychain or Keystore and told on each launch (and each return to the app) until the server has it, or the sign-in runs out. Live progress updates the server sends meanwhile aren't drawn.
 - **Look** (`src/ui`): the website's "On Air" tokens, Archivo, press feedback (scale 0.97, 120 ms, one haptic), 48dp targets, reduced-motion aware.
 - **Types:** copied from the bot (`scripts/sync-types.mjs`); the bot is the source of truth for `/api`.
 
