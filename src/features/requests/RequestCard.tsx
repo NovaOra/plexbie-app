@@ -25,11 +25,12 @@ export const RequestCard = memo(function RequestCard({ request: r, onPress, by, 
   const large = useLargeText();
   const reduced = useReducedMotion();
   // A poll that brings the same request back doesn't re-render the card, so tick the age along.
-  const [, tick] = useReducer((n: number) => n + 1, 0);
+  // Each tick lands when the age itself turns over, so the card reads the same as the detail page.
+  const [ticks, tick] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
-    const t = setInterval(tick, 60_000);
-    return () => clearInterval(t);
-  }, []);
+    const t = setTimeout(tick, nextAgeTick(r.updatedAt));
+    return () => clearTimeout(t);
+  }, [r.updatedAt, ticks]);
   const label = `${r.title.title}, request ${r.slot}${by ? `, asked by ${by}` : ""}. ${stuck?.length ? `Looks stuck: ${stuck.join(", ")}. ` : ""}${!by && r.help?.waiting && r.help.status !== "resolved" ? "An admin asked you something. " : ""}${stageLabel(r.stage, r.title.kind)}. ${/[.!?]$/.test(detail) ? detail : `${detail}.`}${percent !== null ? ` ${percent} percent.` : ""}`
     + `${r.note ? ` Note: ${r.note}.` : ""} Updated ${since(r.updatedAt)}.`;
   const card = (
@@ -65,6 +66,15 @@ export const RequestCard = memo(function RequestCard({ request: r, onPress, by, 
     </PressableScale>
   );
 });
+
+/** Milliseconds until `since(iso)` next changes: it rounds to the minute, so that's the next half
+ *  minute of age (1 s at the least). Past an hour it changes far less often, so once a minute will do. */
+function nextAgeTick(iso: string) {
+  const age = Date.now() - new Date(iso).getTime();
+  if (!(age < 3_600_000)) return 60_000;
+  const left = 60_000 - ((((age + 30_000) % 60_000) + 60_000) % 60_000);
+  return Math.min(60_000, Math.max(1_000, left));
+}
 
 const styles = StyleSheet.create({
   card: {
