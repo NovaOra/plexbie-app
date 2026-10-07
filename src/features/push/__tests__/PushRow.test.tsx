@@ -232,3 +232,16 @@ test("the preview's message goes when the screen comes back with notifications a
   await settle();
   expect(screen.queryByText(/Notifications are off for Plexbie/)).toBeNull();
 });
+
+test("each switch reads its explanation to a screen reader, including why it's dimmed", async () => {
+  state.mockResolvedValue("off");
+  await show(<><PushRow /><LiveRow /></>);
+  expect(screen.getByRole("switch", { name: "Phone alerts" })).toHaveProp("accessibilityHint", expect.stringContaining("given this phone’s push address"));
+  expect(screen.getByRole("switch", { name: "Live progress" })).toHaveProp("accessibilityHint", expect.stringContaining("Turn on phone alerts first"));
+});
+
+test("the status bar switch reads what it does, as the screen shows it", async () => {
+  state.mockResolvedValue("on");
+  await show(<LiveRow />);
+  expect(screen.getByRole("switch", { name: "In the status bar" })).toHaveProp("accessibilityHint", expect.stringContaining("Its % stays in the status bar"));
+});

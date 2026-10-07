@@ -1,7 +1,7 @@
 // Manage → Discord: a live watch party, posting as Plexbie in a channel (mass pings off
 // unless switched on, and then it asks first), and who brought whom.
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRef, useState } from "react";
 import { ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SwitchRow } from "../../ui/SwitchRow";
 import { useApi } from "../../auth/session";
@@ -14,17 +14,25 @@ import { since } from "../requests/stage";
 import { Heading, Initial, Pill, card } from "./bits";
 import { useAct, useAdminKey } from "./useAdmin";
 import { GlassFill, glass } from "../../ui/Glass";
+import type { AppDiscordOverview } from "../../api/schemas";
+
+const AUTOREPLY_WHY = "On someone’s first DM in 12 hours: “Thanks! The admins have your message and will reply here.”";
+const PINGS_WHY = "Off: those show as plain text and notify nobody.";
 
 export function DiscordSection() {
   const confirm = useConfirm();
   const client = useApi();
-  const discord = useQuery({ queryKey: useAdminKey()("discord"), queryFn: ({ signal }) => client.adminDiscord(signal), staleTime: 30_000 });
+  const qc = useQueryClient();
+  const key = useAdminKey()("discord");
+  const discord = useQuery({ queryKey: key, queryFn: ({ signal }) => client.adminDiscord(signal), staleTime: 30_000 });
   const { act } = useAct();
   const [channel, setChannel] = useState("");
   const [text, setText] = useState("");
   const [pings, setPings] = useState(false);
   const [sending, setSending] = useState(false);
   const [query, setQuery] = useState("");
+  const [tapped, setTapped] = useState<boolean | null>(null);
+  const taps = useRef({ n: 0, out: 0, kept: 0 });
   const d = discord.data;
   if (!d) {
     return discord.error ? <Text variant="body">{discord.error.message}</Text> : <View style={[card.box, { height: 220 }]} />;
@@ -35,6 +43,23 @@ export function DiscordSection() {
     const out = await act(null, () => client.say(chosen, text.trim(), pings), { done: (o) => ({ text: "Posted as Plexbie", detail: o.message || undefined }), failText: "Not posted" });
     setSending(false);
     if (out) { setText(""); setPings(false); }
+  };
+  // The switch shows the latest tap until every save is back, whatever a reload finds in
+  // between. A save that went through is written in (unless a later one already was); a
+  // failed one leaves what the server last had, so the switch goes back to that.
+  const autoreply = async (on: boolean) => {
+    const t = taps.current;
+    const n = ++t.n;
+    t.out++;
+    setTapped(on);
+    const out = await act(null, () => client.inboxSettings(on), { failText: "Not saved", refresh: ["discord"] });
+    if (out && n > t.kept) {
+      t.kept = n;
+      // A reload that started before the server took this is out of date.
+      await qc.cancelQueries({ queryKey: key });
+      qc.setQueryData<AppDiscordOverview>(key, (x) => (x?.inbox ? { ...x, inbox: { ...x.inbox, autoreply: on } } : x));
+    }
+    if (--t.out === 0) setTapped(null);
   };
   const send = () => {
     if (!text.trim() || !chosen) return;
@@ -66,15 +91,15 @@ export function DiscordSection() {
 
       {d.inbox ? (
 
-        <SwitchRow label="Answer DMs automatically" value={d.inbox.autoreply}
+        <SwitchRow label="Answer DMs automatically" description={AUTOREPLY_WHY} value={tapped ?? d.inbox.autoreply}
 
-          onValueChange={(on) => void act(null, () => client.inboxSettings(on), { failText: "Not saved", refresh: ["discord"] })}>
+          onValueChange={(on) => void autoreply(on)}>
 
           <View style={{ flex: 1, gap: 2 }}>
 
             <Text variant="body" style={styles.ink}>Answer DMs automatically</Text>
 
-            <Text variant="meta">On someone’s first DM in 12 hours: “Thanks! The admins have your message and will reply here.”</Text>
+            <Text variant="meta">{AUTOREPLY_WHY}</Text>
 
           </View>
 
@@ -98,9 +123,9 @@ export function DiscordSection() {
         <TextInput value={text} onChangeText={setText} multiline maxLength={2000} placeholder="Movie night Friday at 8!"
           placeholderTextColor={color.faint} accessibilityLabel="Message" style={styles.message} />
         <Text variant="meta">{text.length}/2000</Text>
-        <SwitchRow label="Allow @everyone and role pings" value={pings} onValueChange={setPings}>
+        <SwitchRow label="Allow @everyone and role pings" description={PINGS_WHY} value={pings} onValueChange={setPings}>
           <Text variant="label">Allow @everyone and role pings</Text>
-          <Text variant="meta">Off: those show as plain text and notify nobody.</Text>
+          <Text variant="meta">{PINGS_WHY}</Text>
         </SwitchRow>
         <Button label="Post it" busy={sending} busyLabel="Posting…" disabled={!text.trim() || !chosen} onPress={send} />
       </View>

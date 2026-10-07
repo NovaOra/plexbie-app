@@ -5,9 +5,11 @@ import { Pressable, StyleSheet, Switch, View, type StyleProp, type ViewStyle } f
 import * as haptics from "./haptics";
 import { color, space, TOUCH } from "./theme";
 
-export function SwitchRow({ label, value, onValueChange, disabled, children, style }: {
+export function SwitchRow({ label, description, value, onValueChange, disabled, children, style }: {
   /** What a screen reader says, beginning with the visible words. */
   label: string;
+  /** The row's explanation, read after the label and state (the label replaces the row's own text). */
+  description?: string;
   value: boolean;
   onValueChange: (on: boolean) => void;
   disabled?: boolean;
@@ -22,6 +24,7 @@ export function SwitchRow({ label, value, onValueChange, disabled, children, sty
       disabled={disabled}
       accessibilityRole="switch"
       accessibilityLabel={label}
+      accessibilityHint={description}
       accessibilityState={{ checked: value, disabled: !!disabled }}
       style={[styles.row, disabled && styles.off, style]}
     >

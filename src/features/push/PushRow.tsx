@@ -52,7 +52,7 @@ export function PushRow() {
     <View style={[styles.card, glass.surface]}>
       <GlassFill radius={radius.m} />
       {status === "on" || status === "off" ? (
-        <SwitchRow label="Phone alerts" value={status === "on"} disabled={busy} onValueChange={(on) => void set(on)}>
+        <SwitchRow label="Phone alerts" description={WHY} value={status === "on"} disabled={busy} onValueChange={(on) => void set(on)}>
           <Text variant="title">Phone alerts</Text>
           <Text variant="meta">{WHY}</Text>
         </SwitchRow>
@@ -88,7 +88,7 @@ export function VibrationRow() {
   return (
     <View style={[styles.card, glass.surface]}>
       <GlassFill radius={radius.m} />
-      <SwitchRow label="Vibration" value={on} onValueChange={(next) => {
+      <SwitchRow label="Vibration" description={VIBRATION_WHY} value={on} onValueChange={(next) => {
         setOn(next);
         void setHapticsOn(next).then(() => refreshPush(client));
       }}>
@@ -120,10 +120,13 @@ export function LiveRow() {
   const why = status !== "on" ? "Turn on phone alerts first: live progress comes the same way. “Show me” plays a preview."
     : `While one of your requests downloads, it stays in your notifications${canPromote() ? " and the status bar" : ""}, `
       + "filling up until it’s on Plex. Nothing shows while it’s waiting, and a stuck one goes by itself.";
+  const where = `${pinned
+    ? "Its % stays in the status bar, and it sits at the top of your notifications."
+    : "It goes with your silent notifications, without the % in the status bar."} Android doesn’t let it be both.`;
   return (
     <View style={[styles.card, glass.surface]}>
       <GlassFill radius={radius.m} />
-      <SwitchRow label="Live progress" value={on && status === "on"} disabled={status !== "on"} onValueChange={(next) => {
+      <SwitchRow label="Live progress" description={why} value={on && status === "on"} disabled={status !== "on"} onValueChange={(next) => {
         setOn(next);
         void setLiveOn(next).then(() => refreshPush(client));
       }}>
@@ -131,11 +134,9 @@ export function LiveRow() {
         <Text variant="meta">{why}</Text>
       </SwitchRow>
       {on && status === "on" ? (
-        <SwitchRow label="In the status bar" value={pinned} onValueChange={(next) => { setPinned(next); setLivePinned(next); }}>
+        <SwitchRow label="In the status bar" description={where} value={pinned} onValueChange={(next) => { setPinned(next); setLivePinned(next); }}>
           <Text variant="label">In the status bar</Text>
-          <Text variant="meta">{pinned
-            ? "Its % stays in the status bar, and it sits at the top of your notifications."
-            : "It goes with your silent notifications, without the % in the status bar."} Android doesn’t let it be both.</Text>
+          <Text variant="meta">{where}</Text>
         </SwitchRow>
       ) : null}
       <Button kind="secondary" label="Show me" onPress={() => {
