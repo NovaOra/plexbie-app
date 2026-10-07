@@ -15,6 +15,7 @@ const mockInbox = jest.fn<(on: boolean) => Promise<Ack>>();
 jest.mock("../../../auth/session", () => ({
   useApi: () => ({ adminDiscord: mockDiscord, inboxSettings: mockInbox, say: jest.fn() }),
   useSession: () => ({ state: { phase: "signedIn", server: "https://plexbie.example", token: "t", sample: false } }),
+  useServer: () => "https://plexbie.example",
 }));
 jest.mock("react-native-worklets", () => jest.requireActual("react-native-worklets/src/mock"));
 jest.mock("react-native-reanimated", () => ({

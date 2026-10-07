@@ -9,7 +9,7 @@ import { KEYBOARD_BEHAVIOR, useScrollToField } from "../../ui/keyboard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { AppRequest } from "../../api/schemas";
 import type { HelpReason } from "../../api/types";
-import { useApi, useSession } from "../../auth/session";
+import { useApi, useServer } from "../../auth/session";
 import { useAnnounce } from "../../ui/announce";
 import { Button } from "../../ui/Button";
 import { Chip } from "../../ui/Chip";
@@ -36,10 +36,10 @@ export function HelpSheet() {
   const { data } = useRequests();
   const r = data?.find((x) => String(x.slot) === slot);
   const client = useApi();
-  const { state } = useSession();
+  const server = useServer();
   const qc = useQueryClient();
   const toast = useToast();
-  const draftKey = `${state.phase === "signedIn" ? state.server : ""} ${slot}`;
+  const draftKey = `${server} ${slot}`;
   const [reason, setReason] = useState<HelpReason | null>(() => drafts.get(draftKey)?.reason ?? null);
   const [note, setNote] = useState(() => drafts.get(draftKey)?.note ?? "");
   const field = useScrollToField();
@@ -54,7 +54,7 @@ export function HelpSheet() {
     onSuccess: (out) => {
       haptic.success();
       // The card shows "Help asked" straight away; the next poll confirms it.
-      qc.setQueryData<AppRequest[]>(["requests", state.phase === "signedIn" ? state.server : ""],
+      qc.setQueryData<AppRequest[]>(["requests", server],
         (rows) => rows?.map((x) => (x.slot === r!.slot ? { ...x, help: out.help } : x)));
       toast({ text: "Sent to the admins", detail: out.message || undefined });
       drafts.delete(draftKey);

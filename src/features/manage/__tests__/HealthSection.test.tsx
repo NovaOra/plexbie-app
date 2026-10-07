@@ -20,6 +20,7 @@ jest.mock("../../../auth/session", () => ({
     adminMessages: async () => [],
   }),
   useSession: () => ({ state: { phase: "signedIn", server: "https://plexbie.example", token: "t", sample: false } }),
+  useServer: () => "https://plexbie.example",
 }));
 jest.mock("react-native-worklets", () => jest.requireActual("react-native-worklets/src/mock"));
 jest.mock("react-native-reanimated", () => ({

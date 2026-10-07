@@ -7,7 +7,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, TextInput, View } from "react-native";
 import type { AppMemberTicket, AppRequest } from "../../api/schemas";
-import { useApi, useSession } from "../../auth/session";
+import { useApi, useServer } from "../../auth/session";
 import { useFocusHere } from "../../ui/announce";
 import { Button } from "../../ui/Button";
 import { DetailFallback, DetailPage, TitleHead, detailStyles } from "../../ui/DetailPage";
@@ -81,7 +81,7 @@ function YourTicket({ request: r, ticket, onFocus }: { request: AppRequest; tick
   const client = useApi();
   const qc = useQueryClient();
   const toast = useToast();
-  const { state } = useSession();
+  const server = useServer();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState("");
@@ -98,7 +98,7 @@ function YourTicket({ request: r, ticket, onFocus }: { request: AppRequest; tick
       haptic.success();
       const mine = { id: `me${Date.now()}`, at: new Date().toISOString(), by: "You", kind: "member", text: text.trim() };
       // Shown straight away; the next poll confirms it.
-      qc.setQueryData<AppRequest[]>(["requests", state.phase === "signedIn" ? state.server : ""], (rows) => rows?.map((x) =>
+      qc.setQueryData<AppRequest[]>(["requests", server], (rows) => rows?.map((x) =>
         (x.slot === r.slot && x.help ? { ...x, help: { ...x.help, waiting: false, thread: [...(x.help.thread ?? []), mine] } } : x)));
       setText("");
       toast({ text: "Sent to the admins", detail: out.message || undefined });

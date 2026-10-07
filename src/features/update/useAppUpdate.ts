@@ -8,7 +8,7 @@ import * as SecureStore from "expo-secure-store";
 import { useCallback, useEffect, useState } from "react";
 import { Linking, Platform } from "react-native";
 import type { AppRelease } from "../../api/schemas";
-import { useApi, useSession } from "../../auth/session";
+import { useApi, useServer, useSession } from "../../auth/session";
 
 const DISMISSED = "plexbie.update.dismissed";
 
@@ -43,7 +43,7 @@ export const UPDATE_VERB = Platform.OS === "ios" ? "Update" : "Download";
 export function useAppUpdate() {
   const client = useApi();
   const { state } = useSession();
-  const server = state.phase === "signedIn" ? state.server : "";
+  const server = useServer();
   const latest = useQuery({
     queryKey: ["app-latest", server],
     queryFn: ({ signal }) => client.appLatest(signal),

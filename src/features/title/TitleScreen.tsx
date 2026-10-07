@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ApiError } from "../../api/client";
 import type { AppRequest, AppTitle } from "../../api/schemas";
 import type { BookFormat, MediaKind } from "../../api/types";
-import { useApi, useSession } from "../../auth/session";
+import { useApi, useServer } from "../../auth/session";
 import { useAnnounce, useFocusHere } from "../../ui/announce";
 import { BackHeader } from "../../ui/BackHeader";
 import { Button } from "../../ui/Button";
@@ -35,8 +35,7 @@ export function TitleScreen() {
   const id = typeof params.id === "string" ? params.id.slice(0, 200) : "";
   const insets = useSafeAreaInsets();
   const client = useApi();
-  const { state } = useSession();
-  const server = state.phase === "signedIn" ? state.server : "";
+  const server = useServer();
   const title = useQuery({
     queryKey: ["title", server, kind, id],
     queryFn: ({ signal }) => client.title(kind!, id, signal),

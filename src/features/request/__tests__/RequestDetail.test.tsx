@@ -14,6 +14,7 @@ jest.mock("../../requests/useRequests", () => ({ useRequests: () => mockAnswer }
 jest.mock("../../../auth/session", () => ({
   useApi: () => ({}),
   useSession: () => ({ state: { phase: "signedIn", server: "https://plexbie.example", token: "t", sample: false } }),
+  useServer: () => "https://plexbie.example",
 }));
 jest.mock("@tanstack/react-query", () => ({ useQueryClient: () => ({}) }));
 jest.mock("expo-router", () => ({

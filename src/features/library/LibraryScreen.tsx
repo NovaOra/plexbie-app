@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, RefreshControl, StyleSheet, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { AppLibraryItem } from "../../api/schemas";
-import { useApi, useSession } from "../../auth/session";
+import { useApi, useServer } from "../../auth/session";
 import { announce } from "../../ui/announce";
 import { PickerPill } from "../../ui/PickerSheet";
 import { QueryGate } from "../../ui/QueryGate";
@@ -31,8 +31,7 @@ export function LibraryScreen() {
   const { width } = useWindowDimensions();
   const columns = useColumns();
   const client = useApi();
-  const { state } = useSession();
-  const server = state.phase === "signedIn" ? state.server : "";
+  const server = useServer();
   const status = useStatus();
   const [shelf, setShelf] = useState<Shelf>("movie");
   const [sort, setSort] = useState<Sort>("added");

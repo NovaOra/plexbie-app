@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Platform, StyleSheet, View } from "react-native";
 import type { AppCommunity } from "../../api/schemas";
-import { useApi, useSession } from "../../auth/session";
+import { useApi, useServer } from "../../auth/session";
 import { Button } from "../../ui/Button";
 import { Text } from "../../ui/Text";
 import { color, font, radius, space } from "../../ui/theme";
@@ -48,8 +48,7 @@ export function Board({ community, failed, retry }: { community?: AppCommunity; 
 
 export function YouFigures({ you }: { you: NonNullable<AppCommunity["you"]> }) {
   const client = useApi();
-  const { state } = useSession();
-  const server = state.phase === "signedIn" ? state.server : "";
+  const server = useServer();
   const party = useQuery({ queryKey: ["watchparty", server], queryFn: ({ signal }) => client.watchparty(signal), staleTime: 5 * 60_000 });
   return (
     <View style={styles.stack}>

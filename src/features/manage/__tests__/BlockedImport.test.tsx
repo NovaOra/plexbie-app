@@ -21,6 +21,7 @@ jest.mock("../../../auth/session", () => ({
   useApi: () => ({ blockedPreview: mockPreview, blockedImport: mockImport, arrLibrary: mockLibrary, arrEpisodes: mockEpisodes,
     adminBlocked: mockBlocked }),
   useSession: () => ({ state: { phase: "signedIn", server: "https://plexbie.example", token: "t", sample: false } }),
+  useServer: () => "https://plexbie.example",
 }));
 // The hold itself is HoldButton's business; here a press is a finished hold.
 jest.mock("../../../ui/HoldButton", () => {

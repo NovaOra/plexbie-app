@@ -15,6 +15,7 @@ const mockToast = jest.fn();
 jest.mock("../../../ui/Toast", () => ({ useToast: () => mockToast }));
 jest.mock("../../../auth/session", () => ({
   useSession: () => ({ state: { phase: "signedIn", server: "https://plexbie.example", token: "t", sample: false } }),
+  useServer: () => "https://plexbie.example",
 }));
 
 const tickets = jest.fn<() => Promise<string[]>>();

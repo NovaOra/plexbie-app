@@ -1,10 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useApi, useSession } from "../../auth/session";
-
-function useServer() {
-  const { state } = useSession();
-  return state.phase === "signedIn" ? state.server : "";
-}
+import { useApi, useServer } from "../../auth/session";
 
 /** Plex up or down, how many watching, library sizes. */
 export function useStatus() {

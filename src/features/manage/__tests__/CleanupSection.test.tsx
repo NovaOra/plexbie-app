@@ -19,6 +19,7 @@ const mockSearch = jest.fn<(q: string, signal?: AbortSignal) => Promise<AppClean
 jest.mock("../../../auth/session", () => ({
   useApi: () => ({ adminCleanup: mockCleanup, cleanupSettings: mockSettings, exempt: mockExempt, cleanupScan: mockScan, cleanupSearch: mockSearch }),
   useSession: () => ({ state: { phase: "signedIn", server: "https://plexbie.example", token: "t", sample: false } }),
+  useServer: () => "https://plexbie.example",
 }));
 jest.mock("react-native-worklets", () => jest.requireActual("react-native-worklets/src/mock"));
 jest.mock("react-native-reanimated", () => ({

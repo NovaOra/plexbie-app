@@ -11,11 +11,11 @@ import type { ReactNode } from "react";
 import { AppState, Platform } from "react-native";
 import { ApiError } from "../../api/client";
 import { queryClient } from "../../api/query";
-import { sampleApi } from "../../api/sample";
+import { SAMPLE_SERVER, sampleApi } from "../../api/sample";
 import { discordSession, mobileInfo, token } from "../../api/__fixtures__/bot";
 import { forgetPush, savedPush } from "../../features/push/push";
 import { helpDrafts } from "../../features/request/helpDrafts";
-import { normalizeServer, SessionProvider, SignInError, useSession } from "../session";
+import { normalizeServer, SessionProvider, SignInError, useServer, useSession } from "../session";
 
 // The Keychain / Keystore, in memory. Keys in __locked can't be read or written (a locked iPhone);
 // __accessible has when each one can be read.
@@ -449,6 +449,21 @@ test("each look around opens the same sample household: nothing of the last visi
   await sampleApi.saveLanguages(["en"]);
   await act(async () => { await result.current.lookAround(); });
   expect((await result.current.client!.prefs()).languages).toEqual([]);
+});
+
+test("useServer names the signed-in Plexbie (the sample's own address in the sample), and nothing when signed out", async () => {
+  sheetAnswers((state) => ({ code: "one-time-code", state }));
+  const { result } = await renderHook(() => ({ session: useSession(), server: useServer() }), { wrapper });
+  await waitFor(() => expect(result.current.session.state.phase).toBe("signedOut"));
+  expect(result.current.server).toBe("");
+
+  await act(async () => { await result.current.session.signIn("plexbie.example", "discord"); });
+  expect(result.current.server).toBe(SERVER);
+
+  await act(async () => { await result.current.session.signOut(); });
+  expect(result.current.server).toBe("");
+  await act(async () => { await result.current.session.lookAround(); });
+  expect(result.current.server).toBe(SAMPLE_SERVER);
 });
 
 describe("signing out", () => {

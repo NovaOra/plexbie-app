@@ -9,7 +9,7 @@ import { KeyboardAvoidingView, RefreshControl, ScrollView, StyleSheet, View } fr
 import { KEYBOARD_BEHAVIOR, useScrollToEnd } from "../../ui/keyboard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { AppNewInvite } from "../../api/schemas";
-import { useSession } from "../../auth/session";
+import { useServer } from "../../auth/session";
 import { Button } from "../../ui/Button";
 import { PickerPill } from "../../ui/PickerSheet";
 import { QueryGate } from "../../ui/QueryGate";
@@ -37,8 +37,7 @@ const TAB_IDS: Tab[] = ["requests", "tickets", "all", "joins", "people", "invite
 export function ManageScreen() {
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
-  const { state } = useSession();
-  const server = state.phase === "signedIn" ? state.server : "";
+  const server = useServer();
   // An alert can open a section (and, for a DM, the conversation): /manage?tab=messages&who=d123.
   const params = useLocalSearchParams<{ tab?: string; who?: string }>();
   const [tab, setTab] = useState<Tab>("requests");

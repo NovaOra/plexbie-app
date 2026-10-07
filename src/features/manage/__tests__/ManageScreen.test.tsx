@@ -35,6 +35,7 @@ jest.mock("../../../ui/haptics", () => ({ tap: () => undefined, select: () => un
 jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock("../../../auth/session", () => ({
   useSession: () => ({ state: { phase: "signedIn", server: "https://plexbie.example", token: "t", sample: false } }),
+  useServer: () => "https://plexbie.example",
 }));
 jest.mock("../../../ui/Glass", () => ({ Ambient: () => null, TAB_BAR_CLEARANCE: 0 }));
 jest.mock("../../../ui/StatusBarScrim", () => ({ StatusBarScrim: () => null }));

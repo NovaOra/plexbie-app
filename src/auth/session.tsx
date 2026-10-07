@@ -416,3 +416,10 @@ export function useSession(): SessionContext {
 export function useApi() {
   return useSession().client ?? sampleApi;
 }
+
+/** The signed-in Plexbie's address (the sample's own in the sample household), or "" when
+ *  signed out: what each server's cached answers are kept under. */
+export function useServer() {
+  const { state } = useSession();
+  return state.phase === "signedIn" ? state.server : "";
+}

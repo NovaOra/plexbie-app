@@ -12,6 +12,7 @@ const mockAdminAll = jest.fn<(q: string, signal?: AbortSignal, everything?: bool
 jest.mock("../../../auth/session", () => ({
   useApi: () => ({ adminAll: mockAdminAll }),
   useSession: () => ({ state: { phase: "signedIn", server: "https://plexbie.example", token: "t", sample: false } }),
+  useServer: () => "https://plexbie.example",
 }));
 jest.mock("expo-router", () => ({ router: { push: jest.fn() } }));
 jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));

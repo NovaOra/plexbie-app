@@ -14,6 +14,7 @@ const mockTitle = jest.fn<(kind: string, id: string, signal?: AbortSignal) => Pr
 jest.mock("../../../auth/session", () => ({
   useApi: () => ({ title: mockTitle }),
   useSession: () => ({ state: { phase: "signedIn", server: "https://plexbie.example", token: "t", sample: false } }),
+  useServer: () => "https://plexbie.example",
 }));
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => mockParams,

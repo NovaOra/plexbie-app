@@ -18,6 +18,7 @@ jest.mock("../../features/requests/useRequests", () => ({ useRequests: () => ({ 
 jest.mock("../../auth/session", () => ({
   useApi: () => ({ askHelp: mockAskHelp }),
   useSession: () => ({ state: { phase: "signedIn", server: "https://plexbie.example", token: "t", sample: false } }),
+  useServer: () => "https://plexbie.example",
 }));
 jest.mock("react-native-safe-area-context", () => jest.requireActual<{ default: object }>("react-native-safe-area-context/jest/mock").default);
 jest.mock("react-native-worklets", () => jest.requireActual("react-native-worklets/src/mock"));

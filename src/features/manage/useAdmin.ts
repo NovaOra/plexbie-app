@@ -6,14 +6,13 @@ import { useCallback, useRef, useState } from "react";
 import { ApiError } from "../../api/client";
 import { checkSignedOut } from "../../api/query";
 import type { Ack } from "../../api/schemas";
-import { useSession } from "../../auth/session";
+import { useServer } from "../../auth/session";
 import { useToast, type ToastIn } from "../../ui/Toast";
 
 export type Section = "requests" | "all" | "tickets" | "joins" | "help" | "people" | "invites" | "plexinvites" | "links" | "cleanup" | "health" | "discord" | "messages";
 
 export function useAdminKey() {
-  const { state } = useSession();
-  const server = state.phase === "signedIn" ? state.server : "";
+  const server = useServer();
   return useCallback((section: Section) => ["admin", server, section] as const, [server]);
 }
 

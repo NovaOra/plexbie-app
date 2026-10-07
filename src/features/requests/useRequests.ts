@@ -1,11 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { useApi, useSession } from "../../auth/session";
+import { useApi, useServer } from "../../auth/session";
 import { isLive } from "./stage";
 
 export function useRequests() {
   const client = useApi();
-  const { state } = useSession();
-  const server = state.phase === "signedIn" ? state.server : "";
+  const server = useServer();
   return useQuery({
     queryKey: ["requests", server],
     queryFn: ({ signal }) => client.myRequests(signal),

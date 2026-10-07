@@ -36,6 +36,7 @@ const mockClient = { library: jest.fn(async (kind: string) => SHELF[kind]) };
 jest.mock("../../../auth/session", () => ({
   useApi: () => mockClient,
   useSession: () => ({ state: { phase: "signedIn", server: "https://plexbie.example", token: "t", sample: false } }),
+  useServer: () => "https://plexbie.example",
 }));
 
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 0)); });

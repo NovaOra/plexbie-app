@@ -39,6 +39,7 @@ const mockClient = {
 jest.mock("../../../auth/session", () => ({
   useApi: () => mockClient,
   useSession: () => ({ state: { phase: "signedIn", server: "https://plexbie.example", token: "t", sample: false } }),
+  useServer: () => "https://plexbie.example",
 }));
 
 const invite = (id: string, label: string, over: Partial<AppAdminInvite> = {}): AppAdminInvite => ({

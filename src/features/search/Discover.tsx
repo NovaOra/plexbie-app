@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import { checkSignedOut } from "../../api/query";
 import type { AppDiscover, AppTitle } from "../../api/schemas";
-import { useApi, useSession } from "../../auth/session";
+import { useApi, useServer } from "../../auth/session";
 import { announce, useAnnounce } from "../../ui/announce";
 import { Button } from "../../ui/Button";
 import { PickerPill } from "../../ui/PickerSheet";
@@ -36,11 +36,6 @@ function shelfHeading(key: string, kind: "movie" | "tv") {
     trending: `Trending ${n}`, popular: `Popular ${n}`, top: `Top rated ${n}`, upcoming: `${n[0].toUpperCase()}${n.slice(1)} coming soon`,
   };
   return by[key] ?? key;
-}
-
-function useServer() {
-  const { state } = useSession();
-  return state.phase === "signedIn" ? state.server : "";
 }
 
 /** A row of posters to scroll sideways, with a More tile at the end when there's more. */
