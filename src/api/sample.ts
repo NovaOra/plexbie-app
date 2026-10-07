@@ -62,9 +62,10 @@ const makeTitles = (): AppTitle[] => [
   { kind: "ebook", id: "OL-great-gatsby", title: "The Great Gatsby", year: "1925", poster: "https://media.plexbie.com/posters/great-gatsby-v1.jpg", availability: "available",
     author: "F. Scott Fitzgerald", overview: "One summer of parties on Long Island, thrown by a man who only ever wanted one guest." },
   // Blender Foundation open movies (CC BY) and public-domain films, with their real posters.
-  { kind: "movie", id: "346648", title: "Big Buck Bunny", year: "2008", poster: "https://media.plexbie.com/posters/big-buck-bunny-v1.jpg", availability: "available", runtime: 10,
-    genres: ["Animation", "Comedy", "Family"], overview: "A gentle giant of a rabbit plans some very sweet revenge on three bullying rodents." },
-  { kind: "movie", id: "329865", title: "Elephants Dream", year: "2006", poster: "https://media.plexbie.com/posters/elephants-dream-v1.jpg", availability: "available", runtime: 11,
+  { kind: "movie", id: "346648", title: "Big Buck Bunny", year: "2008", poster: "https://media.plexbie.com/posters/big-buck-bunny-v1.jpg", availability: "requested", runtime: 10,
+    genres: ["Animation", "Comedy", "Family"], overview: "A gentle giant of a rabbit plans some very sweet revenge on three bullying rodents.",
+    yourRequest: { slot: 205, stage: "upcoming" } },
+  { kind: "movie", id: "329865", title: "Elephants Dream", year: "2006", poster: "https://media.plexbie.com/posters/elephants-dream-v1.jpg", availability: "requested", runtime: 11,
     genres: ["Animation", "Science Fiction"], overview: "Two men wander a vast machine world that seems to rearrange itself around them." },
   { kind: "movie", id: "545611", title: "Cosmos Laundromat", year: "2015", poster: "https://media.plexbie.com/posters/cosmos-laundromat-v1.jpg", availability: "available", runtime: 12,
     genres: ["Animation", "Comedy"], overview: "A sheep fed up with his windswept island meets a strange salesman who offers him a new life. Then another." },
@@ -96,22 +97,26 @@ const days = (n: number) => new Date(Date.now() + n * 864e5).toISOString();
 const ok = (message: string) => ({ ok: true, message });
 
 /** The films and shows on the sample Plex server outside the skipped Kids library, for "Keep a title forever". */
-const samplePlexTitles = [
+export const samplePlexTitles = [
   { ratingKey: "r1", title: "Carnival of Souls", type: "movie", year: 1962 },
   { ratingKey: "r2", title: "The Daily Dweebs", type: "show", year: 2017 },
   { ratingKey: "r3", title: "Sintel", type: "movie", year: 2010 },
-  { ratingKey: "r4", title: "Elephants Dream", type: "movie", year: 2006 },
   { ratingKey: "r5", title: "Radar Men from the Moon", type: "show", year: 1952 },
   { ratingKey: "r6", title: "Pepper & Carrot", type: "show", year: 2017 },
-  { ratingKey: "r7", title: "Big Buck Bunny", type: "movie", year: 2008 },
   { ratingKey: "r8", title: "Cosmos Laundromat", type: "movie", year: 2015 },
-  { ratingKey: "r9", title: "Caminandes", type: "show", year: 2013 },
+  { ratingKey: "r10", title: "King of the Rocket Men", type: "show", year: 1949 },
+  { ratingKey: "r11", title: "Spring", type: "movie", year: 2019 },
+  { ratingKey: "r12", title: "Sprite Fright", type: "movie", year: 2021 },
+  { ratingKey: "r13", title: "Charge", type: "movie", year: 2022 },
+  { ratingKey: "r14", title: "Coffee Run", type: "movie", year: 2020 },
+  { ratingKey: "r15", title: "Plan 9 from Outer Space", type: "movie", year: 1957 },
+  { ratingKey: "r16", title: "House on Haunted Hill", type: "movie", year: 1959 },
+  { ratingKey: "r17", title: "Night of the Living Dead", type: "movie", year: 1968 },
 ];
 
 const BLOCKED_NOTE = "Radar Men from the Moon finished downloading, but Sonarr won’t import it by itself. Look at the files on this ticket before you import it.";
 
 /** Manage → All requests: everyone's approved requests, as an admin sees them. */
-const WHO: Record<string, string> = { "5001": "Jordan Lee", "5002": "Sam Ortiz", "5004": "Priya N.", "5005": "Alex Kim" };
 const ELEPHANTS_DREAM: AppTitle = { id: "329865", kind: "movie", title: "Elephants Dream", year: "2006", poster: "https://media.plexbie.com/posters/elephants-dream-v1.jpg", availability: "requested" };
 const sampleArchive: AppAdminRequestRow[] = [
   { id: "4001", slot: 1, stage: "declined", requestedAt: ago(60 * 24 * 400), updatedAt: ago(60 * 24 * 400),
@@ -178,12 +183,14 @@ function makeSampleState() {
   const admin: AppAdminRequests = {
     pending: [
       { id: "7001", slot: 216, title: "Zombies of the Stratosphere", kind: "tv", poster: ZOMBIES, seasons: [1], requester: "Sam", requestedAt: ago(35), status: "pending" },
-      { id: "7002", slot: 215, title: "Sintel", kind: "movie", poster: SINTEL, seasons: null, requester: "Priya", requestedAt: ago(60 * 3), status: "pending" },
+      { id: "7002", slot: 215, title: "Undersea Kingdom", kind: "tv", poster: "https://media.plexbie.com/posters/undersea-kingdom-v1.jpg", seasons: [1], requester: "Priya",
+        requestedAt: ago(60 * 3), status: "pending" },
+      { id: "7003", slot: 209, title: "Tears of Steel", kind: "movie", poster: TEARS_OF_STEEL, seasons: null, requester: ME, requestedAt: ago(60 * 5), status: "pending" },
     ],
     older: [],
     recent: [
-      { id: "6990", slot: 209, title: "Tears of Steel", kind: "movie", poster: TEARS_OF_STEEL, seasons: null, requester: "Alex Kim", requestedAt: ago(60 * 5),
-        status: "approved", resolvedBy: "Jordan", resolvedAt: ago(60 * 4) },
+      { id: "6990", slot: 205, title: "Big Buck Bunny", kind: "movie", poster: "https://media.plexbie.com/posters/big-buck-bunny-v1.jpg", seasons: null, requester: "Alex Kim",
+        requestedAt: ago(60 * 24 * 3), status: "approved", resolvedBy: "Jordan", resolvedAt: ago(60 * 24 * 3 - 20) },
     ],
   };
   const cleanup: AppAdminCleanup = {
@@ -201,7 +208,7 @@ function makeSampleState() {
   const help: AppAdminHelp[] = [
     { id: "h1", slot: 214, title: "Pepper & Carrot", kind: "tv", seasons: [2], who: "Alex Kim", reason: "Stuck downloading",
       note: "It’s been at 62% since this morning.", status_then: "Downloading, 62%", status: "open", created_at: ago(40), actions: [] },
-    { id: "h2", slot: 216, title: "Elephants Dream", kind: "movie", seasons: null, who: "Jordan Lee", reason: "Can’t be found", offer: "name",
+    { id: "h2", slot: 210, title: "Elephants Dream", kind: "movie", seasons: null, who: "Jordan Lee", reason: "Can’t be found", offer: "name",
       note: "Searching by its IDs found nothing Plexbie could grab for Elephants Dream: 212 releases came back. Search by name instead?",
       status_then: "Nothing found", status: "open", created_at: ago(12), actions: [] },
     // A download Sonarr won't import by itself, as Plexbie opens it (the bot's core/blocked_imports).
@@ -209,7 +216,9 @@ function makeSampleState() {
       note: BLOCKED_NOTE, status_then: "Downloaded, import blocked", status: "open", created_at: ago(8), actions: [], opened_by: "Plexbie" } as AppAdminHelp,
   ];
   const people: AppAdminPerson[] = [
-    { plexName: "sam.p", displayName: "Sam", discordName: "Sam", discordId: "201", linked: true, lastWatched: ago(60 * 24 * 52),
+    { plexName: "sam.p", displayName: "Sam", discordName: "Sam", discordId: "201", linked: true, lastWatched: ago(4),
+      daysIdle: 0, warned: false, topThree: true, removalIn: null, warnAfter: 45 },
+    { plexName: "marcus.t", displayName: "Marcus", discordName: "Marcus", discordId: "205", linked: true, lastWatched: ago(60 * 24 * 52),
       daysIdle: 52, warned: true, topThree: false, removalIn: 8, warnAfter: 45 },
     { plexName: "rosa_m", discordName: null, linked: false, lastWatched: ago(60 * 24 * 12), daysIdle: 12, warned: false,
       topThree: false, removalIn: 48, warnAfter: 45 },
@@ -229,13 +238,14 @@ function makeSampleState() {
     { email: "", name: "riley.plex", sentAt: ago(60 * 24 * 2), who: null },
   ];
   const all: AppAdminRequestRow[] = [
-    { id: "6002", slot: 216, stage: "searching", title: ELEPHANTS_DREAM, requestedAt: ago(60 * 50), updatedAt: ago(60 * 48),
+    { id: "6002", slot: 210, stage: "searching", title: ELEPHANTS_DREAM, requestedAt: ago(60 * 50), updatedAt: ago(60 * 48),
       progress: { detail: "Looking for a copy" }, help: { id: "h2", reason: "Can’t be found" }, requester: "Jordan Lee", status: "approved",
       approvedBy: "Alex Kim", approvedAt: ago(60 * 48), stageSince: ago(60 * 48), stuck: ["Help asked: Can’t be found", "Nothing found for over a day"] },
     ...requests.map((r): AppAdminRequestRow => ({
-      ...r, id: r.id ?? `s${r.slot}`, requester: WHO[r.id ?? ""] ?? "Priya N.",
+      ...r, id: r.id ?? `s${r.slot}`, requester: ME,
       status: r.stage === "requested" ? "pending" : r.stage === "declined" ? "declined" : "approved",
-      approvedBy: ["requested", "declined"].includes(r.stage) ? null : "Alex Kim", approvedAt: ["requested", "declined"].includes(r.stage) ? null : r.requestedAt,
+      approvedBy: ["requested", "declined"].includes(r.stage) ? null : admin.recent.find((x) => x.slot === r.slot)?.resolvedBy ?? "Alex Kim",
+      approvedAt: ["requested", "declined"].includes(r.stage) ? null : admin.recent.find((x) => x.slot === r.slot)?.resolvedAt ?? r.requestedAt,
       stageSince: r.updatedAt, finishedAt: r.stage === "available" ? r.updatedAt : null,
       help: r.id === "5001" ? { id: "h1", reason: "Stuck downloading" } : r.help,
       stuck: r.id === "5001" ? ["Help asked: Stuck downloading", "Download hasn’t moved in 6 hours"] : [],
@@ -426,8 +436,10 @@ export const sampleApi: Api = {
     await pause(600);
     const t = house.titles.find((x) => x.kind === body.kind && x.id === body.id);
     if (!t) throw new ApiError(404, "Unknown title.", "http");
+    // The next number nobody in the household has: not the member's own, and not anyone else's.
+    const taken = [...house.requests, ...house.all, ...house.admin.pending, ...house.admin.recent, ...house.help].map((x) => x.slot);
     const r: AppRequest = {
-      id: `s${Date.now()}`, slot: Math.max(...house.requests.map((x) => x.slot)) + 1, stage: "requested",
+      id: `s${Date.now()}`, slot: Math.max(...taken) + 1, stage: "requested",
       requestedAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
       title: { id: t.id, kind: t.kind, title: t.title, year: t.year, poster: t.poster },
       seasons: body.seasons, format: body.format,
@@ -456,6 +468,12 @@ export const sampleApi: Api = {
     if (!r) throw new ApiError(409, "Already decided.", "http");
     house.admin.pending = house.admin.pending.filter((x) => x.id !== id);
     house.admin.recent.unshift({ ...r, status: approve ? "approved" : "declined", resolvedBy: "you", resolvedAt: new Date().toISOString() });
+    // Deciding one of the member's own requests moves it on everywhere else too.
+    const stage = approve ? "approved" : "declined";
+    for (const x of house.requests.filter((m) => m.slot === r.slot)) x.stage = stage;
+    for (const x of house.titles.filter((t) => t.yourRequest?.slot === r.slot)) x.yourRequest = { slot: r.slot, stage };
+    house.all = house.all.map((x) => (x.slot === r.slot ? { ...x, stage, status: stage,
+      approvedBy: approve ? "you" : null, approvedAt: approve ? new Date().toISOString() : null } : x));
     return { ok: true, message: approve ? "Sent to Seerr." : "They've been told." };
   },
   adminJoins: async () => { await pause(300); return house.joins; },
@@ -597,7 +615,7 @@ export const sampleApi: Api = {
   helpSearch: async (_id, how) => {
     await pause(600);
     return ok({ again: "Sonarr is searching for season 2 again.", episodes: "Sonarr is searching season 2 one episode at a time.",
-      name: "Plexbie is searching NZBHydra for “Elephants Dream 2016”. It reports back here, and closes this if it finds it." }[how]);
+      name: "Plexbie is searching NZBHydra for “Elephants Dream 2006”. It reports back here, and closes this if it finds it." }[how]);
   },
   adminPeople: async () => { await pause(350); return house.people; },
   linkCandidates: async () => ({ discord: [{ id: "203", name: "Rosa M", username: "rosam" }, { id: "204", name: "Dev", username: "devr" }] }),
@@ -653,7 +671,9 @@ export const sampleApi: Api = {
     await pause(500);
     return [
       { name: "Plex", ok: true, ms: 42 }, { name: "Seerr", ok: true, ms: 88 }, { name: "Tautulli", ok: true, ms: 61 },
-      { name: "Sonarr", ok: true, ms: 120 }, { name: "SABnzbd", ok: false, ms: 0, detail: "Not answering (timed out)" },
+      { name: "Sonarr", ok: true, ms: 120 }, { name: "SABnzbd", ok: true, ms: 35 },
+      { name: "Discord Public Bot", ok: false, ms: 0, detail: "Public Bot is on, so anyone with Plexbie's ID can add it to their own server. "
+        + "Turn it off: Discord Developer Portal → your app → Installation → Install Link: None → Save, then Bot → Public Bot off → Save." },
     ];
   },
   signOutOthers: async () => { await pause(700); return { ...ok("Signed out every other website sign-in and 2 app sign-ins."), ended: 2 }; },
