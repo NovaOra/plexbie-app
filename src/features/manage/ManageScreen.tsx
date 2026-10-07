@@ -91,7 +91,7 @@ export function ManageScreen() {
         </View>
         <View style={styles.section}>
           {tab === "tickets" ? <TicketsSection /> : tab === "requests" ? <RequestsSection /> : tab === "all" ? <AllRequestsSection /> : tab === "joins" ? <JoinsSection /> : tab === "people" ? <PeopleSection />
-            : tab === "invites" ? <InvitesSection /> : tab === "cleanup" ? <CleanupSection /> : tab === "messages" ? <MessagesSection key={who ?? "all"} who={who} onClose={() => setWho(undefined)} onComposerFocus={end.onFocus} />
+            : tab === "invites" ? <InvitesSection /> : tab === "cleanup" ? <CleanupSection onFieldFocus={end.onFocus} /> : tab === "messages" ? <MessagesSection key={who ?? "all"} who={who} onClose={() => setWho(undefined)} onComposerFocus={end.onFocus} />
             : tab === "health" ? <HealthSection /> : <DiscordSection />}
         </View>
       </ScrollView>

@@ -392,7 +392,9 @@ const CleanupRowSchema = z.looseObject({
   reason: z.string().catch(""), lastActivity: opt(z.string()),
 });
 export type AppCleanupRow = z.infer<typeof CleanupRowSchema>;
-const KeptSchema = z.looseObject({ ratingKey: z.string(), title: z.string().catch(""), type: z.string().nullable().optional().catch(null) });
+const KeptSchema = z.looseObject({
+  ratingKey: z.string(), title: z.string().catch(""), type: z.string().nullable().optional().catch(null), year: z.number().nullable().optional().catch(null),
+});
 export type AppKept = z.infer<typeof KeptSchema>;
 export const AdminCleanupSchema = z.looseObject({
   settings: CleanupSettingsSchema,
@@ -403,6 +405,10 @@ export const AdminCleanupSchema = z.looseObject({
   exempt: rowsOf(KeptSchema).catch([]),
 });
 export type AppAdminCleanup = z.infer<typeof AdminCleanupSchema>;
+/** Films and shows on Plex by a title, for keeping one forever (GET /api/admin/cleanup/search). */
+const CleanupMatchSchema = KeptSchema.extend({ type: z.string().catch(""), kept: z.boolean().catch(false) });
+export type AppCleanupMatch = z.infer<typeof CleanupMatchSchema>;
+export const CleanupMatchesSchema = rowsOf(CleanupMatchSchema);
 
 /** Each connected service and whether it answers (GET /api/admin/health). */
 export const HealthSchema = rowsOf(z.looseObject({ name: z.string(), ok: z.boolean(), ms: z.number().catch(0), detail: z.string().nullable().optional().catch(null) }));

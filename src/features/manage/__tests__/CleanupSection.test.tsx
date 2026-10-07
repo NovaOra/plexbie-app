@@ -1,12 +1,13 @@
 // Manage → Cleanup: a day or warning change still saves when you leave the section before
 // the tapping pause is over, a failed save puts back only what it changed, a failed Keep
 // forever puts back only its title, turning cleanup on while it's set to live asks first, and
-// a scan that got no answer keeps Scan now busy until the section has reloaded.
+// a scan that got no answer keeps Scan now busy until the section has reloaded, and any film
+// or show found by searching Plex can be kept forever, not only the ones on the clock.
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, focusManager, onlineManager } from "@tanstack/react-query";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { ApiError } from "../../../api/client";
-import type { Ack, AppAdminCleanup, AppCleanupSettings } from "../../../api/schemas";
+import type { Ack, AppAdminCleanup, AppCleanupMatch, AppCleanupSettings } from "../../../api/schemas";
 import { ConfirmProvider } from "../../../ui/Confirm";
 import { CleanupSection } from "../CleanupSection";
 
@@ -14,8 +15,9 @@ const mockCleanup = jest.fn<(signal?: AbortSignal) => Promise<AppAdminCleanup>>(
 const mockSettings = jest.fn<(change: Partial<AppCleanupSettings>) => Promise<Ack>>();
 const mockExempt = jest.fn<(ratingKey: string, keep: boolean) => Promise<Ack>>();
 const mockScan = jest.fn<() => Promise<Ack>>();
+const mockSearch = jest.fn<(q: string, signal?: AbortSignal) => Promise<AppCleanupMatch[]>>();
 jest.mock("../../../auth/session", () => ({
-  useApi: () => ({ adminCleanup: mockCleanup, cleanupSettings: mockSettings, exempt: mockExempt, cleanupScan: mockScan }),
+  useApi: () => ({ adminCleanup: mockCleanup, cleanupSettings: mockSettings, exempt: mockExempt, cleanupScan: mockScan, cleanupSearch: mockSearch }),
   useSession: () => ({ state: { phase: "signedIn", server: "https://plexbie.example", token: "t", sample: false } }),
 }));
 jest.mock("react-native-worklets", () => jest.requireActual("react-native-worklets/src/mock"));
@@ -51,6 +53,7 @@ beforeEach(() => {
   mockSettings.mockReset();
   mockExempt.mockReset();
   mockScan.mockReset();
+  mockSearch.mockReset();
   qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 });
 // Each save reads the settings back a moment later; let that finish before the next test.
@@ -209,4 +212,81 @@ test("a scan that got no answer keeps Scan now busy until the section has reload
   await act(async () => { reloaded(data()); });
   await settle();
   expect(screen.getByRole("button", { name: "Scan now" }).props.accessibilityState).toMatchObject({ busy: false });
+});
+
+test("a film nowhere near the clock can be found on Plex and kept forever", async () => {
+  mockCleanup.mockResolvedValue(data());
+  mockSearch.mockResolvedValue([{ ratingKey: "r9", title: "Elephants Dream", type: "movie", year: 2006, kept: false }]);
+  mockExempt.mockResolvedValue(ok);
+  await show();
+  await fireEvent.changeText(await screen.findByLabelText("Search Plex by title"), "E");
+  await pause(400);
+  // One letter isn't a search.
+  expect(mockSearch).not.toHaveBeenCalled();
+  await fireEvent.changeText(screen.getByLabelText("Search Plex by title"), "Elephants");
+  await pause(400);
+  await settle();
+  expect(mockSearch).toHaveBeenCalledTimes(1);
+  expect(mockSearch.mock.calls[0][0]).toBe("Elephants");
+  expect(screen.getByText("1 title found")).toBeTruthy();
+
+  await fireEvent.press(screen.getByRole("switch", { name: "Keep Elephants Dream forever" }));
+  await settle();
+  expect(mockExempt).toHaveBeenCalledWith("r9", true);
+  expect(qc.getQueryData<AppAdminCleanup>(KEY)?.exempt).toEqual([{ ratingKey: "r9", title: "Elephants Dream", type: "movie", year: 2006 }]);
+  expect(screen.getByRole("switch", { name: "Keep Elephants Dream forever" }).props.accessibilityState).toMatchObject({ checked: true });
+  // Keeping it doesn't search Plex again.
+  await pause(1000);
+  expect(mockSearch).toHaveBeenCalledTimes(1);
+});
+
+test("a title search that fails says why and can be tried again", async () => {
+  mockCleanup.mockResolvedValue(data());
+  mockSearch.mockRejectedValueOnce(new ApiError(503, "Plex isn’t connected.", "http"))
+    .mockResolvedValueOnce([{ ratingKey: "r9", title: "Elephants Dream", type: "movie", year: 2006, kept: true }]);
+  await show();
+  await fireEvent.changeText(await screen.findByLabelText("Search Plex by title"), "Elephants");
+  await pause(400);
+  await settle();
+  expect(screen.getByText("Couldn’t search Plex. Plex isn’t connected.")).toBeTruthy();
+  await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+  await settle();
+  expect(mockSearch).toHaveBeenCalledTimes(2);
+  expect(screen.getByText("1 title found")).toBeTruthy();
+});
+
+test("a Plexbie from before the title search is told to update", async () => {
+  mockCleanup.mockResolvedValue(data());
+  mockSearch.mockRejectedValue(new ApiError(404, "The server said no (404).", "http"));
+  await show();
+  await fireEvent.changeText(await screen.findByLabelText("Search Plex by title"), "Elephants");
+  await pause(400);
+  await settle();
+  expect(screen.getByText("This Plexbie can’t search Plex from the app yet. Update it, then try again.")).toBeTruthy();
+});
+
+test("a Plexbie that has the search but can't answer it says why, not to update", async () => {
+  mockCleanup.mockResolvedValue(data());
+  mockSearch.mockRejectedValue(new ApiError(404, "Not found.", "http"));
+  await show();
+  await fireEvent.changeText(await screen.findByLabelText("Search Plex by title"), "Elephants");
+  await pause(400);
+  await settle();
+  expect(screen.getByText("Couldn’t search Plex. Not found.")).toBeTruthy();
+});
+
+test("coming back to the app or back online doesn't search Plex again", async () => {
+  mockCleanup.mockResolvedValue(data());
+  mockSearch.mockResolvedValue([{ ratingKey: "r9", title: "Elephants Dream", type: "movie", year: 2006, kept: false }]);
+  await show();
+  await fireEvent.changeText(await screen.findByLabelText("Search Plex by title"), "Elephants");
+  await pause(400);
+  await settle();
+  expect(mockSearch).toHaveBeenCalledTimes(1);
+  await act(async () => { focusManager.setFocused(false); onlineManager.setOnline(false); });
+  await act(async () => { focusManager.setFocused(true); onlineManager.setOnline(true); });
+  await settle();
+  expect(mockSearch).toHaveBeenCalledTimes(1);
+  expect(screen.getByText("1 title found")).toBeTruthy();
+  await act(async () => { focusManager.setFocused(undefined); });
 });

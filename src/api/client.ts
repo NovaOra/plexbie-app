@@ -7,7 +7,7 @@
 // A write that got no answer may still have gone through: callers say so rather than "no".
 import { z } from "zod";
 import {
-  AckSchema, AdminCleanupSchema, AdminHelpListSchema, InviteCheckSchema, ConversationSchema, DiscordOverviewSchema, HealthSchema, MessagePeopleSchema, AdminInvitesSchema, AdminJoinsSchema, AdminPeopleSchema, AdminRequestsSchema, LinkCandidatesSchema, NewInviteSchema, PlexInvitesSchema, ArrivalsSchema, CommunitySchema, HelpAnswerSchema, StatusSchema, MediaRequestSchema, MediaRequestsSchema, MobileInfoSchema, NothingSchema, LibrarySchema, PopularSchema, SessionSchema, TitleDetailSchema, TitlesSchema, TokenSchema, WatchPartySchema, AppReleaseSchema, DownloadLinkSchema, DiscoverSchema, ShelfPageSchema, SearchAllSchema, PrefsSchema, AdminAllRequestsSchema, AdminRequestDetailSchema, AdminTicketsSchema, AdminTicketDetailSchema, BlockedListSchema, BlockedPreviewSchema, ArrLibrarySchema, ArrEpisodesSchema,
+  AckSchema, AdminCleanupSchema, CleanupMatchesSchema, AdminHelpListSchema, InviteCheckSchema, ConversationSchema, DiscordOverviewSchema, HealthSchema, MessagePeopleSchema, AdminInvitesSchema, AdminJoinsSchema, AdminPeopleSchema, AdminRequestsSchema, LinkCandidatesSchema, NewInviteSchema, PlexInvitesSchema, ArrivalsSchema, CommunitySchema, HelpAnswerSchema, StatusSchema, MediaRequestSchema, MediaRequestsSchema, MobileInfoSchema, NothingSchema, LibrarySchema, PopularSchema, SessionSchema, TitleDetailSchema, TitlesSchema, TokenSchema, WatchPartySchema, AppReleaseSchema, DownloadLinkSchema, DiscoverSchema, ShelfPageSchema, SearchAllSchema, PrefsSchema, AdminAllRequestsSchema, AdminRequestDetailSchema, AdminTicketsSchema, AdminTicketDetailSchema, BlockedListSchema, BlockedPreviewSchema, ArrLibrarySchema, ArrEpisodesSchema,
 } from "./schemas";
 import type { AppCleanupSettings } from "./schemas";
 import type { BlockedChoice, BookFormat, HelpReason, MediaKind } from "./types";
@@ -218,6 +218,9 @@ export function api(conn: Connection) {
     plexInviteCancel: (email: string) => request(conn, "/api/admin/plex-invites/cancel", AckSchema, json({ email })),
     adminCleanup: (signal?: AbortSignal) => request(conn, "/api/admin/cleanup", AdminCleanupSchema, {}, signal),
     exempt: (ratingKey: string, keep: boolean) => request(conn, "/api/admin/cleanup/exempt", AckSchema, json({ ratingKey, keep })),
+    /** Films and shows on Plex by that title, for keeping one that isn't on the clock (never one in a library cleanup skips). */
+    cleanupSearch: (q: string, signal?: AbortSignal) =>
+      request(conn, `/api/admin/cleanup/search?${new URLSearchParams({ q })}`, CleanupMatchesSchema, {}, signal),
     cleanupSettings: (change: Partial<AppCleanupSettings>) => request(conn, "/api/admin/cleanup/settings", AckSchema, json(change)),
     cleanupScan: () => request(conn, "/api/admin/cleanup/scan", AckSchema, json({}), undefined, SCAN_TIMEOUT_MS),
     adminHealth: (signal?: AbortSignal) => request(conn, "/api/admin/health", HealthSchema, {}, signal),

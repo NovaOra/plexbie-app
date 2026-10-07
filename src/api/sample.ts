@@ -119,8 +119,20 @@ const sampleCleanup: AppAdminCleanup = {
   channels: [{ id: "c1", name: "general" }, { id: "c2", name: "movie-night" }],
   warning: [{ ratingKey: "r1", title: "Carnival of Souls", type: "movie", daysLeft: 4, reason: "added", lastActivity: ago(60 * 24 * 86) }],
   upcoming: [{ ratingKey: "r2", title: "The Daily Dweebs", type: "show", daysLeft: 23, reason: "watched", lastActivity: ago(60 * 24 * 67) }],
-  exempt: [{ ratingKey: "r3", title: "Sintel", type: "movie" }],
+  exempt: [{ ratingKey: "r3", title: "Sintel", type: "movie", year: 2010 }],
 };
+/** The films and shows on the sample Plex server outside the skipped Kids library, for "Keep a title forever". */
+const samplePlexTitles = [
+  { ratingKey: "r1", title: "Carnival of Souls", type: "movie", year: 1962 },
+  { ratingKey: "r2", title: "The Daily Dweebs", type: "show", year: 2017 },
+  { ratingKey: "r3", title: "Sintel", type: "movie", year: 2010 },
+  { ratingKey: "r4", title: "Elephants Dream", type: "movie", year: 2006 },
+  { ratingKey: "r5", title: "Radar Men from the Moon", type: "show", year: 1952 },
+  { ratingKey: "r6", title: "Pepper & Carrot", type: "show", year: 2017 },
+  { ratingKey: "r7", title: "Big Buck Bunny", type: "movie", year: 2008 },
+  { ratingKey: "r8", title: "Cosmos Laundromat", type: "movie", year: 2015 },
+  { ratingKey: "r9", title: "Caminandes", type: "show", year: 2013 },
+];
 
 let sampleJoins: AppAdminJoin[] = [
   { key: "d301", messageId: "9301", name: "Jordan", via: "discord", email: "jordan@example.com", status: "pending", askedAt: ago(90) },
@@ -570,13 +582,20 @@ export const sampleApi: Api = {
   adminCleanup: async () => { await pause(350); return sampleCleanup; },
   exempt: async (ratingKey, keep) => {
     await pause(400);
-    const row = [...sampleCleanup.warning, ...sampleCleanup.upcoming, ...sampleCleanup.exempt].find((r) => r.ratingKey === ratingKey);
+    const row = samplePlexTitles.find((r) => r.ratingKey === ratingKey);
     if (keep && row) {
       sampleCleanup.warning = sampleCleanup.warning.filter((r) => r.ratingKey !== ratingKey);
       sampleCleanup.upcoming = sampleCleanup.upcoming.filter((r) => r.ratingKey !== ratingKey);
-      sampleCleanup.exempt = [{ ratingKey, title: row.title, type: "type" in row ? row.type : null }, ...sampleCleanup.exempt];
+      sampleCleanup.exempt = [row, ...sampleCleanup.exempt.filter((r) => r.ratingKey !== ratingKey)];
     } else if (!keep) sampleCleanup.exempt = sampleCleanup.exempt.filter((r) => r.ratingKey !== ratingKey);
     return ok(keep ? "Kept forever." : "Back on the clock.");
+  },
+  cleanupSearch: async (q) => {
+    await pause(300);
+    const words = q.trim().toLowerCase();
+    if (words.length < 2) return [];
+    return samplePlexTitles.filter((t) => t.title.toLowerCase().includes(words))
+      .map((t) => ({ ...t, kept: sampleCleanup.exempt.some((e) => e.ratingKey === t.ratingKey) }));
   },
   cleanupSettings: async (change) => { await pause(400); sampleCleanup.settings = { ...sampleCleanup.settings, ...change }; return ok("Saved."); },
   cleanupScan: async () => { await pause(1200); return ok("Scan done: 1 title in the warning window, 0 were removed."); },

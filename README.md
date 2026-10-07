@@ -37,6 +37,11 @@ opens its own link, `com.plexbie.app://invite?server=<the Plexbie's address>&cod
 It needs a Plexbie that answers `POST /api/invite/check`; an older one is told to use the
 browser.
 
+**Keeping a title forever:** Manage → Cleanup keeps any title on the clock with one switch,
+and its **Keep a title forever** search finds any film or show on Plex by title, as
+`/cleanup exempt add` does in Discord, leaving out the libraries cleanup skips. The search
+needs a Plexbie that answers `GET /api/admin/cleanup/search`; an older one is told to update.
+
 **Live progress (Android):** while one of your requests downloads, it stays in the notification
 shade with a bar that fills up until it's on Plex; on Android 16 it's a Live Update, a chip in
 the status bar. The bot sends silent updates (`core/live_progress.py` there) and the app draws

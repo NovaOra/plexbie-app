@@ -1,18 +1,20 @@
 // Manage → Cleanup: what media cleanup does (off, practice, live), its timing, which
 // libraries it skips and where it posts, and the titles on the clock. Going live, turning
 // cleanup on while it's set to live, and a scan while live ask first: live really deletes
-// files. Keep forever has Undo.
+// files. Keep forever has Undo, and any film or show can be found on Plex by title and kept,
+// the same as /cleanup exempt add in Discord.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SwitchRow } from "../../ui/SwitchRow";
-import type { AppAdminCleanup, AppCleanupRow, AppCleanupSettings, AppKept } from "../../api/schemas";
+import { ApiError } from "../../api/client";
+import type { AppAdminCleanup, AppCleanupMatch, AppCleanupRow, AppCleanupSettings, AppKept } from "../../api/schemas";
 import { useApi } from "../../auth/session";
 import { Button } from "../../ui/Button";
 import { useConfirm } from "../../ui/Confirm";
 import { Chip } from "../../ui/Chip";
 import { Text } from "../../ui/Text";
-import { color, font, radius, space } from "../../ui/theme";
+import { color, font, radius, space, TOUCH } from "../../ui/theme";
 import { AllClear, Heading, card } from "./bits";
 import { Stepper } from "./Stepper";
 import { useAct, useAdminKey } from "./useAdmin";
@@ -27,7 +29,8 @@ function clockText(reason: string, when?: string) {
   return `Last watched ${shortDate(when)}`;
 }
 
-export function CleanupSection() {
+/** `onFieldFocus` scrolls Manage to its end, so the title search at the bottom shows above the keyboard. */
+export function CleanupSection({ onFieldFocus }: { onFieldFocus?: () => void }) {
   const client = useApi();
   const key = useAdminKey()("cleanup");
   const cleanup = useQuery({ queryKey: key, queryFn: ({ signal }) => client.adminCleanup(signal), staleTime: 60_000 });
@@ -50,6 +53,8 @@ export function CleanupSection() {
         {views.map(([id, label, n]) => <Chip key={id} label={`${label} · ${n}`} selected={view === id} onPress={() => setView(id)} />)}
       </EdgeRow>
       <Rows d={d} view={view} />
+      <Heading title="Keep a title forever" />
+      <KeepSearch kept={d.exempt} onFocus={onFieldFocus} />
     </>
   );
 }
@@ -204,12 +209,13 @@ function Row({ title, detail, children }: { title: string; detail: string; child
   );
 }
 
-function Rows({ d, view }: { d: AppAdminCleanup; view: View3 }) {
+/** Keep forever, or put back on the clock, a title from the countdown or the search. */
+function useKeep() {
   const client = useApi();
   const qc = useQueryClient();
   const key = useAdminKey()("cleanup");
   const { act } = useAct();
-  const keep = async (row: AppCleanupRow | AppKept, on: boolean, quiet = false) => {
+  const keep = async (row: AppCleanupRow | AppKept | AppCleanupMatch, on: boolean, quiet = false) => {
     const before = qc.getQueryData<AppAdminCleanup>(key);
     // Move it straight away; the server confirms, and a failure puts it back.
     qc.setQueryData<AppAdminCleanup>(key, (x) => x && (on
@@ -217,7 +223,7 @@ function Rows({ d, view }: { d: AppAdminCleanup; view: View3 }) {
         ...x,
         warning: x.warning.filter((c) => c.ratingKey !== row.ratingKey),
         upcoming: x.upcoming.filter((c) => c.ratingKey !== row.ratingKey),
-        exempt: [{ ratingKey: row.ratingKey, title: row.title, type: row.type ?? null }, ...x.exempt.filter((e) => e.ratingKey !== row.ratingKey)],
+        exempt: [{ ratingKey: row.ratingKey, title: row.title, type: row.type ?? null, year: typeof row.year === "number" ? row.year : null }, ...x.exempt.filter((e) => e.ratingKey !== row.ratingKey)],
       }
       : { ...x, exempt: x.exempt.filter((e) => e.ratingKey !== row.ratingKey) }));
     const out = await act(null, () => client.exempt(row.ratingKey, on), {
@@ -236,6 +242,15 @@ function Rows({ d, view }: { d: AppAdminCleanup; view: View3 }) {
     }
     setTimeout(() => void qc.invalidateQueries({ queryKey: key }), 900);
   };
+  return keep;
+}
+
+/** What a title is: film or TV, and its year when Plex knows it. */
+const kindText = (type?: string | null, year?: number | null) =>
+  `${type === "show" ? "TV" : type === "movie" ? "Film" : type || "Title"}${year ? ` · ${year}` : ""}`;
+
+function Rows({ d, view }: { d: AppAdminCleanup; view: View3 }) {
+  const keep = useKeep();
   const ring = (days: number) => (
     <View style={[styles.ring, days <= 7 && styles.ringHot]} importantForAccessibility="no" accessibilityElementsHidden>
       <Text style={[styles.ringText, days <= 7 && styles.hot]}>{days}</Text>
@@ -248,11 +263,11 @@ function Rows({ d, view }: { d: AppAdminCleanup; view: View3 }) {
           <View style={[styles.ring, styles.ringKept]}><Text style={styles.ringText}>✓</Text></View>
           <View style={{ flex: 1 }}>
             <Text variant="label">{e.title}</Text>
-            <Text variant="meta">{e.type === "show" ? "TV" : e.type === "movie" ? "Film" : e.type ?? "Title"} · never removed</Text>
+            <Text variant="meta">{kindText(e.type, e.year)} · never removed</Text>
           </View>
         </View>
       </SwitchRow>
-    ))}</> : <AllClear title="Nothing kept forever yet">Flip Keep on any title and cleanup will never touch it.</AllClear>;
+    ))}</> : <AllClear title="Nothing kept forever yet">Flip Keep on any title, or search for one below, and cleanup will never touch it.</AllClear>;
   }
   const rows = view === "soon" ? d.warning : d.upcoming;
   if (!rows.length) {
@@ -272,6 +287,67 @@ function Rows({ d, view }: { d: AppAdminCleanup; view: View3 }) {
       </View>
     </SwitchRow>
   ))}</>;
+}
+
+/**
+ * Any film or show on Plex, not only the ones on the clock: the same title search as
+ * /cleanup exempt add in Discord, without the libraries cleanup skips.
+ */
+function KeepSearch({ kept, onFocus }: { kept: AppKept[]; onFocus?: () => void }) {
+  const client = useApi();
+  const key = useAdminKey()("cleanup");
+  const keep = useKeep();
+  const [q, setQ] = useState("");
+  const [words, setWords] = useState("");
+  // Waits for a pause in typing, then asks the bot (each search asks Plex once per library).
+  useEffect(() => {
+    const t = setTimeout(() => setWords(q.trim().length >= 2 ? q.trim() : ""), 300);
+    return () => clearTimeout(t);
+  }, [q]);
+  // Its own key, so reloading the countdown after a Keep doesn't search Plex again; nor does
+  // coming back to the app or back online. Try again does.
+  const found = useQuery({
+    queryKey: ["cleanup-search", ...key, words], enabled: !!words,
+    queryFn: ({ signal }) => client.cleanupSearch(words, signal),
+    staleTime: Infinity, refetchOnWindowFocus: false, refetchOnReconnect: false,
+  });
+  const rows = found.data ?? [];
+  // A Plexbie from before this search has no such page: a bare 404, not one of the bot's own answers.
+  const old = found.error instanceof ApiError && found.error.status === 404 && found.error.message === "The server said no (404).";
+  return (
+    <>
+      <Text variant="body">Search Plex for any film or show, even one nowhere near the clock, and cleanup will never touch it.</Text>
+      <TextInput value={q} onChangeText={setQ} placeholder="Search Plex by title" placeholderTextColor={color.faint}
+        autoCapitalize="none" autoCorrect={false} returnKeyType="search" clearButtonMode="while-editing"
+        accessibilityLabel="Search Plex by title" onFocus={onFocus} style={styles.input} />
+      {words ? (
+        <Text variant="meta" accessibilityLiveRegion="polite">
+          {found.data ? rows.length === 0 ? "Nothing on Plex by that title." : rows.length === 1 ? "1 title found" : `${rows.length} titles found`
+            : found.isPaused ? "Offline. Plexbie searches when you’re back online."
+            : found.error && !found.isFetching ? (old ? "This Plexbie can’t search Plex from the app yet. Update it, then try again." : `Couldn’t search Plex. ${found.error.message}`)
+            : "Searching…"}
+        </Text>
+      ) : null}
+      {words && found.error && !found.data && !found.isFetching ? (
+        <Button kind="secondary" label="Try again" onPress={() => void found.refetch()} style={styles.start} />
+      ) : null}
+      {words ? rows.map((m) => {
+        const on = kept.some((e) => e.ratingKey === m.ratingKey);
+        return (
+          <SwitchRow key={m.ratingKey} label={`Keep ${m.title} forever`} description={kindText(m.type, m.year)} value={on}
+            onValueChange={() => void keep(m, !on)} style={styles.item}>
+            <View style={styles.itemInner}>
+              <View style={[styles.ring, on && styles.ringKept]}><Text style={styles.ringText}>{on ? "✓" : ""}</Text></View>
+              <View style={{ flex: 1 }}>
+                <Text variant="label">{m.title}</Text>
+                <Text variant="meta">{kindText(m.type, m.year)} · {on ? "never removed" : "cleanup can remove it"}</Text>
+              </View>
+            </View>
+          </SwitchRow>
+        );
+      }) : null}
+    </>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -295,4 +371,8 @@ const styles = StyleSheet.create({
   ringKept: { borderColor: color.screen },
   ringText: { fontFamily: font.bold, fontSize: 15, color: color.ink },
   hot: { color: color.tally },
+  input: {
+    minHeight: TOUCH, paddingHorizontal: space.l, borderRadius: radius.m, borderWidth: 1.5, borderColor: color.slate,
+    backgroundColor: color.field, color: color.ink, fontFamily: font.regular, fontSize: 16,
+  },
 });
