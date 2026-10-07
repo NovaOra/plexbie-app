@@ -143,7 +143,7 @@ npm run ios                  # prebuild, pod install, build, open the Simulator
 
 - `npm start`: Metro for an installed dev build (`expo start --dev-client`).
 - `npm run typecheck`, `npm run lint`, `npm run doctor`.
-- `npm test`: the unit tests (Jest with jest-expo, no device needed): sign-in (PKCE, the state check, refusals), signing out (and telling the server later when it can't be reached), turning alerts off, the alert rows on You (one answer shared by all of them, checked again on return), server addresses, where alerts and the app's own links open, and the checks on the bot's answers (sample answers in `src/api/__fixtures__/`, typed with the bot's own API types).
+- `npm test`: the unit tests (Jest with jest-expo, no device needed): sign-in (PKCE, the state check, refusals), signing out (and telling the server later when it can't be reached), turning alerts off, the sample household (each visit starts from the same one, and a blocked import there goes through), the alert rows on You (one answer shared by all of them, checked again on return), server addresses, where alerts and the app's own links open, and the checks on the bot's answers (sample answers in `src/api/__fixtures__/`, typed with the bot's own API types).
 - CI (`.github/workflows/ci.yml`, on every push to `main` and every pull request): `npm run typecheck`, `npm test`
   and `npm run types:check` against the bot's `main`, checked out beside the app. A fork whose bot repo lives
   elsewhere sets the Actions variable `PLEXBIE_BOT_REPO` (`owner/name`).

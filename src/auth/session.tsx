@@ -24,7 +24,7 @@ import { AppState, Platform } from "react-native";
 import { ApiError, api, pub } from "../api/client";
 import { forgetCache } from "../api/persist";
 import { queryClient, whenSignedOut } from "../api/query";
-import { SAMPLE_SERVER, sampleApi } from "../api/sample";
+import { resetSample, SAMPLE_SERVER, sampleApi } from "../api/sample";
 import { forgetPush, savedPush } from "../features/push/push";
 import { helpDrafts } from "../features/request/helpDrafts";
 import { newPkce } from "./pkce";
@@ -309,6 +309,7 @@ function useSessionState() {
     const was = current.current;
     if (was.phase !== "signedIn") return;
     await forgetEverything();
+    if (was.sample) resetSample();
     setState({ phase: "signedOut", server: was.sample ? DEFAULT_SERVER : was.server, notice });
     if (!was.sample && was.token) {
       // Saved before the sign-in is deleted, so it can't be lost in between.
@@ -379,7 +380,9 @@ function useSessionState() {
 
   const lookAround = useCallback(async () => {
     // Cleared first, then the screens mount: clearing after would wipe out their first fetch.
+    // Each visit starts from the same household, whatever the last one decided.
     await forgetEverything();
+    resetSample();
     setState({ phase: "signedIn", server: SAMPLE_SERVER, token: null, sample: true });
   }, [setState]);
 

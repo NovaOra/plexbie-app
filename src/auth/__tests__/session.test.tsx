@@ -11,6 +11,7 @@ import type { ReactNode } from "react";
 import { AppState, Platform } from "react-native";
 import { ApiError } from "../../api/client";
 import { queryClient } from "../../api/query";
+import { sampleApi } from "../../api/sample";
 import { discordSession, mobileInfo, token } from "../../api/__fixtures__/bot";
 import { forgetPush, savedPush } from "../../features/push/push";
 import { helpDrafts } from "../../features/request/helpDrafts";
@@ -433,6 +434,21 @@ test("a sign-in the server says has ended signs this phone out", async () => {
   });
   await waitFor(() => expect(result.current.state).toEqual({ phase: "signedOut", server: SERVER, notice: "Your sign-in has ended. Sign in again." }));
   expect(items.has("plexbie.signin")).toBe(false);
+});
+
+test("each look around opens the same sample household: nothing of the last visit stays", async () => {
+  const { result } = await signedOutSession();
+  await act(async () => { await result.current.lookAround(); });
+  await result.current.client!.saveLanguages(["ja"]);
+  expect((await result.current.client!.prefs()).languages).toEqual(["ja"]);
+
+  // Leaving it puts it back...
+  await act(async () => { await result.current.signOut(); });
+  expect((await sampleApi.prefs()).languages).toEqual([]);
+  // ...and so does the next visit, whatever happened in between.
+  await sampleApi.saveLanguages(["en"]);
+  await act(async () => { await result.current.lookAround(); });
+  expect((await result.current.client!.prefs()).languages).toEqual([]);
 });
 
 describe("signing out", () => {
