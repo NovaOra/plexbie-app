@@ -7,27 +7,35 @@ import * as Linking from "expo-linking";
 import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
 import type { ReactNode } from "react";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 import { ApiError } from "../../api/client";
 import { queryClient } from "../../api/query";
 import { discordSession, mobileInfo, token } from "../../api/__fixtures__/bot";
 import { forgetPush, savedPush } from "../../features/push/push";
 import { normalizeServer, SessionProvider, SignInError, useSession } from "../session";
 
-// The Keychain / Keystore, in memory. Keys in __locked can't be read (a locked iPhone).
+// The Keychain / Keystore, in memory. Keys in __locked can't be read or written (a locked iPhone);
+// __accessible has when each one can be read.
 jest.mock("expo-secure-store", () => {
   const items = new Map<string, string>();
   const locked = new Set<string>();
+  const accessible = new Map<string, unknown>();
   return {
-    WHEN_UNLOCKED_THIS_DEVICE_ONLY: 1,
+    WHEN_UNLOCKED_THIS_DEVICE_ONLY: "whenUnlocked",
+    AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY: "afterFirstUnlock",
     getItemAsync: async (k: string) => {
       if (locked.has(k)) throw new Error("User interaction is not allowed.");
       return items.get(k) ?? null;
     },
-    setItemAsync: async (k: string, v: string) => { items.set(k, v); },
-    deleteItemAsync: async (k: string) => { items.delete(k); },
+    setItemAsync: async (k: string, v: string, o?: { keychainAccessible?: unknown }) => {
+      if (locked.has(k)) throw new Error("User interaction is not allowed.");
+      items.set(k, v);
+      accessible.set(k, o?.keychainAccessible);
+    },
+    deleteItemAsync: async (k: string) => { items.delete(k); accessible.delete(k); },
     __items: items,
     __locked: locked,
+    __accessible: accessible,
   };
 });
 jest.mock("expo-web-browser", () => ({
@@ -45,7 +53,9 @@ jest.mock("../../api/persist", () => ({ forgetCache: async () => undefined }));
 jest.mock("../../features/push/push", () => ({ forgetPush: jest.fn(async () => null), savedPush: jest.fn(async () => null) }));
 
 const SERVER = "https://plexbie.example";
-const { __items: items, __locked: locked } = SecureStore as unknown as { __items: Map<string, string>; __locked: Set<string> };
+const { __items: items, __locked: locked, __accessible: accessible } = SecureStore as unknown as {
+  __items: Map<string, string>; __locked: Set<string>; __accessible: Map<string, unknown>;
+};
 const openSheet = jest.mocked(WebBrowser.openAuthSessionAsync);
 const fetchMock = jest.fn<(url: string, init?: RequestInit) => Promise<Response>>();
 
@@ -132,6 +142,9 @@ test("a sign-in that comes back with its own state ends signed in", async () => 
   expect(result.current.state).toEqual({ phase: "signedIn", server: SERVER, token: token.token, sample: false });
   expect(JSON.parse(items.get("plexbie.signin")!)).toEqual({ server: SERVER, ...token });
   expect(items.get("plexbie.lastServer")).toBe(SERVER);
+  // The address can be read on a locked phone; the sign-in can't.
+  expect(accessible.get("plexbie.lastServer")).toBe(SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY);
+  expect(accessible.get("plexbie.signin")).toBe(SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY);
 });
 
 test("an answer with another state is refused, even one that carries a code", async () => {
@@ -287,6 +300,116 @@ describe("opening the app signed in", () => {
     expect(items.get("plexbie.lastServer")).toBe(from);
   });
 
+  test("a move the phone can't save is left for next time: still signed in, at the old address", async () => {
+    saved();
+    movedBot(MOVED);
+    // Unreadable and unwritable from the moment the new address is checked (the phone locks).
+    const answer = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (url, init) => {
+      if (url === `${MOVED}/api/session`) locked.add("plexbie.signin");
+      return answer(url, init);
+    });
+    try {
+      const result = await opened();
+      await waitFor(() => expect(seen.some((s) => s.url === `${MOVED}/api/session`)).toBe(true));
+      await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+      expect(result.current.state).toEqual({ phase: "signedIn", server: SERVER, token: token.token, sample: false });
+      expect(JSON.parse(items.get("plexbie.signin")!).server).toBe(SERVER);
+    } finally {
+      locked.clear();
+    }
+  });
+
+  const UNREAD = "Your sign-in couldn't be opened just now. Leave the app and come back, or sign in again.";
+
+  /** Comes back to the app. */
+  async function returned() {
+    await act(async () => {
+      for (const [type, handler] of jest.mocked(AppState.addEventListener).mock.calls) {
+        if (type === "change") (handler as (s: string) => void)("active");
+      }
+    });
+  }
+
+  /** Opened while the saved sign-in can't be read: signed out at its address, the sign-in kept. */
+  async function openedUnread(...keys: string[]) {
+    locked.add("plexbie.signin");
+    keys.forEach((k) => locked.add(k));
+    jest.mocked(AppState.addEventListener).mockClear();
+    const hook = await renderHook(() => useSession(), { wrapper });
+    await waitFor(() => expect(hook.result.current.state.phase).toBe("signedOut"));
+    expect(items.has("plexbie.signin")).toBe(true);
+    return hook.result;
+  }
+
+  test("a sign-in that can't be read just now is kept, and read again when the app comes to the front", async () => {
+    saved();
+    movedBot(null);
+    try {
+      const result = await openedUnread();
+      expect(result.current.state).toEqual({ phase: "signedOut", server: SERVER, notice: UNREAD });
+
+      locked.clear();
+      await returned();
+      await waitFor(() => expect(result.current.state).toEqual({ phase: "signedIn", server: SERVER, token: token.token, sample: false }));
+    } finally {
+      locked.clear();
+    }
+  });
+
+  test("with the address unreadable too, the sign-in screen starts empty", async () => {
+    saved();
+    movedBot(null);
+    try {
+      const result = await openedUnread("plexbie.lastServer");
+      expect(result.current.state).toEqual({ phase: "signedOut", server: "", notice: UNREAD });
+    } finally {
+      locked.clear();
+    }
+  });
+
+  test("read again and found ended: the notice says so", async () => {
+    saved(SERVER, Date.now() / 1000 + 3600);
+    movedBot(null);
+    try {
+      const result = await openedUnread();
+      items.set("plexbie.signin", JSON.stringify({ server: SERVER, ...token, expiresAt: Date.now() / 1000 - 60 }));
+      locked.clear();
+      await returned();
+      await waitFor(() => expect(result.current.state).toEqual({ phase: "signedOut", server: SERVER, notice: "Your sign-in has ended. Sign in again." }));
+      expect(items.has("plexbie.signin")).toBe(false);
+    } finally {
+      locked.clear();
+    }
+  });
+
+  test("looking around with sample data meanwhile leaves the kept sign-in for next time", async () => {
+    saved();
+    movedBot(null);
+    try {
+      const result = await openedUnread();
+      jest.mocked(forgetPush).mockClear();
+      await act(async () => { await result.current.lookAround(); });
+      locked.clear();
+      await act(async () => { await result.current.signOut(); });
+      expect(result.current.state).toEqual({ phase: "signedOut", server: "" });
+      expect(items.has("plexbie.signin")).toBe(true);
+      expect(forgetPush).not.toHaveBeenCalled();
+    } finally {
+      locked.clear();
+    }
+  });
+
+  test("a saved sign-in that can't be understood is removed, and the address is kept", async () => {
+    items.set("plexbie.signin", "{not json");
+    items.set("plexbie.lastServer", SERVER);
+    movedBot(MOVED);
+    const { result } = await renderHook(() => useSession(), { wrapper });
+    await waitFor(() => expect(result.current.state).toEqual({ phase: "signedOut", server: SERVER, notice: "Your sign-in couldn't be read. Sign in again." }));
+    expect(items.has("plexbie.signin")).toBe(false);
+    expect(seen).toEqual([]);
+  });
+
   test("a saved sign-in that ended while the app was closed starts signed out", async () => {
     saved(SERVER, Date.now() / 1000 - 60);
     movedBot(MOVED);
@@ -421,9 +544,23 @@ describe("normalizeServer", () => {
     expect(normalizeServer("https://Plexbie.Example:8443/app/")).toBe("https://plexbie.example:8443");
   });
 
-  test("plain http only to this phone or a Tailscale address", () => {
-    expect(normalizeServer("http://localhost:7979")).toBe("http://localhost:7979");
-    expect(normalizeServer("http://127.0.0.1:7979")).toBe("http://127.0.0.1:7979");
+  test("plain http only to this phone itself", () => {
+    const dev = __DEV__;
+    (globalThis as unknown as { __DEV__: boolean }).__DEV__ = false;
+    try {
+      expect(normalizeServer("http://localhost:7979")).toBe("http://localhost:7979");
+      expect(normalizeServer("http://127.0.0.1:7979")).toBe("http://127.0.0.1:7979");
+      expect(normalizeServer("http://[::1]:7979")).toBe("http://[::1]:7979");
+      // A Tailscale address can be anyone when Tailscale is off: its https name, not plain http.
+      for (const other of ["http://100.101.102.103:7979", "http://192.168.1.20:7979", "http://10.0.0.15", "http://plexbie.example"]) {
+        expect(() => normalizeServer(other)).toThrow(/https:\/\//);
+      }
+    } finally {
+      (globalThis as unknown as { __DEV__: boolean }).__DEV__ = dev;
+    }
+  });
+
+  test("a development build also takes a Tailscale address over plain http", () => {
     expect(normalizeServer("http://100.101.102.103:7979")).toBe("http://100.101.102.103:7979");
     for (const lan of ["http://192.168.1.20:7979", "http://10.0.0.15", "http://100.128.0.1", "http://100.63.255.255", "http://plexbie.example"]) {
       expect(() => normalizeServer(lan)).toThrow(/https:\/\//);

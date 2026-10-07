@@ -32,6 +32,9 @@ const KEY = "plexbie.signin";                 // {server, token, expiresAt}, one
 const KEY_LAST_SERVER = "plexbie.lastServer"; // remembered for the sign-in screen, not a secret
 const KEY_SIGNOUTS = "plexbie.signout";       // sign-outs the server hasn't heard about yet (see tellSignOuts)
 const STORE: SecureStore.SecureStoreOptions = { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY };
+/** The address can be read on a locked phone too (once unlocked since it started), so a sign-in
+ *  that can't be read just now still lands on the right Plexbie. */
+const LAST_STORE: SecureStore.SecureStoreOptions = { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY };
 /** No Plexbie is assumed: each household types its own address (plexbie.<their domain>). */
 export const DEFAULT_SERVER = "";
 /**
@@ -85,23 +88,31 @@ export class SignInError extends Error {
 
 const octet = "(25[0-5]|2[0-4]\\d|1?\\d?\\d)";
 /**
- * Plain http only where nobody else can be listening: this phone itself, or a Tailscale
- * address (100.64/10, encrypted end to end). Not home-network addresses: on someone else's
- * Wi-Fi, 192.168.1.20 can be anyone, and the sign-in token would cross it in the clear.
+ * Plain http only where nobody else can be listening: this phone itself. Not home-network
+ * addresses: on someone else's Wi-Fi, 192.168.1.20 can be anyone, and the sign-in token
+ * would cross it in the clear. Nor a Tailscale address (100.64/10) in a release build: with
+ * Tailscale off, that too can be anyone. Tailscale's https name (….ts.net) works instead.
  */
-const PRIVATE_HTTP = new RegExp(
-  `^(localhost|\\[::1\\]|127(\\.${octet}){3}|100\\.(6[4-9]|[7-9]\\d|1[01]\\d|12[0-7])(\\.${octet}){2})$`,
-);
+const LOOPBACK_HTTP = new RegExp(`^(localhost|\\[::1\\]|127(\\.${octet}){3})$`);
+/** Development builds also take a Tailscale address over plain http, to reach a test bot. */
+const TAILSCALE_HTTP = new RegExp(`^100\\.(6[4-9]|[7-9]\\d|1[01]\\d|12[0-7])(\\.${octet}){2}$`);
 
-/** "plexbie.com" → "https://plexbie.com". Plain http only for an IP on the home network or VPN. */
+/** Remembers the address for the sign-in screen. Removed first: the Keychain keeps an item's
+ *  first accessibility when it's only updated, and older ones were saved like the sign-in. */
+async function rememberServer(server: string) {
+  await SecureStore.deleteItemAsync(KEY_LAST_SERVER, LAST_STORE).catch(() => undefined);
+  await SecureStore.setItemAsync(KEY_LAST_SERVER, server, LAST_STORE);
+}
+
+/** "plexbie.com" → "https://plexbie.com". Plain http only for this phone itself (see LOOPBACK_HTTP). */
 export function normalizeServer(input: string): string {
   let s = input.trim().replace(/\/+$/, "");
   if (!s) throw new SignInError("Enter your Plexbie address.");
   if (!/^[a-z]+:\/\//i.test(s)) s = `https://${s}`;
   let url: URL;
   try { url = new URL(s); } catch { throw new SignInError("That doesn't look like a web address."); }
-  if (url.protocol === "http:" && !PRIVATE_HTTP.test(url.hostname)) {
-    throw new SignInError("Use the https:// address: sign-in can't travel over plain http (a Tailscale address is fine).");
+  if (url.protocol === "http:" && !LOOPBACK_HTTP.test(url.hostname) && !(__DEV__ && TAILSCALE_HTTP.test(url.hostname))) {
+    throw new SignInError("Use the https:// address: sign-in can't travel over plain http (on Tailscale, use its https:// ….ts.net name).");
   }
   if (url.protocol !== "https:" && url.protocol !== "http:") throw new SignInError("That doesn't look like a web address.");
   return `${url.protocol}//${url.host}`;
@@ -231,27 +242,62 @@ function useSessionState() {
   const signingIn = useRef(false);
 
   useEffect(() => {
-    void tellSignOuts();
-    const back = AppState.addEventListener("change", (s) => { if (s === "active") void tellSignOuts(); });
-    (async () => {
-      const [saved, last] = await Promise.all([SecureStore.getItemAsync(KEY, STORE), SecureStore.getItemAsync(KEY_LAST_SERVER, STORE)]);
-      const s = saved ? JSON.parse(saved) as { server?: string; token?: string; expiresAt?: number } : null;
+    // Set while the saved sign-in couldn't be read (a locked phone, when an alert wakes the
+    // app): it's read again each time the app comes to the front, until something replaces it.
+    let unread: State | null = null;
+    let live = true;
+    /** Reads the saved sign-in, in place of `from` unless something else came first. */
+    const restore = async (from: State) => {
+      const still = () => live && current.current === from && !signingIn.current;
+      const last = await SecureStore.getItemAsync(KEY_LAST_SERVER, LAST_STORE).catch(() => null);
+      let saved: string | null;
+      try {
+        saved = await SecureStore.getItemAsync(KEY, STORE);
+      } catch {
+        // Kept as it is: nothing says it has ended.
+        if (!still()) return;
+        unread = from.phase === "loading"
+          ? { phase: "signedOut", server: last ?? DEFAULT_SERVER, notice: "Your sign-in couldn't be opened just now. Leave the app and come back, or sign in again." }
+          : from;
+        setState(unread);
+        return;
+      }
+      if (!still()) return;
+      unread = null;
+      let s = null as { server?: string; token?: string; expiresAt?: number } | null;
+      let garbled = false;
+      try { s = saved ? JSON.parse(saved) as typeof s : null; } catch { garbled = true; }
       if (s?.server && s.token && (!s.expiresAt || s.expiresAt * 1000 > Date.now())) {
         setState({ phase: "signedIn", server: s.server, token: s.token, sample: false });
         const home = await movedTo(s.server, s.token);
         if (home && current.current.phase === "signedIn" && current.current.token === s.token) {
-          await SecureStore.setItemAsync(KEY, JSON.stringify({ ...s, server: home }), STORE);
-          await SecureStore.setItemAsync(KEY_LAST_SERVER, home, STORE);
+          // Followed once saved. Until then the old address still works, and the next launch
+          // tries again.
+          try { await SecureStore.setItemAsync(KEY, JSON.stringify({ ...s, server: home }), STORE); } catch { return; }
+          await rememberServer(home).catch(() => undefined);
           setState({ phase: "signedIn", server: home, token: s.token, sample: false });
           void queryClient.invalidateQueries();
         }
       } else {
-        // Ended while the app was closed: nothing of that sign-in stays on the phone.
-        if (s) await Promise.all([SecureStore.deleteItemAsync(KEY, STORE), forgetCache(), forgetPush()]);
-        setState({ phase: "signedOut", server: last ?? DEFAULT_SERVER, notice: s ? "Your sign-in has ended. Sign in again." : undefined });
+        // Ended while the app was closed, or unreadable: nothing of that sign-in stays on the
+        // phone (what can't be removed now is tried again next launch).
+        if (saved) await Promise.all([SecureStore.deleteItemAsync(KEY, STORE), forgetCache(), forgetPush()]).catch(() => undefined);
+        if (!still()) return;
+        const notice = garbled ? "Your sign-in couldn't be read. Sign in again." : saved ? "Your sign-in has ended. Sign in again." : undefined;
+        setState({ phase: "signedOut", server: last ?? DEFAULT_SERVER, notice });
       }
-    })().catch(() => setState({ phase: "signedOut", server: DEFAULT_SERVER }));
-    return () => back.remove();
+    };
+    void tellSignOuts();
+    const back = AppState.addEventListener("change", (s) => {
+      if (s !== "active") return;
+      void tellSignOuts();
+      if (unread && current.current === unread) void restore(unread).catch(() => undefined);
+    });
+    const loading = current.current;
+    void restore(loading).catch(() => {
+      if (current.current === loading) setState({ phase: "signedOut", server: DEFAULT_SERVER });
+    });
+    return () => { live = false; back.remove(); };
   }, [setState]);
 
   /** Signed out at once on this phone; the server is told in the background, and on later
@@ -270,10 +316,9 @@ function useSessionState() {
       const kept = await changeSignOuts((list) => [...list.filter((o) => o.token !== token), out]).then(() => true, () => false);
       await SecureStore.deleteItemAsync(KEY, STORE);
       void (kept ? tellSignOuts() : tellServer(out));
-    } else {
-      await SecureStore.deleteItemAsync(KEY, STORE);
-      void forgetPush();
     }
+    // The sample saves nothing, so leaving it removes nothing: a sign-in kept from before (one
+    // that couldn't be read just now) is still there for the next launch.
   }, [setState]);
 
   useEffect(() => { whenSignedOut(() => void signOut("Your sign-in has ended. Sign in again.")); }, [signOut]);
@@ -321,7 +366,7 @@ function useSessionState() {
       }
       await forgetEverything();
       await SecureStore.setItemAsync(KEY, JSON.stringify({ server, token, expiresAt }), STORE);
-      await SecureStore.setItemAsync(KEY_LAST_SERVER, server, STORE);
+      await rememberServer(server);
       setState({ phase: "signedIn", server, token, sample: false });
       return invite !== undefined ? { invite } : {};
     } finally {

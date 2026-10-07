@@ -18,7 +18,10 @@ Plexbie's native app for iPhone and Android. It's built with Expo and React Nati
 The app is a client of a Plexbie server's `/api`: any Plexbie, on any address. Signing in
 works like Plexbie's setup: members type their domain and the app fills in
 `plexbie.<their domain>`, or they choose **Use a different address** for any other (a
-Tailscale name, one they already use). Every screen is native; the website is not inside it.
+Tailscale name, one they already use). The address must be https: release builds take plain
+http only for the phone itself (`localhost`, `127.0.0.1`), so on Tailscale use its https name
+(`….ts.net`, with Tailscale HTTPS on), not a `100.x` address. Every screen is native; the
+website is not inside it.
 
 **What it does:** sign in with Discord or Plex (PKCE, through the server's own page; the token
 lives in the Keychain/Keystore), requests with live progress, Home, Library, the
@@ -193,6 +196,7 @@ They need a free Expo account (`npx eas-cli login`). They're optional; everythin
   - Sign-in runs on the bot, in the system browser sheet, with PKCE. The app receives a one-time code and swaps it for a Plexbie session token.
   - The token lives in the Keychain or Keystore (this device only, never backed up) and is never logged or put in a URL.
   - The Plex token never leaves the bot.
+  - Opening the app restores the saved sign-in. One the phone can't read just now (an iPhone that's locked when an alert wakes the app) is kept and read again when the app comes to the front, and the sign-in screen still shows the last address (saved so a locked phone can read it, after its first unlock); one that can't be understood is removed and the person signs in again on the same address. A server move (`home` in `GET /api/mobile`) is followed only once it's saved.
   - Signing out is immediate on the phone. The server is told too (this phone's alerts stop and the session ends there, so a copy of the token stops working); if it can't be reached, that sign-out is kept in the Keychain or Keystore and told on each launch (and each return to the app) until the server has it, or the sign-in runs out. Live progress updates the server sends meanwhile aren't drawn.
 - **Look** (`src/ui`): the website's "On Air" tokens, Archivo, press feedback (scale 0.97, 120 ms, one haptic), 48dp targets, reduced-motion aware.
 - **Types:** copied from the bot (`scripts/sync-types.mjs`); the bot is the source of truth for `/api`.
