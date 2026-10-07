@@ -243,15 +243,17 @@ function memberTicket(help: { id: string; reason: string }): AppMemberTicket {
   return {
     ...help, status: h?.status ?? "open", waiting: h?.status === "open" && t.waiting,
     thread: t.thread.filter((e) => ["member", "reply"].includes(e.kind) || (e.kind === "status" && ["Solved", "Reopened"].includes(e.text)))
-      .map((e) => (e.kind === "member" ? { ...e, by: "You" } : e)),
+      .map(({ id, at, by, kind, text }) => ({ id, at, kind, text, by: kind === "member" ? "You" : by })),
   };
 }
-const say = (id: string, kind: string, text: string, by = ME) => { ticketOf(id).thread.push(entry(kind, by, text)); };
+const say = (id: string, kind: string, text: string, by = ME) => { const e = entry(kind, by, text); ticketOf(id).thread.push(e); return e; };
 /** h2's member can’t be reached (closed DMs, no alerts, no email): an admin’s reply or
- *  “Solved” on it says so, and so does its timeline; on any other ticket it arrives. */
-const told = (h: { id: string; who: string }, said: string, done: string) => {
+ *  “Solved” on it says so, and so does its timeline (the reply it was, `sent`, is marked
+ *  missed); on any other ticket it arrives. */
+const told = (h: { id: string; who: string }, said: string, done: string, sent?: AppTicketEntry) => {
   if (h.id !== "h2") return { ok: true, told: true, message: said };
   const why = "Plexbie couldn’t DM them on Discord, and no phone alert or email reached them either.";
+  if (sent?.kind === "reply") sent.missed = true;
   say(h.id, "action", `This didn’t reach ${h.who}: ${why}`, "Plexbie");
   return { ok: true, told: false, message: `${done}, but it didn’t reach ${h.who}: ${why} Tell them another way.` };
 };
@@ -463,8 +465,8 @@ export const sampleApi: Api = {
   ticketComment: async (id, kind, text) => {
     await pause(400);
     const h = helpFor(id);
-    say(id, kind, text);
-    return kind === "reply" ? told(h, `Sent to ${h.who} (Discord DM).`, "Added to the ticket") : ok("Note added. Only admins see it.");
+    const sent = say(id, kind, text);
+    return kind === "reply" ? told(h, `Sent to ${h.who} (Discord DM).`, "Added to the ticket", sent) : ok("Note added. Only admins see it.");
   },
   ticketStatus: async (id, status, message) => {
     await pause(400);
@@ -472,12 +474,12 @@ export const sampleApi: Api = {
     const t = ticketOf(id);
     if (status === "waiting") { t.waiting = true; say(id, "status", "Waiting on them"); return ok(`Waiting on ${h.who}’s answer.`); }
     if (status === "resolved") {
-      if (message?.trim()) say(id, "reply", message.trim());
+      const sent = message?.trim() ? say(id, "reply", message.trim()) : undefined;
       say(id, "status", "Solved");
       t.waiting = false;
       sampleHelp = sampleHelp.map((x) => (x.id === id ? { ...x, status: "resolved" } : x));
       markHelp(id, false);
-      return told(h, `Resolved, and ${h.who} has been told (Discord DM).`, "Resolved");
+      return told(h, `Resolved, and ${h.who} has been told (Discord DM).`, "Resolved", sent);
     }
     if (h.status !== "open") { sampleHelp = sampleHelp.map((x) => (x.id === id ? { ...x, status: "open" } : x)); markHelp(id, true); say(id, "status", "Reopened"); }
     else say(id, "status", "Back with the admins");
@@ -528,12 +530,12 @@ export const sampleApi: Api = {
   },
   helpResolve: async (id, reply) => {
     await pause(500);
-    if (reply.trim()) say(id, "reply", reply.trim());
+    const sent = reply.trim() ? say(id, "reply", reply.trim()) : undefined;
     say(id, "status", "Solved");
     sampleHelp = sampleHelp.map((h) => (h.id === id ? { ...h, status: "resolved" } : h));
     markHelp(id, false);
     const who = sampleHelp.find((h) => h.id === id)?.who ?? "Someone";
-    return told({ id, who }, `Resolved, and ${who} has been told (Discord DM).`, "Resolved");
+    return told({ id, who }, `Resolved, and ${who} has been told (Discord DM).`, "Resolved", sent);
   },
   adminPeople: async () => { await pause(350); return samplePeople; },
   linkCandidates: async () => ({ discord: [{ id: "203", name: "Rosa M", username: "rosam" }, { id: "204", name: "Dev", username: "devr" }] }),

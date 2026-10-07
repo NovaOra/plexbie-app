@@ -77,11 +77,13 @@ const ProgressSchema = z.looseObject({
   releaseDate: z.string().nullable().optional().catch(null),
 });
 
-/** One line on a ticket's timeline. "note" is admins only; "reply" went to the member. */
+/** One line on a ticket's timeline. "note" is admins only; "reply" went to the member.
+ *  `missed`: a reply that reached nobody (admins only). */
 const TicketEntrySchema = z.looseObject({
   id: z.string().catch(""), at: z.string().catch(""), by: z.string().catch(""),
   kind: z.string().catch("note"),   // "member" | "note" | "reply" | "action" | "status" today
   text: z.string().catch(""),
+  missed: opt(z.boolean()),
 });
 export type AppTicketEntry = z.infer<typeof TicketEntrySchema>;
 const timeline = z.array(z.unknown()).transform((rows) =>
