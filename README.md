@@ -92,6 +92,7 @@ number) keeps counting up from the earlier private builds, so phones update in p
 ```bash
 npm install
 npm run types:check          # the API types match the bot's (../plexbie)
+npm test                     # unit tests, no device needed
 ```
 
 ## Run
@@ -118,6 +119,7 @@ npm run ios                  # prebuild, pod install, build, open the Simulator
 
 - `npm start`: Metro for an installed dev build (`expo start --dev-client`).
 - `npm run typecheck`, `npm run lint`, `npm run doctor`.
+- `npm test`: the unit tests (Jest with jest-expo, no device needed): sign-in (PKCE, the state check, refusals), server addresses, where alerts open, and the checks on the bot's answers (sample answers in `src/api/__fixtures__/`, typed with the bot's own API types).
 - `npm run types:sync`: copy the bot's API types again after they change (set `PLEXBIE_REPO` if the bot's checkout isn't `../plexbie`).
 - `node scripts/brand-assets.mjs`: rebuild the icons from the logo.
 

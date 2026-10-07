@@ -41,8 +41,14 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@jest/globals": "29.7.0",
+    "@react-native/jest-preset": "0.86.3",
+    "@testing-library/react-native": "14.0.1",
     "@types/react": "~19.2.2",
+    "jest": "29.7.0",
+    "jest-expo": "~57.0.5",
     "playwright-core": "^1.63.0",
+    "test-renderer": "1.2.0",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -51,10 +57,17 @@
     "ios": "expo run:ios",
     "prebuild": "expo prebuild --clean",
     "typecheck": "tsc --noEmit",
+    "test": "jest",
     "lint": "expo lint",
     "types:sync": "node scripts/sync-types.mjs",
     "types:check": "node scripts/sync-types.mjs --check",
     "doctor": "expo-doctor"
+  },
+  "jest": {
+    "preset": "jest-expo",
+    "setupFiles": [
+      "./jest.setup.ts"
+    ]
   },
   "private": true,
   "license": "AGPL-3.0-or-later"
