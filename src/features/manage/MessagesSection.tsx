@@ -43,7 +43,10 @@ export function MessagesSection({ who, onClose, onComposerFocus }: { who?: strin
   const [openId, setOpen] = useState<string | null>(who ?? null);
   const [query, setQuery] = useState("");
   const open = people.data?.find((p) => p.id === openId) ?? null;
-  if (open) return <Conversation person={open} onBack={() => { setOpen(null); onClose?.(); }} onComposerFocus={onComposerFocus} />;
+  // The same one from render to render, so the conversation's Back stays where it was put,
+  // under anything Manage opens over it later (its drawer of sections).
+  const back = useCallback(() => { setOpen(null); onClose?.(); }, [onClose]);
+  if (open) return <Conversation person={open} onBack={back} onComposerFocus={onComposerFocus} />;
   const rows = people.data;
   if (!rows) return <QueryGate query={people} errorTitle="Couldn’t load messages." height={220} />;
   const q = query.trim().toLowerCase();

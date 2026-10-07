@@ -1,36 +1,54 @@
 // Manage opened from an alert (/manage?tab=…&who=…): each alert opens its section, even when
 // the last one said the same, and a DM alert's conversation opens once, not on every
 // return to Messages. The sections are behind a menu button at the top, beside the title: it
-// lists every section with what's waiting in it, and a dot on it says something is waiting
-// in another one (a service down, titles leaving, a new invite link, which is still on
-// Invites after another section). Someone who isn't an admin (an old alert, a link) is told it's for
-// admins, and none of its sections is asked for. Until it's known who's signed in, offline
-// says so, and a failed ask can be tried again.
+// slides a drawer in from the right that pushes the page aside, lists every section with
+// what's waiting in it, and goes back on a choice, a tap on the page, Back, an alert or
+// another tab; a dot on the button says something is waiting in another one (a service
+// down, titles leaving, a new invite link, which is still on Invites after another section).
+// Someone who isn't an admin (an old alert, a link) is told it's for admins, and none of its
+// sections is asked for. Until it's known who's signed in, offline says so, and a failed ask
+// can be tried again.
 import { beforeEach, expect, jest, test } from "@jest/globals";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, within } from "@testing-library/react-native";
-import { ScrollView, StyleSheet, Text as MockText } from "react-native";
+import { act, fireEvent, render, screen, within } from "@testing-library/react-native";
+import { BackHandler, ScrollView, StyleSheet, Text as MockText } from "react-native";
+import { withTiming } from "react-native-reanimated";
 import { router } from "expo-router";
 import { color, TOUCH } from "../../../ui/theme";
 import { ManageScreen } from "../ManageScreen";
 
 // The route's params, as the router holds them: an alert replaces them, setParams merges.
 let mockParams: { tab?: string; who?: string } = {};
-jest.mock("expo-router", () => ({
-  useLocalSearchParams: () => mockParams,
-  useFocusEffect: () => undefined,
-  router: { setParams: jest.fn((p: object) => { mockParams = { ...mockParams, ...p }; }), navigate: jest.fn() },
-}));
+// Manage is in view: focus effects run while mounted, and leaving the tab runs what they left.
+const mockBlurs = new Set<() => void>();
+jest.mock("expo-router", () => {
+  const { useEffect } = jest.requireActual<typeof import("react")>("react");
+  return {
+    useLocalSearchParams: () => mockParams,
+    useFocusEffect: (effect: () => void | (() => void)) => {
+      useEffect(() => {
+        const off = effect();
+        if (!off) return;
+        mockBlurs.add(off);
+        return () => { mockBlurs.delete(off); off(); };
+      }, [effect]);
+    },
+    router: { setParams: jest.fn((p: object) => { mockParams = { ...mockParams, ...p }; }), navigate: jest.fn() },
+  };
+});
 // Who's signed in, as the bot last said.
 let mockMe: { data?: { admin?: boolean; member?: boolean }; error?: Error | null; fetchStatus?: string; isFetching?: boolean; refetch?: () => unknown } = {};
 jest.mock("../../me/useMe", () => ({ useMe: () => mockMe }));
 // Whether each count behind the picker was allowed to load.
 let mockAsked: Record<string, boolean | undefined> = {};
 jest.mock("react-native-worklets", () => jest.requireActual("react-native-worklets/src/mock"));
+// Remove animations, as the phone's setting says; each slide is watched.
+let mockReduced = false;
 jest.mock("react-native-reanimated", () => ({
   ...jest.requireActual<object>("react-native-reanimated/mock"),
   cubicBezier: () => "ease-out",
-  useReducedMotion: () => false,
+  useReducedMotion: () => mockReduced,
+  withTiming: jest.fn((to: number) => to),
 }));
 jest.mock("../../../ui/haptics", () => ({ tap: () => undefined, select: () => undefined, success: () => undefined, reward: () => undefined, error: () => undefined }));
 jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
@@ -63,9 +81,12 @@ let mockHealth: { name: string; ok: boolean }[] = [];
 jest.mock("../CleanupSection", () => ({ CleanupSection: mockSection("Cleanup"), useCleanup: (on?: boolean) => { mockAsked.cleanup = on; return { data: { warning: mockLeaving } }; } }));
 jest.mock("../HealthSection", () => ({ HealthSection: mockSection("Health"), useHealth: (on?: boolean) => { mockAsked.health = on; return { data: mockHealth }; } }));
 jest.mock("../DiscordSection", () => ({ DiscordSection: mockSection("Discord") }));
+// Every close handler Messages was handed: one that changes each render moves its Back.
+const mockCloses = new Set<unknown>();
 jest.mock("../MessagesSection", () => ({
   useMessagePeople: (on?: boolean) => { mockAsked.messages = on; return { data: [] }; },
   MessagesSection: ({ who, onClose }: { who?: string; onClose?: () => void }) => (
+    mockCloses.add(onClose),
     <>
       <MockText>{`Messages section, open on ${who ?? "everyone"}`}</MockText>
       <MockText accessibilityRole="button" onPress={onClose}>Close the conversation</MockText>
@@ -86,6 +107,10 @@ const pick = async (label: string) => {
 
 beforeEach(() => {
   mockParams = {};
+  mockBlurs.clear();
+  mockCloses.clear();
+  mockReduced = false;
+  jest.mocked(withTiming).mockClear();
   mockLeaving = [];
   mockHealth = [];
   mockWaiting = 0;
@@ -214,6 +239,103 @@ test("a new invite link puts a dot on the menu and is still on Invites after ano
   expect(row("Invites")).toHaveAccessibleName("Invites · 1 waiting");
   await fireEvent.press(row("Invites"));
   expect(screen.getByText("Invites section, 1 new")).toBeTruthy();
+});
+
+/** The drawer of sections, while it's open. */
+const drawer = () => screen.getByTestId("sections-drawer");
+
+test("the menu button slides in a drawer of every section, and the page moves aside for it", async () => {
+  mockWaiting = 3;
+  mockHealth = [{ name: "Sonarr", ok: false }];
+  await render(page());
+  expect(screen.queryByTestId("sections-drawer")).toBeNull();
+  await fireEvent.press(menu());
+  // Every section with what's waiting in it, the one shown marked.
+  expect(within(drawer()).getAllByRole("radio").map((r) => r.props.accessibilityLabel ?? within(r).getAllByText(/./).at(-1)!.props.children)).toEqual(
+    ["Tickets", "Requests · 3 waiting", "All requests", "Join requests", "Invites", "People", "Cleanup", "Discord", "Messages", "Health · 1 down"]);
+  expect(within(drawer()).getByRole("radio", { checked: true })).toHaveTextContent(/Requests · 3 waiting/);
+  // At most 300 wide, 80% of a narrow phone.
+  expect(StyleSheet.flatten(drawer().props.style).width).toBe(300);
+  // A modal for screen readers: the page behind it is out of reach while it's open.
+  expect(drawer().props.accessibilityViewIsModal).toBe(true);
+  expect(screen.queryByText("Requests section")).toBeNull();
+  expect(screen.getByText("Requests section", { includeHiddenElements: true })).toBeTruthy();
+  // The page and the drawer slide together, quickly and easing out.
+  expect(withTiming).toHaveBeenLastCalledWith(1, expect.objectContaining({ duration: 240 }));
+});
+
+test("choosing a section in the drawer slides it all back", async () => {
+  await render(page());
+  await fireEvent.press(menu());
+  jest.mocked(withTiming).mockClear();
+  await fireEvent.press(within(drawer()).getByRole("radio", { name: /^(● )?Cleanup/ }));
+  expect(screen.getByText("Cleanup section")).toBeTruthy();
+  expect(screen.queryByTestId("sections-drawer")).toBeNull();
+  expect(withTiming).toHaveBeenLastCalledWith(0, expect.objectContaining({ duration: 240 }));
+  expect(menu()).toBeTruthy();
+});
+
+test("a tap on the page beside the drawer closes it, and nothing changes", async () => {
+  await render(page());
+  await fireEvent.press(menu());
+  await fireEvent.press(screen.getByTestId("sections-scrim", { includeHiddenElements: true }));
+  expect(screen.queryByTestId("sections-drawer")).toBeNull();
+  expect(screen.getByText("Requests section")).toBeTruthy();
+});
+
+test("Android's Back closes the drawer rather than leaving Manage", async () => {
+  const remove = jest.fn();
+  const listen = jest.spyOn(BackHandler, "addEventListener").mockImplementation(() => ({ remove }));
+  await render(page());
+  expect(listen).not.toHaveBeenCalled();
+  await fireEvent.press(menu());
+  expect(listen).toHaveBeenCalledWith("hardwareBackPress", expect.any(Function));
+  const back = listen.mock.calls.at(-1)![1] as () => boolean;
+  let handled = false;
+  await act(async () => { handled = back(); });
+  expect(handled).toBe(true);
+  expect(screen.queryByTestId("sections-drawer")).toBeNull();
+  // Closed, Back is Manage's own again.
+  expect(remove).toHaveBeenCalled();
+  listen.mockRestore();
+});
+
+test("an alert tapped while the drawer is open opens its section with the drawer gone", async () => {
+  const { rerender } = await render(page());
+  await fireEvent.press(menu());
+  mockParams = { tab: "cleanup" };
+  await rerender(page());
+  expect(screen.queryByTestId("sections-drawer")).toBeNull();
+  expect(screen.getByText("Cleanup section")).toBeTruthy();
+});
+
+test("another tab, and back, finds Manage without the drawer", async () => {
+  await render(page());
+  await fireEvent.press(menu());
+  expect(drawer()).toBeTruthy();
+  await act(async () => { for (const off of [...mockBlurs]) off(); });
+  expect(screen.queryByTestId("sections-drawer")).toBeNull();
+});
+
+test("a conversation's close stays the same while the drawer is open over it, so its Back stays under the drawer's", async () => {
+  mockParams = { tab: "messages", who: "d1" };
+  const { rerender } = await render(page());
+  await fireEvent.press(menu());
+  // New counts come in.
+  await rerender(page());
+  await rerender(page());
+  expect(drawer()).toBeTruthy();
+  expect(mockCloses.size).toBe(1);
+});
+
+test("with Remove animations on, the drawer just appears and goes, without sliding", async () => {
+  mockReduced = true;
+  await render(page());
+  await fireEvent.press(menu());
+  expect(drawer()).toBeTruthy();
+  await fireEvent.press(within(drawer()).getByRole("radio", { name: /^(● )?People/ }));
+  expect(screen.getByText("People section")).toBeTruthy();
+  expect(withTiming).not.toHaveBeenCalled();
 });
 
 const COUNTS = ["tickets", "requests", "all", "joins", "cleanup", "health", "messages"];

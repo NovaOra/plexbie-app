@@ -1,10 +1,11 @@
 // Manage, for admins: everything the website's Manage page does. A menu button beside the
-// title lists the sections and what's waiting in each (a dot on it when something waits in
-// another one); under the title, the section shown and what's waiting in it, then that section.
+// title slides in a drawer of the sections and what's waiting in each, pushing the page
+// aside (a dot on the button when something waits in another one); under the title, the
+// section shown and what's waiting in it, then that section.
 // Anyone else who reaches it (an alert from when they were an admin, a link) is told it's
 // for admins, and none of its sections is asked for.
 import { useQueryClient } from "@tanstack/react-query";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { KeyboardAvoidingView, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { KEYBOARD_BEHAVIOR, useScrollToEnd } from "../../ui/keyboard";
@@ -12,7 +13,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { AppNewInvite } from "../../api/schemas";
 import { useServer } from "../../auth/session";
 import { Button } from "../../ui/Button";
-import { PickerPill } from "../../ui/PickerSheet";
 import { QueryGate } from "../../ui/QueryGate";
 import { StatusBarScrim } from "../../ui/StatusBarScrim";
 import { ScreenTitle } from "../../ui/ScreenTitle";
@@ -27,6 +27,7 @@ import { MessagesSection, useMessagePeople } from "./MessagesSection";
 import { JoinsSection, useJoins } from "./JoinsSection";
 import { PeopleSection } from "./PeopleSection";
 import { RequestsSection, useRequestsCount } from "./RequestsSection";
+import { SectionsDrawer } from "./SectionsDrawer";
 import { AllRequestsSection, useAllRequests } from "./AllRequestsSection";
 import { TicketsSection, useTickets } from "./TicketsSection";
 import { Ambient, GlassFill, glass, TAB_BAR_CLEARANCE } from "../../ui/Glass";
@@ -46,14 +47,21 @@ export function ManageScreen() {
   const [who, setWho] = useState<string | undefined>(undefined);
   /** Another section: an alert's conversation is done with, so Messages opens on everyone. */
   const pick = (t: Tab) => { setTab(t); setWho(undefined); };
+  /** The conversation closed: Messages opens on everyone next time. */
+  const closeConversation = useCallback(() => setWho(undefined), []);
   const toTop = () => end.scroll.current?.scrollTo({ y: 0, animated: false });
-  /** Chosen from the menu: the section from its top (the one shown, too, keeping its conversation). */
-  const choose = (t: Tab) => { if (t !== tab) pick(t); toTop(); };
+  // The drawer of sections; another tab, and back, finds Manage without it.
+  const [menu, setMenu] = useState(false);
+  const closeMenu = useCallback(() => setMenu(false), []);
+  useFocusEffect(useCallback(() => closeMenu, [closeMenu]));
+  /** Chosen from the menu: the section from its top (the one shown, too, keeping its conversation), the drawer gone. */
+  const choose = (t: Tab) => { if (t !== tab) pick(t); toTop(); closeMenu(); };
   useEffect(() => {
     if (params.tab && TAB_IDS.includes(params.tab as Tab)) { setTab(params.tab as Tab); setWho(undefined); toTop(); }
     if (params.who) setWho(params.who);
-    // Used up: the next alert with the same address changes them again, and opens its section.
-    if (params.tab || params.who) router.setParams({ tab: undefined, who: undefined });
+    // Used up: the next alert with the same address changes them again, and opens its section,
+    // with the drawer gone (it may have been open when the alert was tapped).
+    if (params.tab || params.who) { router.setParams({ tab: undefined, who: undefined }); closeMenu(); }
   }, [params.tab, params.who]);
   // New invite links are shown only once: held here until dismissed, so leaving Invites
   // (even while one is being made) doesn't lose them. Only this server's.
@@ -107,40 +115,40 @@ export function ManageScreen() {
   return (
     <KeyboardAvoidingView style={styles.page} behavior={KEYBOARD_BEHAVIOR}>
       <Ambient />
-      <ScrollView
-        ref={end.scroll}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + space.l, paddingBottom: insets.bottom + space.xxl + TAB_BAR_CLEARANCE }]}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={pulling} onRefresh={onRefresh} tintColor={color.screen} colors={[color.onScreen]} progressBackgroundColor={color.screen} />}
-      >
-        <View style={styles.head}>
-          <View style={styles.title}><ScreenTitle>Manage</ScreenTitle></View>
-          {gate ? null : (
-            <PickerPill title="Sections" label={sectionLabel(tab)} value={tab} onChange={(v) => choose(v as Tab)}
-              options={tabs.map(([value, , n]) => ({ value, label: sectionLabel(value), hot: n > 0 }))}
-              trigger={(show) => (
-                <PressableScale onPress={show} style={[styles.menu, glass.surface]} accessibilityHint="Opens the sections"
-                  accessibilityLabel={elsewhere ? `Sections, ${elsewhere} need${elsewhere === 1 ? "s" : ""} you` : "Sections"}>
-                  <GlassFill radius={TOUCH / 2} interactive />
-                  {[0, 1, 2].map((i) => <View key={i} style={styles.bar} />)}
-                  {elsewhere ? <View testID="sections-dot" style={styles.dot} /> : null}
-                </PressableScale>
-              )} />
+      <SectionsDrawer open={menu && !gate} onClose={closeMenu} value={tab} onChoose={(v) => choose(v as Tab)}
+        sections={tabs.map(([value, , n]) => ({ value, label: sectionLabel(value), hot: n > 0 }))}>
+        <ScrollView
+          ref={end.scroll}
+          contentContainerStyle={[styles.content, { paddingTop: insets.top + space.l, paddingBottom: insets.bottom + space.xxl + TAB_BAR_CLEARANCE }]}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={<RefreshControl refreshing={pulling} onRefresh={onRefresh} tintColor={color.screen} colors={[color.onScreen]} progressBackgroundColor={color.screen} />}
+        >
+          <View style={styles.head}>
+            <View style={styles.title}><ScreenTitle>Manage</ScreenTitle></View>
+            {gate ? null : (
+              <PressableScale onPress={() => setMenu(true)} style={[styles.menu, glass.surface]} accessibilityHint="Opens the sections"
+                accessibilityLabel={elsewhere ? `Sections, ${elsewhere} need${elsewhere === 1 ? "s" : ""} you` : "Sections"}>
+                <GlassFill radius={TOUCH / 2} interactive />
+                {[0, 1, 2].map((i) => <View key={i} style={styles.bar} />)}
+                {elsewhere ? <View testID="sections-dot" style={styles.dot} /> : null}
+              </PressableScale>
+            )}
+          </View>
+          {gate ?? (
+            <>
+              <Text variant="title" accessibilityRole="header">{sectionLabel(tab)}</Text>
+              <Text variant="body">Deciding here is the same as the buttons in Discord.</Text>
+              <View style={styles.section}>
+                {tab === "tickets" ? <TicketsSection /> : tab === "requests" ? <RequestsSection /> : tab === "all" ? <AllRequestsSection /> : tab === "joins" ? <JoinsSection /> : tab === "people" ? <PeopleSection />
+                  : tab === "invites" ? <InvitesSection fresh={freshLinks} onMade={holdLink} onDone={dropLink} /> : tab === "cleanup" ? <CleanupSection onFieldFocus={end.onFocus} /> : tab === "messages" ? <MessagesSection key={who ?? "all"} who={who} onClose={closeConversation} onComposerFocus={end.onFocus} />
+                  : tab === "health" ? <HealthSection /> : <DiscordSection />}
+              </View>
+            </>
           )}
-        </View>
-        {gate ?? (
-          <>
-            <Text variant="title" accessibilityRole="header">{sectionLabel(tab)}</Text>
-            <Text variant="body">Deciding here is the same as the buttons in Discord.</Text>
-            <View style={styles.section}>
-              {tab === "tickets" ? <TicketsSection /> : tab === "requests" ? <RequestsSection /> : tab === "all" ? <AllRequestsSection /> : tab === "joins" ? <JoinsSection /> : tab === "people" ? <PeopleSection />
-                : tab === "invites" ? <InvitesSection fresh={freshLinks} onMade={holdLink} onDone={dropLink} /> : tab === "cleanup" ? <CleanupSection onFieldFocus={end.onFocus} /> : tab === "messages" ? <MessagesSection key={who ?? "all"} who={who} onClose={() => setWho(undefined)} onComposerFocus={end.onFocus} />
-                : tab === "health" ? <HealthSection /> : <DiscordSection />}
-            </View>
-          </>
-        )}
-      </ScrollView>
-      <StatusBarScrim />
+        </ScrollView>
+        {/* With the page, under the drawer: the fade never lies over the drawer's top. */}
+        <StatusBarScrim />
+      </SectionsDrawer>
     </KeyboardAvoidingView>
   );
 }

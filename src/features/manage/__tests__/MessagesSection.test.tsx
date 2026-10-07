@@ -107,6 +107,19 @@ test("Android Back closes the conversation instead of leaving Manage", async () 
   expect(onClose).toHaveBeenCalledTimes(1);
 });
 
+test("a conversation's Back isn't put back on top every time it's drawn again", async () => {
+  const listen = jest.spyOn(BackHandler, "addEventListener");
+  const onClose = jest.fn();
+  const view = await show(onClose);
+  await screen.findByRole("header", { name: "Sam Rivers" });
+  const backs = () => listen.mock.calls.filter(([event]) => event === "hardwareBackPress").length;
+  const before = backs();
+  // Manage draws it again (new counts in), with whatever it put on top since still there.
+  await view.rerender(<QueryClientProvider client={qc}><MessagesSection who="d1" onClose={onClose} /></QueryClientProvider>);
+  await view.rerender(<QueryClientProvider client={qc}><MessagesSection who="d1" onClose={onClose} /></QueryClientProvider>);
+  expect(backs()).toBe(before);
+});
+
 test("the on-screen back tells Manage the conversation is closed", async () => {
   const onClose = jest.fn();
   await show(onClose);
