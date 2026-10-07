@@ -10,7 +10,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { StyleSheet, Text as MockText } from "react-native";
 import { router } from "expo-router";
-import { TOUCH } from "../../../ui/theme";
+import { TOUCH, space } from "../../../ui/theme";
 import { ManageScreen } from "../ManageScreen";
 
 // The route's params, as the router holds them: an alert replaces them, setParams merges.
@@ -135,6 +135,13 @@ test("services down and titles leaving show beside the picker, and open their se
   expect(leaving).toHaveTextContent("Cleanup · 2 leaving");
   // The app's touch size, like every other control.
   for (const link of [down, leaving]) expect(StyleSheet.flatten(link.props.style).minHeight).toBeGreaterThanOrEqual(TOUCH);
+  // Wrapped rows meet: the links' own height is the space between them.
+  let row = down.parent;
+  while (row && StyleSheet.flatten(row.props.style)?.flexWrap !== "wrap") row = row.parent;
+  const { columnGap, rowGap, gap } = StyleSheet.flatten(row!.props.style);
+  expect(columnGap).toBe(space.m);
+  expect(rowGap ?? 0).toBe(0);
+  expect(gap ?? 0).toBe(0);
   await fireEvent.press(down);
   expect(screen.getByText("Health section")).toBeTruthy();
 });

@@ -2,7 +2,7 @@
 // reader, a send the bot refused still shows what it logged, and Android Back (or the
 // on-screen one) goes back to everyone and tells Manage the conversation is closed. The
 // search stays while it filters, after the list gets shorter. A first load that fails says
-// so, with Try again.
+// so, with Try again. One message is read as "1 message".
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
@@ -135,4 +135,10 @@ test("a first load that fails says so, with Try again", async () => {
   expect(await screen.findByText("Couldn’t load messages.")).toBeTruthy();
   await fireEvent.press(screen.getByLabelText("Try again"));
   expect(await screen.findByText("Messages · 1")).toBeTruthy();
+});
+
+test("a person with one message from Plexbie is read as one message", async () => {
+  mockClient.adminMessages.mockResolvedValue([{ ...sam, count: 1 }]);
+  await render(<QueryClientProvider client={qc}><MessagesSection /></QueryClientProvider>);
+  expect(await screen.findByLabelText(/^Sam Rivers, 1 message from Plexbie, 1 from them\./)).toBeTruthy();
 });

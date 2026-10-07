@@ -1,7 +1,9 @@
 // Sign-in, like every other page, has the frosted band under the status bar, so the logo
 // and title never scroll up under the clock (small phones, the keyboard up, large text).
-import { expect, jest, test } from "@jest/globals";
-import { render, screen } from "@testing-library/react-native";
+// A first launch doesn't open the keyboard over the other ways in; switching back to the
+// domain field does focus it.
+import { beforeEach, expect, jest, test } from "@jest/globals";
+import { fireEvent, render, screen } from "@testing-library/react-native";
 import { Text as MockText } from "react-native";
 import { SignInScreen } from "../SignInScreen";
 
@@ -18,14 +20,32 @@ jest.mock("../../../ui/haptics", () => ({ tap: () => undefined, select: () => un
 jest.mock("../../../ui/Glass", () => ({ Ambient: () => null }));
 jest.mock("../../../ui/StatusBarScrim", () => ({ StatusBarScrim: () => <MockText>status bar scrim</MockText> }));
 jest.mock("../InviteScreen", () => ({ InviteLinkField: () => null }));
+// The Plexbie used before, or "" on a fresh install.
+let mockServer = "https://plexbie.example.com";
 jest.mock("../../../auth/session", () => ({
   DEFAULT_SERVER: "",
   SignInError: class extends Error {},
   normalizeServer: (s: string) => `https://${s}`,
-  useSession: () => ({ state: { phase: "signedOut", server: "https://plexbie.example.com" }, signIn: jest.fn(), lookAround: jest.fn() }),
+  useSession: () => ({ state: { phase: "signedOut", server: mockServer }, signIn: jest.fn(), lookAround: jest.fn() }),
 }));
+
+beforeEach(() => { mockServer = "https://plexbie.example.com"; });
 
 test("the status bar has its scrim", async () => {
   await render(<SignInScreen />);
   expect(screen.getByText("status bar scrim")).toBeTruthy();
+});
+
+test("a first launch doesn't open the keyboard over the invite link and the sample", async () => {
+  mockServer = "";
+  await render(<SignInScreen />);
+  expect(screen.getByLabelText("Your domain").props.autoFocus).toBeFalsy();
+});
+
+test("switching back to the domain field focuses it", async () => {
+  mockServer = "";
+  await render(<SignInScreen />);
+  await fireEvent.press(screen.getByText("Use a different address"));
+  await fireEvent.press(screen.getByText("Use plexbie.your domain instead"));
+  expect(screen.getByLabelText("Your domain").props.autoFocus).toBe(true);
 });

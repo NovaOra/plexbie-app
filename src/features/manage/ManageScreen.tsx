@@ -135,7 +135,8 @@ export function ManageScreen() {
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: color.field },
   content: { paddingHorizontal: space.l, gap: space.s },
-  picker: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: space.m, paddingVertical: space.s },
+  // No gap between wrapped rows: each link is already a full touch tall.
+  picker: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: space.m, paddingVertical: space.s },
   waiting: { color: color.screen, minHeight: TOUCH, textAlignVertical: "center", lineHeight: TOUCH },
   section: { gap: space.m },
   home: { alignSelf: "flex-start", marginTop: space.s },

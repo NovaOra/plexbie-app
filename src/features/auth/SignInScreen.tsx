@@ -28,6 +28,9 @@ export function SignInScreen() {
   const [domain, setDomain] = useState("");
   const [mode, setMode] = useState<"domain" | "address">(initial && !initial.startsWith("plexbie.") ? "address" : "domain");
   const [editing, setEditing] = useState(!initial);
+  // The domain field takes focus only when switched back to, never on first launch, where
+  // the keyboard would cover the invite link and the sample.
+  const [switchedBack, setSwitchedBack] = useState(false);
   const fromDomain = (d: string) => {
     const bare = d.trim().toLowerCase().replace(/^[a-z]+:\/\//, "").replace(/[/?#].*$/, "").replace(/^www\./, "").replace(/\.$/, "");
     return bare ? (bare.startsWith("plexbie.") ? bare : `plexbie.${bare}`) : "";
@@ -86,7 +89,7 @@ export function SignInScreen() {
                 <TextInput
                   value={domain}
                   onChangeText={(t) => { setDomain(t); setServer(fromDomain(t)); }}
-                  autoFocus={!initial}
+                  autoFocus={switchedBack}
                   autoCapitalize="none"
                   autoCorrect={false}
                   keyboardType="url"
@@ -122,7 +125,7 @@ export function SignInScreen() {
                 accessibilityLabel="Your Plexbie address"
                 accessibilityHint="The web address of your household's Plexbie"
               />
-              <PressableScale onPress={() => { setMode("domain"); setServer(fromDomain(domain)); }} haptic="none" style={styles.switch}
+              <PressableScale onPress={() => { setMode("domain"); setServer(fromDomain(domain)); setSwitchedBack(true); }} haptic="none" style={styles.switch}
                 accessibilityRole="button">
                 <Text variant="meta" style={styles.change}>Use plexbie.your domain instead</Text>
               </PressableScale>

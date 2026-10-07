@@ -30,12 +30,16 @@ const SERVER_WHY = "Your Plexbie doesn’t send alerts to the app. Its website c
 /** The phone didn't answer whether alerts are on (its Keychain or permissions failed). */
 const FAILED_WHY = "Couldn’t check this phone’s alerts just now. Come back to this screen to try again.";
 
+/** The sample household has no Plexbie behind it to send alerts. */
+const SAMPLE_WHY = "Alerts come from your own Plexbie, so they can’t be turned on in the sample household.";
+
 export function PushRow() {
   const { status, serverOff, failed, busy, problem, set } = usePush();
   const client = useApi();
   const toast = useToast();
   const { state } = useSession();
   const site = state.phase === "signedIn" && !state.sample ? state.server : null;
+  const sample = state.phase === "signedIn" && state.sample;
   useAnnounce(problem);
   // "Send a test": the bot sends one to every phone and browser this person has alerts on in.
   // Nothing sent can be the server's side too (Expo refused it, or it was down), so the
@@ -59,7 +63,7 @@ export function PushRow() {
       ) : (
         <View style={{ gap: 2 }}>
           <Text variant="title" accessibilityRole="header">Phone alerts</Text>
-          <Text variant="meta">{status === "unavailable" ? (serverOff ? SERVER_WHY : failed ? FAILED_WHY : IPHONE ? IPHONE_WHY : "Not set up in this build of the app yet.")
+          <Text variant="meta">{status === "unavailable" ? (serverOff ? SERVER_WHY : failed ? FAILED_WHY : IPHONE ? IPHONE_WHY : sample ? SAMPLE_WHY : "Not set up in this build of the app yet.")
             : "Turned off for Plexbie in your phone’s settings."}</Text>
         </View>
       )}

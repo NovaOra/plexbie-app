@@ -1,11 +1,15 @@
 // Phone alerts on You (and the offer after a request): every row reads one answer to "are
 // alerts on here?", checked again when the app or the screen comes back, so turning alerts
 // on (here or in the phone's settings) shows everywhere at once. A check that fails says so.
+// The sample household says why its alerts can't be turned on.
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
+import * as ReactQuery from "@tanstack/react-query";
 import { QueryClient, QueryClientProvider, focusManager, onlineManager } from "@tanstack/react-query";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import * as React from "react";
 import type { ReactElement, ReactNode } from "react";
-import { Linking } from "react-native";
+import * as ReactNative from "react-native";
+import { Linking, Platform } from "react-native";
 import { notificationsAllowed, previewLive } from "../live";
 import { disablePush, enablePush, pushState, type PushState } from "../push";
 import { LiveRow, PushOffer, PushRow } from "../PushRow";
@@ -33,9 +37,11 @@ jest.mock("expo-router", () => {
 });
 
 const mockClient = { pushTest: jest.fn<() => Promise<{ ok: boolean; message: string }>>() };
+// Signed in to a real Plexbie, unless a test looks around the sample household.
+let mockSession: { phase: "signedIn"; sample: boolean; server: string } = { phase: "signedIn", sample: false, server: "https://plexbie.example" };
 jest.mock("../../../auth/session", () => ({
   useApi: () => mockClient,
-  useSession: () => ({ state: { phase: "signedIn", sample: false, server: "https://plexbie.example" } }),
+  useSession: () => ({ state: mockSession }),
 }));
 // This Plexbie sends app alerts, unless a test says otherwise.
 let mockSends = ["expo", "web"];
@@ -71,6 +77,7 @@ beforeEach(() => {
   jest.mocked(previewLive).mockReset();
   jest.mocked(notificationsAllowed).mockReset().mockResolvedValue(false);
   mockSends = ["expo", "web"];
+  mockSession = { phase: "signedIn", sample: false, server: "https://plexbie.example" };
   mockClient.pushTest.mockReset();
   mockToast.mockReset();
   mockFocus.clear();
@@ -247,4 +254,32 @@ test("the status bar switch reads what it does, as the screen shows it", async (
   state.mockResolvedValue("on");
   await show(<LiveRow />);
   expect(screen.getByRole("switch", { name: "In the status bar" })).toHaveProp("accessibilityHint", expect.stringContaining("Its % stays in the status bar"));
+});
+
+test("on Android, the sample household says why its alerts can't be turned on", async () => {
+  mockSession = { phase: "signedIn", sample: true, server: "" };
+  // The row as an Android phone loads it, sharing React, React Native and the queries.
+  // React Native hands out Platform as it's first asked for, so the copy loaded alongside
+  // the row says Android too.
+  jest.replaceProperty(Platform, "OS", "android");
+  let AndroidRow: typeof PushRow = PushRow;
+  jest.isolateModules(() => {
+    jest.doMock("react", () => React);
+    jest.doMock("react-native", () => ReactNative);
+    jest.doMock("@tanstack/react-query", () => ReactQuery);
+    jest.replaceProperty((require("react-native") as typeof ReactNative).Platform, "OS", "android");
+    AndroidRow = (require("../PushRow") as typeof import("../PushRow")).PushRow;
+  });
+  try {
+    await show(<AndroidRow />);
+    expect(screen.getByText(/can’t be turned on in the sample household/)).toBeTruthy();
+    expect(screen.queryByText(/Not set up in this build/)).toBeNull();
+    expect(screen.queryByText("Send a test")).toBeNull();
+    expect(screen.queryByText(/^Open alerts/)).toBeNull();
+  } finally {
+    jest.dontMock("react");
+    jest.dontMock("react-native");
+    jest.dontMock("@tanstack/react-query");
+    jest.restoreAllMocks();
+  }
 });

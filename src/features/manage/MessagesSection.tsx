@@ -57,7 +57,7 @@ export function MessagesSection({ who, onClose, onComposerFocus }: { who?: strin
       ) : null}
       {shown.map((p) => (
         <PressableScale key={p.id} haptic="none" onPress={() => setOpen(p.id)} style={[styles.person, p.unread > 0 && styles.unread]}
-          accessibilityLabel={`${p.name}, ${p.count} messages from Plexbie${p.received ? `, ${p.received} from them` : ""}${p.failed ? `, ${p.failed} not delivered` : ""}. Last ${since(p.last.at)}${p.last.direction === "in" ? `, from ${p.name}` : ""}: ${p.last.text}`}>
+          accessibilityLabel={`${p.name}, ${p.count} message${p.count === 1 ? "" : "s"} from Plexbie${p.received ? `, ${p.received} from them` : ""}${p.failed ? `, ${p.failed} not delivered` : ""}. Last ${since(p.last.at)}${p.last.direction === "in" ? `, from ${p.name}` : ""}: ${p.last.text}`}>
           <Initial name={p.name} />
           <View style={{ flex: 1, gap: 2 }}>
             <View style={styles.top}>

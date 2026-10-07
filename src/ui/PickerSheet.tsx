@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import Animated, { FadeIn, FadeOut, Keyframe } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { initialWindowMetrics, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "./Button";
 import { PressableScale } from "./Pressable";
 import { Text } from "./Text";
@@ -38,6 +38,9 @@ export function PickerPill({ title, label, options, value, multiple, onChange }:
   onChange: (next: string | string[]) => void;
 }) {
   const insets = useSafeAreaInsets();
+  // Inside a tab, iOS counts the tab bar in the inset; the sheet covers the bar, so only the
+  // window's own (the home indicator) is needed.
+  const bottom = Platform.OS === "ios" ? (initialWindowMetrics?.insets.bottom ?? insets.bottom) : insets.bottom;
   const large = useLargeText();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<string[]>([]);
@@ -63,7 +66,7 @@ export function PickerPill({ title, label, options, value, multiple, onChange }:
           <Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(120)} style={StyleSheet.absoluteFill}>
             <Pressable style={styles.scrim} onPress={() => setOpen(false)} accessibilityLabel="Close" accessibilityRole="button" />
           </Animated.View>
-          <Animated.View entering={rise} exiting={FadeOut.duration(120)} style={[styles.sheet, glass.surface, styles.sheetIOS, { paddingBottom: Math.max(insets.bottom, NAV_BAR) + space.l }]}
+          <Animated.View entering={rise} exiting={FadeOut.duration(120)} style={[styles.sheet, glass.surface, styles.sheetIOS, { paddingBottom: Math.max(bottom, NAV_BAR) + space.l }]}
             accessibilityViewIsModal>
             <GlassFill radius={SHEET_RADIUS} strong />
             <Text variant="title" accessibilityRole="header">{title}</Text>
