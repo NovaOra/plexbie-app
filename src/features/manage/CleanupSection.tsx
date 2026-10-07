@@ -126,8 +126,9 @@ function Settings({ d }: { d: AppAdminCleanup }) {
   const scan = async () => {
     setScanning(true);
     await act(null, () => client.cleanupScan(), { done: (o) => ({ text: "Cleanup scan finished", detail: o.message || undefined }), failText: "Scan didn’t run" });
+    // Busy until the section has reloaded: after no answer, the scan may still be running.
+    await qc.invalidateQueries({ queryKey: key });
     setScanning(false);
-    void qc.invalidateQueries({ queryKey: key });
   };
   const confirmScan = () => (live
     ? confirm("Scan now, live?", "Anything past its time is deleted from the server right away.", [

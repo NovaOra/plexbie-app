@@ -4,6 +4,7 @@
 //
 // Reads retry on a dropped connection, a 5xx or a 429 (two more tries, backing off);
 // writes never retry on their own, because a repeated approve or request is not harmless.
+// A write that got no answer may still have gone through: callers say so rather than "no".
 import { z } from "zod";
 import {
   AckSchema, AdminCleanupSchema, AdminHelpListSchema, InviteCheckSchema, ConversationSchema, DiscordOverviewSchema, HealthSchema, MessagePeopleSchema, AdminInvitesSchema, AdminJoinsSchema, AdminPeopleSchema, AdminRequestsSchema, LinkCandidatesSchema, NewInviteSchema, PlexInvitesSchema, ArrivalsSchema, CommunitySchema, HelpAnswerSchema, StatusSchema, MediaRequestSchema, MediaRequestsSchema, MobileInfoSchema, NothingSchema, LibrarySchema, PopularSchema, SessionSchema, TitleDetailSchema, TitlesSchema, TokenSchema, WatchPartySchema, AppReleaseSchema, DownloadLinkSchema, DiscoverSchema, ShelfPageSchema, SearchAllSchema, PrefsSchema, AdminAllRequestsSchema, AdminRequestDetailSchema, AdminTicketsSchema, AdminTicketDetailSchema, BlockedListSchema, BlockedPreviewSchema, ArrLibrarySchema, ArrEpisodesSchema,
@@ -24,6 +25,9 @@ export class ApiError extends Error {
     this.name = "ApiError";
   }
   get signedOut() { return this.status === 401; }
+  /** Nobody said yes or no: the app, the phone or a proxy (504, Cloudflare's 524) stopped
+   *  waiting while the bot may still be at it. For a write, the outcome is unknown. */
+  get unanswered() { return this.kind === "timeout" || this.status === 504 || this.status === 524; }
 }
 
 export interface Connection {
@@ -34,6 +38,10 @@ export interface Connection {
 }
 
 const TIMEOUT_MS = 15_000;
+// Writes the bot takes its time over: an import waits up to two minutes for Sonarr or Radarr,
+// and a cleanup scan walks every library.
+export const IMPORT_TIMEOUT_MS = 150_000;
+const SCAN_TIMEOUT_MS = 300_000;
 const RETRY_DELAYS_MS = [400, 1200];
 
 const wait = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
@@ -41,9 +49,10 @@ const wait = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
 interface Answer { status: number; retryAfter: number; text: string }
 
 /** One round trip, body included: the timeout covers a stalled body as well as a silent server. */
-async function once(conn: Connection, path: string, init: RequestInit, outer?: AbortSignal): Promise<Answer> {
+async function once(conn: Connection, path: string, init: RequestInit, outer?: AbortSignal, timeoutMs = TIMEOUT_MS): Promise<Answer> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const started = Date.now();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   const cancel = () => controller.abort();
   outer?.addEventListener("abort", cancel);
   const headers: Record<string, string> = { Accept: "application/json", "X-Plexbie": "1" };
@@ -55,7 +64,8 @@ async function once(conn: Connection, path: string, init: RequestInit, outer?: A
     return { status: res.status, retryAfter: Number(res.headers.get("Retry-After")), text };
   } catch {
     if (outer?.aborted) throw new ApiError(0, "Cancelled.", "network");
-    const timedOut = controller.signal.aborted;
+    // A line cut after a long wait is a timeout too: iOS and proxies give up on their own.
+    const timedOut = controller.signal.aborted || Date.now() - started >= TIMEOUT_MS;
     // Deliberately not the error's own text: it can repeat the URL.
     throw new ApiError(0, timedOut ? "The server took too long to answer." : "Couldn't reach the server.", timedOut ? "timeout" : "network");
   } finally {
@@ -76,13 +86,13 @@ function serverMessage(a: Answer): string {
   return `The server said no (${a.status}).`;
 }
 
-async function request<T>(conn: Connection, path: string, schema: z.ZodType<T>, init: RequestInit = {}, signal?: AbortSignal): Promise<T> {
+async function request<T>(conn: Connection, path: string, schema: z.ZodType<T>, init: RequestInit = {}, signal?: AbortSignal, timeoutMs?: number): Promise<T> {
   const idempotent = !init.method || init.method === "GET";
   for (let attempt = 0; ; attempt += 1) {
     const last = !idempotent || attempt >= RETRY_DELAYS_MS.length;
     let a: Answer;
     try {
-      a = await once(conn, path, init, signal);
+      a = await once(conn, path, init, signal, timeoutMs);
     } catch (e) {
       if (last || signal?.aborted) throw e;
       await wait(RETRY_DELAYS_MS[attempt]);
@@ -158,7 +168,7 @@ export function api(conn: Connection) {
       request(conn, `/api/admin/blocked/${encodeURIComponent(app)}/${encodeURIComponent(downloadId)}`, BlockedPreviewSchema, {}, signal),
     /** Imports it through Sonarr's/Radarr's Manual Import (after the admin held the button). */
     blockedImport: (app: string, downloadId: string, files?: BlockedChoice[]) =>
-      request(conn, `/api/admin/blocked/${encodeURIComponent(app)}/${encodeURIComponent(downloadId)}/import`, AckSchema, json(files ? { files } : {})),
+      request(conn, `/api/admin/blocked/${encodeURIComponent(app)}/${encodeURIComponent(downloadId)}/import`, AckSchema, json(files ? { files } : {}), undefined, IMPORT_TIMEOUT_MS),
     /** Shows (Sonarr) or films (Radarr) in the library, for "Wrong show?". */
     arrLibrary: (app: string, q: string, signal?: AbortSignal) =>
       request(conn, `/api/admin/arr/${encodeURIComponent(app)}/library?q=${encodeURIComponent(q)}`, ArrLibrarySchema, {}, signal),
@@ -209,7 +219,7 @@ export function api(conn: Connection) {
     adminCleanup: (signal?: AbortSignal) => request(conn, "/api/admin/cleanup", AdminCleanupSchema, {}, signal),
     exempt: (ratingKey: string, keep: boolean) => request(conn, "/api/admin/cleanup/exempt", AckSchema, json({ ratingKey, keep })),
     cleanupSettings: (change: Partial<AppCleanupSettings>) => request(conn, "/api/admin/cleanup/settings", AckSchema, json(change)),
-    cleanupScan: () => request(conn, "/api/admin/cleanup/scan", AckSchema, json({})),
+    cleanupScan: () => request(conn, "/api/admin/cleanup/scan", AckSchema, json({}), undefined, SCAN_TIMEOUT_MS),
     adminHealth: (signal?: AbortSignal) => request(conn, "/api/admin/health", HealthSchema, {}, signal),
     adminDiscord: (signal?: AbortSignal) => request(conn, "/api/admin/discord", DiscordOverviewSchema, {}, signal),
     say: (channelId: string, message: string, allowMassPings: boolean) =>

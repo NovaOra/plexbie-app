@@ -2,8 +2,9 @@
 // for each, core/blocked_imports): why, what's in it, and what looks off, then a long hold
 // to import it through their own Manual Import. Never blind: the files come first.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { StyleSheet, TextInput, View } from "react-native";
+import { ApiError, IMPORT_TIMEOUT_MS } from "../../api/client";
 import type { AppArrEpisode, AppArrItem, AppBlockedRef } from "../../api/schemas";
 import type { BlockedChoice } from "../../api/types";
 import { Chip } from "../../ui/Chip";
@@ -19,6 +20,11 @@ import { useAct, useAdminKey } from "./useAdmin";
 /** What the button says while it's held: a little ceremony, so nobody imports blind. */
 const STAGES = ["Did you look at the files? 👀", "Sizes? Episodes? No .exe? 🧐", "Okay, okay. Going in 3…", "2…", "1…"];
 
+/** Imports that got no answer, by app and download, with when they were sent: Sonarr or Radarr
+ *  may still be at it, so Import stays off for as long as the app would have waited. Kept
+ *  outside the component, so leaving and coming back doesn't turn it on again. */
+const stillImporting = new Map<string, number>();
+
 const bytes = (n: number) => n >= 2 ** 30 ? `${(n / 2 ** 30).toFixed(1)} GB` : n >= 2 ** 20 ? `${Math.round(n / 2 ** 20)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
 
 export function BlockedImport({ target, onDone }: { target: AppBlockedRef; onDone?: () => void }) {
@@ -29,6 +35,7 @@ export function BlockedImport({ target, onDone }: { target: AppBlockedRef; onDon
   const [series, setSeries] = useState<AppArrItem | null>(null);
   const [eps, setEps] = useState<AppArrEpisode[] | null>(null);
   const [finding, setFinding] = useState<string | null>(null);   // "series", or a file name for "Wrong film?"
+  const [, wake] = useState(0);
   const preview = useQuery({
     queryKey: ["blocked", target.app, target.downloadId],
     queryFn: ({ signal }) => client.blockedPreview(target.app, target.downloadId, signal),
@@ -38,6 +45,19 @@ export function BlockedImport({ target, onDone }: { target: AppBlockedRef; onDon
   const tv = target.app === "sonarr";
   const p = preview.data;
   const episodes = eps ?? p?.options.episodes ?? [];
+  const sent = `${target.app}:${target.downloadId}`;
+  const since = stillImporting.get(sent);
+  const waiting = since !== undefined && Date.now() - since < IMPORT_TIMEOUT_MS;
+  useEffect(() => {
+    if (since === undefined) return;
+    const t = setTimeout(() => {
+      stillImporting.delete(sent);
+      wake((n) => n + 1);
+      void preview.refetch();
+    }, Math.max(0, since + IMPORT_TIMEOUT_MS - Date.now()));
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sent, since]);
   const pick = (name: string, change: Partial<BlockedChoice & { movieLabel?: string }>) =>
     setPicks((x) => ({ ...x, [name]: { ...x[name], name, ...change } }));
 
@@ -60,8 +80,16 @@ export function BlockedImport({ target, onDone }: { target: AppBlockedRef; onDon
       const { movieLabel: _label, ...rest } = c;
       return { ...rest, name: f.name, ...(skip ? { skip: true } : {}), ...(tv ? { episodeIds, ...(series ? { seriesId: series.id } : {}) } : {}) };
     });
-    const out = await act("import", () => client.blockedImport(target.app, target.downloadId, choices),
-      { done: (o) => ({ text: "Imported", detail: o.message || undefined }), failText: "Not imported", refresh: ["tickets", "all"], reward: true });
+    // No answer: Import stays off until the ticket, the waiting list and this preview have reloaded,
+    // and then for as long as the import could still be running.
+    const started = Date.now();
+    const call = () => client.blockedImport(target.app, target.downloadId, choices).catch((e: unknown) => {
+      if (e instanceof ApiError && e.unanswered) stillImporting.set(sent, started);
+      throw e;
+    });
+    const out = await act("import", call,
+      { done: (o) => ({ text: "Imported", detail: o.message || undefined }), failText: "Not imported", refresh: ["tickets", "all", "health"],
+        recheck: () => preview.refetch(), reward: true });
     if (out) { setDone(out.message || "Imported."); onDone?.(); }
   };
   const useSeries = async (s: AppArrItem) => {
@@ -139,8 +167,9 @@ export function BlockedImport({ target, onDone }: { target: AppBlockedRef; onDon
             <Text variant="label" style={styles.warn}>Not importable from here: sort it out in {app}, or delete the download.</Text>
           ) : (
             <>
-              {blocker ? <Text variant="label" style={styles.warn}>{blocker}</Text> : null}
-              <HoldButton label="Import it" stages={STAGES} bail="Chickened out. Fair. 🐔" disabled={!!busy || !!blocker}
+              {waiting ? <Text variant="label" style={styles.warn}>May still be importing: no answer came back. Import is off for a couple of minutes while {app} finishes.</Text>
+                : blocker ? <Text variant="label" style={styles.warn}>{blocker}</Text> : null}
+              <HoldButton label="Import it" stages={STAGES} bail="Chickened out. Fair. 🐔" disabled={!!busy || !!blocker || waiting}
                 confirmText="Did you look at the files? It goes through Sonarr's or Radarr's own import." onConfirm={() => void go()} />
             </>
           )}

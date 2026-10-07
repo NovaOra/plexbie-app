@@ -3,6 +3,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import * as haptic from "../../ui/haptics";
 import { useCallback, useState } from "react";
+import { ApiError } from "../../api/client";
 import type { Ack } from "../../api/schemas";
 import { useSession } from "../../auth/session";
 import { useToast, type ToastIn } from "../../ui/Toast";
@@ -21,6 +22,8 @@ export function useAdminKey() {
  * or null when it failed (already toasted), so callers only handle success. When it went
  * through but the member it was meant for wasn't told (`told: false`), it still counts as
  * done, but the toast says "Not delivered" with the bot's sentence instead of the success.
+ * When nobody answered (it may have gone through), it says so, reloads what it touched (and
+ * `recheck`) at once, and keeps `key` busy until that's in, so it isn't simply tried again.
  */
 export function useAct() {
   const qc = useQueryClient();
@@ -30,9 +33,10 @@ export function useAct() {
   const act = useCallback(async (
     id: string | null,
     call: () => Promise<Ack>,
-    opts: { done?: (out: Ack) => ToastIn | null; failText?: string; refresh?: Section[]; reward?: boolean } = {},
+    opts: { done?: (out: Ack) => ToastIn | null; failText?: string; refresh?: Section[]; reward?: boolean; recheck?: () => Promise<unknown> } = {},
   ): Promise<Ack | null> => {
     if (id) setBusy(id);
+    let unsure = false;
     try {
       const out = await call();
       if (out.ok === false) throw new Error(out.message || "That didn’t work.");
@@ -44,12 +48,18 @@ export function useAct() {
       return out;
     } catch (e) {
       haptic.error();
-      toast({ tone: "error", text: opts.failText ?? (e instanceof Error ? e.message : "That didn’t work."),
-        detail: opts.failText && e instanceof Error ? e.message : undefined });
+      unsure = e instanceof ApiError && e.unanswered;
+      toast(unsure ? { tone: "error", text: "No answer yet", detail: "It may have gone through. Check before trying again." }
+        : { tone: "error", text: opts.failText ?? (e instanceof Error ? e.message : "That didn’t work."),
+          detail: opts.failText && e instanceof Error ? e.message : undefined });
       return null;
     } finally {
+      if (unsure) {
+        await Promise.all([...(opts.refresh ?? []).map((s) => qc.invalidateQueries({ queryKey: key(s) })), opts.recheck?.()]).catch(() => undefined);
+      } else {
+        for (const s of opts.refresh ?? []) setTimeout(() => void qc.invalidateQueries({ queryKey: key(s) }), 1500);
+      }
       if (id) setBusy(null);
-      for (const s of opts.refresh ?? []) setTimeout(() => void qc.invalidateQueries({ queryKey: key(s) }), 1500);
     }
   }, [qc, key, toast]);
   return { busy, act };

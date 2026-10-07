@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as haptic from "../../ui/haptics";
 import { useState } from "react";
 import { Share, StyleSheet, TextInput, View } from "react-native";
+import { ApiError } from "../../api/client";
 import type { AppAdminInvite, AppNewInvite, AppPlexInvite } from "../../api/schemas";
 import { useApi } from "../../auth/session";
 import { useAnnounce, useFocusHere } from "../../ui/announce";
@@ -60,7 +61,11 @@ export function InvitesSection() {
       setEmail("");
       patchInvites((d) => [out.invite, ...d]);
     } catch (e) {
-      setProblem(e instanceof Error ? e.message : "That didn’t work.");
+      if (e instanceof ApiError && e.unanswered) {
+        // It may have been made: the list below shows it once it's in.
+        setProblem("No answer yet. It may have gone through: check Open invites below before trying again.");
+        await qc.invalidateQueries({ queryKey: keyOf("invites") });
+      } else setProblem(e instanceof Error ? e.message : "That didn’t work.");
     } finally {
       setMaking(false);
     }
@@ -74,7 +79,10 @@ export function InvitesSection() {
       patchInvites((d) => [out.invite, ...(i.status === "used" ? d : d.filter((x) => x.id !== i.id))]);
       toast({ text: `New link for ${i.label}`, detail: "It’s at the top of Invites, ready to send." });
     } catch (e) {
-      toast({ tone: "error", text: "No new link", detail: e instanceof Error ? e.message : undefined });
+      if (e instanceof ApiError && e.unanswered) {
+        toast({ tone: "error", text: "No answer yet", detail: "It may have gone through. Check before trying again." });
+        await qc.invalidateQueries({ queryKey: keyOf("invites") });
+      } else toast({ tone: "error", text: "No new link", detail: e instanceof Error ? e.message : undefined });
     } finally {
       setRenewing(null);
     }

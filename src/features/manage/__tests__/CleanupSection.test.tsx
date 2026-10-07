@@ -1,9 +1,11 @@
 // Manage → Cleanup: a day or warning change still saves when you leave the section before
 // the tapping pause is over, a failed save puts back only what it changed, a failed Keep
-// forever puts back only its title, and turning cleanup on while it's set to live asks first.
+// forever puts back only its title, turning cleanup on while it's set to live asks first, and
+// a scan that got no answer keeps Scan now busy until the section has reloaded.
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { ApiError } from "../../../api/client";
 import type { Ack, AppAdminCleanup, AppCleanupSettings } from "../../../api/schemas";
 import { ConfirmProvider } from "../../../ui/Confirm";
 import { CleanupSection } from "../CleanupSection";
@@ -11,8 +13,9 @@ import { CleanupSection } from "../CleanupSection";
 const mockCleanup = jest.fn<(signal?: AbortSignal) => Promise<AppAdminCleanup>>();
 const mockSettings = jest.fn<(change: Partial<AppCleanupSettings>) => Promise<Ack>>();
 const mockExempt = jest.fn<(ratingKey: string, keep: boolean) => Promise<Ack>>();
+const mockScan = jest.fn<() => Promise<Ack>>();
 jest.mock("../../../auth/session", () => ({
-  useApi: () => ({ adminCleanup: mockCleanup, cleanupSettings: mockSettings, exempt: mockExempt }),
+  useApi: () => ({ adminCleanup: mockCleanup, cleanupSettings: mockSettings, exempt: mockExempt, cleanupScan: mockScan }),
   useSession: () => ({ state: { phase: "signedIn", server: "https://plexbie.example", token: "t", sample: false } }),
 }));
 jest.mock("react-native-worklets", () => jest.requireActual("react-native-worklets/src/mock"));
@@ -47,6 +50,7 @@ beforeEach(() => {
   mockCleanup.mockReset();
   mockSettings.mockReset();
   mockExempt.mockReset();
+  mockScan.mockReset();
   qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 });
 // Each save reads the settings back a moment later; let that finish before the next test.
@@ -187,4 +191,22 @@ test("a failed Keep forever puts back only its title, not a settings save that w
   expect(d?.settings.channelId).toBe("c1");
   expect(d?.warning.map((r) => r.ratingKey)).toEqual(["r1"]);
   expect(d?.exempt).toEqual([]);
+});
+
+test("a scan that got no answer keeps Scan now busy until the section has reloaded", async () => {
+  mockCleanup.mockResolvedValue(data());
+  const scan = deferred();
+  mockScan.mockReturnValueOnce(scan.promise);
+  await show();
+  await fireEvent.press(await screen.findByRole("button", { name: "Scan now" }));
+  expect(mockScan).toHaveBeenCalledTimes(1);
+  let reloaded!: (d: AppAdminCleanup) => void;
+  mockCleanup.mockReturnValueOnce(new Promise((res) => { reloaded = res; }));
+
+  await act(async () => { scan.reject(new ApiError(0, "The server took too long to answer.", "timeout")); await scan.promise.catch(() => undefined); });
+  await settle();
+  expect(screen.getByRole("button", { name: "Scanning…" }).props.accessibilityState).toMatchObject({ busy: true });
+  await act(async () => { reloaded(data()); });
+  await settle();
+  expect(screen.getByRole("button", { name: "Scan now" }).props.accessibilityState).toMatchObject({ busy: false });
 });

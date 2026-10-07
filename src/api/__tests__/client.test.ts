@@ -61,3 +61,53 @@ test("an unreachable server says so without repeating the address", async () => 
   const error = await pub.mobileInfo(SERVER).catch((e: unknown) => e);
   expect(error).toMatchObject({ status: 0, kind: "network", message: "Couldn't reach the server." });
 });
+
+// A fetch that never answers, and fails the way fetch does once its signal aborts.
+const silent = (_url: string, init?: RequestInit) => new Promise<Response>((_ok, fail) =>
+  init?.signal?.addEventListener("abort", () => fail(new TypeError("Aborted"))));
+
+test("a write gives up after 15 s, but an import and a cleanup scan wait as long as they take", async () => {
+  jest.useFakeTimers();
+  try {
+    fetchMock.mockImplementation(silent);
+    const client = api({ server: SERVER, token: token.token });
+    const post = client.say("c1", "Hello", false).catch((e: unknown) => e);
+    const imported = client.blockedImport("sonarr", "abc").catch((e: unknown) => e);
+    const scanned = client.cleanupScan().catch((e: unknown) => e);
+    let settled = "";
+    void imported.then(() => { settled += "import "; });
+    void scanned.then(() => { settled += "scan "; });
+
+    await jest.advanceTimersByTimeAsync(15_000);
+    expect(await post).toMatchObject({ kind: "timeout", unanswered: true });
+    expect(settled).toBe("");
+    await jest.advanceTimersByTimeAsync(135_000);
+    expect(await imported).toMatchObject({ kind: "timeout", unanswered: true });
+    expect(settled).toBe("import ");
+    await jest.advanceTimersByTimeAsync(150_000);
+    expect(await scanned).toMatchObject({ kind: "timeout", unanswered: true });
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test("a line cut after a long wait, or a proxy that gave up, is no answer rather than a no", async () => {
+  jest.useFakeTimers();
+  try {
+    // iOS and reverse proxies cut a long silence on their own, before the app does.
+    fetchMock.mockImplementation(() => new Promise((_ok, fail) => setTimeout(() => fail(new TypeError("Network request failed")), 60_000)));
+    const cut = api({ server: SERVER, token: null }).cleanupScan().catch((e: unknown) => e);
+    await jest.advanceTimersByTimeAsync(60_000);
+    expect(await cut).toMatchObject({ kind: "timeout", unanswered: true });
+  } finally {
+    jest.useRealTimers();
+  }
+  fetchMock.mockReset();
+  fetchMock.mockResolvedValue(answer(504, "<html>Gateway Time-out</html>"));
+  expect(await api({ server: SERVER, token: null }).cleanupScan().catch((e: unknown) => e)).toMatchObject({ status: 504, unanswered: true });
+  // Refused outright, or never reached: those are answers.
+  fetchMock.mockResolvedValue(answer(409, { error: "Already running." }));
+  expect(await api({ server: SERVER, token: null }).cleanupScan().catch((e: unknown) => e)).toMatchObject({ unanswered: false });
+  fetchMock.mockRejectedValue(new TypeError("Network request failed"));
+  expect(await api({ server: SERVER, token: null }).cleanupScan().catch((e: unknown) => e)).toMatchObject({ kind: "network", unanswered: false });
+});

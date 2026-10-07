@@ -196,6 +196,9 @@ They need a free Expo account (`npx eas-cli login`). They're optional; everythin
 - **Routes** (`src/app`): Expo Router, thin route files. A sign-in gate (`Stack.Protected`) and the platform's own tab bar (`NativeTabs`).
 - **Data** (`src/api`):
   - A typed client over `/api`: Bearer token, `X-Plexbie: 1`, 15 s timeout, retries for reads only.
+  - Two admin writes wait longer on Android: an import from Manage → Health waits 150 s, a cleanup scan 5 minutes. On iPhone the system stops waiting after about a minute, so a longer import or scan there usually ends as "No answer yet".
+  - A write that gets no answer (the app stopped waiting, the line was cut after a long wait, or a reverse proxy answered 504 or 524) says "No answer yet" and that it may have gone through, reloads what it touched, and keeps its button busy until that's in. An import that got no answer keeps Import off for those 150 s, even after leaving and coming back, since Sonarr or Radarr may still be at it.
+  - A reverse proxy in front of the bot with a shorter read timeout (Nginx Proxy Manager's default 60 s, Cloudflare Tunnel's ~100 s) ends a long import or scan early; the bot carries on regardless. To get the real answer, raise the proxy's read timeout for `/api/admin` to at least 300 s (in Nginx Proxy Manager: the proxy host's Advanced tab, `proxy_read_timeout 300s;`). Cloudflare's ~100 s can't be raised on the free plan.
   - Zod checks every response.
   - TanStack Query owns server state; NetInfo and AppState make it offline- and foreground-aware.
   - With no connection, a write (asking for a title, approving or declining) fails at once with "Couldn't reach the server." and is undone; it never waits to go out later.
