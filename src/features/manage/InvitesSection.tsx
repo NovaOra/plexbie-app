@@ -16,19 +16,18 @@ import { Text } from "../../ui/Text";
 import { useToast } from "../../ui/Toast";
 import { QueryGate } from "../../ui/QueryGate";
 import { color, font, radius } from "../../ui/theme";
+import { EMAIL, shortDate } from "../../ui/format";
 import { since } from "../requests/stage";
 import { AllClear, Heading, Initial, Pill, TextField, card } from "./bits";
 import { useAct, useAdminKey } from "./useAdmin";
 import { GlassFill, glass } from "../../ui/Glass";
 
 const LASTS = [1, 3, 7, 14];
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function until(iso: string) {
   const d = Math.ceil((new Date(iso).getTime() - Date.now()) / 864e5);
   return d <= 0 ? "today" : d === 1 ? "tomorrow" : `in ${d} days`;
 }
-const shortDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 
 /**
  * `fresh` is the new links not yet dismissed, newest first. Manage holds them, so they

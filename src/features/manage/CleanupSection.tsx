@@ -16,6 +16,7 @@ import { Chip } from "../../ui/Chip";
 import { Text } from "../../ui/Text";
 import { QueryGate } from "../../ui/QueryGate";
 import { color, font, radius, space } from "../../ui/theme";
+import { shortDate } from "../../ui/format";
 import { AllClear, Heading, TextField, card, optimistic } from "./bits";
 import { Stepper } from "./Stepper";
 import { useAct, useAdminKey } from "./useAdmin";
@@ -23,7 +24,6 @@ import { GlassFill, glass } from "../../ui/Glass";
 import { EdgeRow } from "../../ui/EdgeRow";
 
 type View3 = "soon" | "next" | "kept";
-const shortDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" }) : "");
 function clockText(reason: string, when?: string) {
   if (reason === "added") return `Added ${shortDate(when)}, not watched since`.replace("Added ,", "Added,");
   if (reason === "requested") return `Requested ${shortDate(when)}`;

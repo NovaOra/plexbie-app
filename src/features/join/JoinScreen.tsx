@@ -16,9 +16,8 @@ import { StatusBarScrim } from "../../ui/StatusBarScrim";
 import { ScreenTitle } from "../../ui/ScreenTitle";
 import { Text } from "../../ui/Text";
 import { color, font, radius, space, TOUCH } from "../../ui/theme";
+import { EMAIL } from "../../ui/format";
 import { Ambient } from "../../ui/Glass";
-
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function JoinScreen({ me }: { me: AppSession }) {
   const insets = useSafeAreaInsets();
