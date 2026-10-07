@@ -72,6 +72,9 @@
     "experiments": {
       "typedRoutes": true
     },
+    "updates": {
+      "enabled": false
+    },
     "platforms": [
       "ios",
       "android"

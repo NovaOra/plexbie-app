@@ -9,7 +9,6 @@
     "@tanstack/react-query": "^5.104.1",
     "@tanstack/react-query-persist-client": "^5.104.1",
     "expo": "~57.0.26",
-    "expo-auth-session": "~57.0.13",
     "expo-blur": "~57.0.3",
     "expo-constants": "~57.0.20",
     "expo-crypto": "~57.0.3",
@@ -61,7 +60,7 @@
     "lint": "expo lint",
     "types:sync": "node scripts/sync-types.mjs",
     "types:check": "node scripts/sync-types.mjs --check",
-    "doctor": "expo-doctor"
+    "doctor": "npx expo-doctor"
   },
   "jest": {
     "preset": "jest-expo",
