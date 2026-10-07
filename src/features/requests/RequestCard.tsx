@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useEffect, useReducer } from "react";
 import { StyleSheet, View } from "react-native";
 import Animated, { useReducedMotion } from "react-native-reanimated";
 import type { AppRequest } from "../../api/schemas";
@@ -24,6 +24,12 @@ export const RequestCard = memo(function RequestCard({ request: r, onPress, by, 
 
   const large = useLargeText();
   const reduced = useReducedMotion();
+  // A poll that brings the same request back doesn't re-render the card, so tick the age along.
+  const [, tick] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => {
+    const t = setInterval(tick, 60_000);
+    return () => clearInterval(t);
+  }, []);
   const label = `${r.title.title}, request ${r.slot}${by ? `, asked by ${by}` : ""}. ${stuck?.length ? `Looks stuck: ${stuck.join(", ")}. ` : ""}${!by && r.help?.waiting && r.help.status !== "resolved" ? "An admin asked you something. " : ""}${stageLabel(r.stage, r.title.kind)}. ${/[.!?]$/.test(detail) ? detail : `${detail}.`}${percent !== null ? ` ${percent} percent.` : ""}`
     + `${r.note ? ` Note: ${r.note}.` : ""} Updated ${since(r.updatedAt)}.`;
   const card = (

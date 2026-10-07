@@ -1,7 +1,7 @@
 // The shared request words: the seasons a request asked for, short on a card or chip and
-// spelled out on a request's own page, and where a title lives once it's in.
+// spelled out on a request's own page, where a title lives once it's in, and a book's format.
 import { expect, test } from "@jest/globals";
-import { KIND_LABEL, home, isBook, seasonsLabel } from "../stage";
+import { KIND_LABEL, formatLabel, home, isBook, seasonsLabel } from "../stage";
 
 test("seasons on a card or chip", () => {
   expect(seasonsLabel("all")).toBe("All seasons");
@@ -40,4 +40,13 @@ test("a kind the app doesn't know has no label", () => {
   expect(KIND_LABEL.audiobook).toBe("Audiobook");
   expect(KIND_LABEL.ebook).toBe("Ebook");
   expect(KIND_LABEL.podcast).toBeUndefined();
+});
+
+test("a book's format is named only when it adds something", () => {
+  expect(formatLabel("audiobook", "audiobook")).toBeNull();
+  expect(formatLabel("ebook", "ebook")).toBeNull();
+  expect(formatLabel("audiobook", null)).toBeNull();
+  expect(formatLabel("audiobook", undefined)).toBeNull();
+  expect(formatLabel("audiobook", "both")).toBe("Audiobook + ebook");
+  expect(formatLabel("audiobook", "ebook")).toBe("Ebook");
 });

@@ -13,7 +13,7 @@ import { Button } from "../../ui/Button";
 import { DetailFallback, DetailPage, TitleHead, detailStyles } from "../../ui/DetailPage";
 import { Text } from "../../ui/Text";
 import { color, multilineInput, radius, replyRim } from "../../ui/theme";
-import { KIND_LABEL, formatSlot, isBook, seasonsLabel, since } from "../requests/stage";
+import { KIND_LABEL, formatLabel, formatSlot, isBook, seasonsLabel, since } from "../requests/stage";
 import { useRequests } from "../requests/useRequests";
 import { GlassFill, glass } from "../../ui/Glass";
 import { SeasonsBox, StageBox } from "./StageBox";
@@ -45,7 +45,7 @@ export function RequestDetail() {
 
   return (
     <DetailPage scroll={field.scroll}>
-        <TitleHead title={r.title} eyebrow={[`No. ${formatSlot(r.slot)}`, KIND_LABEL[r.title.kind], r.format && book ? r.format : null].filter(Boolean).join(" · ")}
+        <TitleHead title={r.title} eyebrow={[`No. ${formatSlot(r.slot)}`, KIND_LABEL[r.title.kind], book ? formatLabel(r.title.kind, r.format) : null].filter(Boolean).join(" · ")}
           heading={heading}>
           {seasonsLabel(r.seasons, { long: true }) ? <Text variant="meta">{seasonsLabel(r.seasons, { long: true })}</Text> : null}
         </TitleHead>

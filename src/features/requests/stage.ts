@@ -9,6 +9,12 @@ export const home = (kind?: string | null) => (isBook(kind) ? "Audiobookshelf" :
 /** A kind the app doesn't know yet (a newer bot) has no label here. */
 export const KIND_LABEL: Record<string, string | undefined> = { movie: "Film", tv: "TV", audiobook: "Audiobook", ebook: "Ebook" };
 
+/** A book's format beside its kind, only when it says something more (as on the website). */
+export function formatLabel(kind: string, format?: string | null) {
+  if (!format || format === kind) return null;
+  return format === "both" ? "Audiobook + ebook" : KIND_LABEL[format] ?? null;
+}
+
 /** The seasons asked for: "S1, S2" on a card or chip, spelled out ("Seasons 1, 2") with `long`. */
 export function seasonsLabel(s: number[] | "all" | "latest" | null | undefined, { long = false } = {}) {
   if (s === "all") return "All seasons";

@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   problem: { color: color.tally },
   journey: { gap: space.s, marginTop: space.xs },
   stepRow: { flexDirection: "row", alignItems: "center", gap: space.m },
-  stepText: { flexDirection: "row", flexWrap: "wrap", gap: 4, flexShrink: 1 },
+  stepText: { flexDirection: "row", flexWrap: "wrap", gap: 4, flex: 1 },
   stepLabel: { flexShrink: 0, paddingRight: 2 },
   stepDot: { width: 16, height: 16, borderRadius: 8, borderWidth: 1.5, borderColor: color.slate, alignItems: "center", justifyContent: "center" },
   tick: { fontSize: 10, lineHeight: 12, color: color.field, fontFamily: font.bold },
