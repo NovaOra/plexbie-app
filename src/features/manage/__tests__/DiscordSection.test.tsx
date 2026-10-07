@@ -1,6 +1,7 @@
 // Manage → Discord: "Answer DMs automatically" moves as soon as it's tapped and stays with
 // the latest tap while saves are out (whatever a reload finds in between), a failed save puts
 // it back to what the server has, and each switch reads its explanation to a screen reader.
+// A first load that fails says so, with Try again.
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
@@ -192,4 +193,14 @@ test("each switch reads its explanation to a screen reader", async () => {
   expect(toggle()).toHaveProp("accessibilityHint", expect.stringContaining("first DM in 12 hours"));
   expect(screen.getByRole("switch", { name: "Allow @everyone and role pings" }))
     .toHaveProp("accessibilityHint", "Off: those show as plain text and notify nobody.");
+});
+
+test("a first load that fails says so, with Try again", async () => {
+  mockDiscord.mockRejectedValueOnce(new Error("Discord didn’t answer.")).mockResolvedValue(data(true));
+  await show();
+  expect(screen.getByText("Couldn’t load Discord.")).toBeTruthy();
+  expect(screen.getByText("Discord didn’t answer.")).toBeTruthy();
+  await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+  await settle();
+  expect(toggle()).toBeChecked();
 });

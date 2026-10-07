@@ -1,10 +1,13 @@
 // Manage → People: Unlink and picking who to link are sent once, however fast they're
 // tapped, and Unlink waits while its unlink is on its way. Saying which Plex account someone
 // is takes a pick and a confirm, the search stays while it filters, and the link sheet
-// starts fresh for each person and says why a link failed.
+// starts fresh for each person and says why a link failed. A Never remove that fails puts
+// the person back as they were, Warned too, unless no answer came: then what the bot says
+// once People is reloaded stands. Offline before anyone has loaded it, it says so.
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, onlineManager } from "@tanstack/react-query";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { ApiError } from "../../../api/client";
 import type { Ack, AppAdminPerson } from "../../../api/schemas";
 import type { ConfirmButton } from "../../../ui/Confirm";
 import { PeopleSection } from "../PeopleSection";
@@ -36,6 +39,7 @@ const mockClient = {
   linkPerson: jest.fn<() => Promise<Ack>>(),
   unlinkPerson: jest.fn<() => Promise<Ack>>(),
   matchPerson: jest.fn<(plexName: string, account: string) => Promise<Ack>>(),
+  keepPerson: jest.fn<(plexName: string, on: boolean) => Promise<Ack>>(),
 };
 jest.mock("../../../auth/session", () => ({
   useApi: () => mockClient,
@@ -61,6 +65,7 @@ beforeEach(() => {
   qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 });
 afterEach(async () => {
+  onlineManager.setOnline(true);
   await act(async () => { await new Promise((r) => setTimeout(r, 1600)); });
   qc.clear();
 });
@@ -176,4 +181,48 @@ test("a link that fails says why in the sheet", async () => {
   await screen.findByLabelText("Link to Sam");
   await act(async () => { await mockPresses["Link to Sam"](); });
   expect(screen.getByText("Sam is already linked to jo.")).toBeTruthy();
+});
+
+test("a Never remove that fails puts them back as they were, warned too", async () => {
+  mockClient.adminPeople.mockResolvedValue([person({ warned: true })]);
+  let refuse!: (e: Error) => void;
+  mockClient.keepPerson.mockReturnValue(new Promise<Ack>((_, rej) => { refuse = rej; }));
+  await show();
+  expect(screen.getByText("Warned")).toBeTruthy();
+  await fireEvent.press(screen.getByRole("switch", { name: "Never remove, Sam Rivers" }));
+  await settle();
+  // Kept straight away: never removed, so no longer warned.
+  expect(screen.getByText("Never removed")).toBeTruthy();
+  expect(screen.queryByText("Warned")).toBeNull();
+  await act(async () => { refuse(new Error("The server didn’t answer.")); });
+  await settle();
+  expect(screen.getByRole("switch", { name: "Never remove, Sam Rivers" })).not.toBeChecked();
+  expect(screen.queryByText("Never removed")).toBeNull();
+  expect(screen.getByText("Warned")).toBeTruthy();
+});
+
+test("a Never remove that gets no answer shows what the bot says once reloaded", async () => {
+  mockClient.adminPeople.mockResolvedValue([person({ warned: true })]);
+  let refuse!: (e: Error) => void;
+  mockClient.keepPerson.mockReturnValue(new Promise<Ack>((_, rej) => { refuse = rej; }));
+  await show();
+  await fireEvent.press(screen.getByRole("switch", { name: "Never remove, Sam Rivers" }));
+  await settle();
+  // It went through after all.
+  mockClient.adminPeople.mockResolvedValue([person({ neverRemove: true, warned: false })]);
+  await act(async () => { refuse(new ApiError(0, "The server didn’t answer.", "timeout")); });
+  await settle();
+  expect(mockClient.adminPeople).toHaveBeenCalledTimes(2);
+  expect(screen.getByRole("switch", { name: "Never remove, Sam Rivers" })).toBeChecked();
+  expect(screen.getByText("Never removed")).toBeTruthy();
+  expect(screen.queryByText("Warned")).toBeNull();
+});
+
+test("offline before anyone has loaded, it says so instead of a blank card", async () => {
+  onlineManager.setOnline(false);
+  mockClient.adminPeople.mockResolvedValue([person({})]);
+  await render(<QueryClientProvider client={qc}><PeopleSection /></QueryClientProvider>);
+  await settle();
+  expect(screen.getByText("You’re offline.")).toBeTruthy();
+  expect(mockClient.adminPeople).not.toHaveBeenCalled();
 });

@@ -2,7 +2,7 @@
 // section switch and another new link, and goes once its link stops working; a share sheet
 // that fails says so; Next on the name
 // moves to the email; Plex invites sent to a username are listed by name, without buttons
-// that can't work.
+// that can't work. Plex invites that can't be loaded say so, with Try again.
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
@@ -191,4 +191,16 @@ test("Plex invites sent to a username show by name and point to plex.tv", async 
   // Each row has a key of its own.
   expect(errors.mock.calls.some((c) => String(c[0]).includes("same key"))).toBe(false);
   errors.mockRestore();
+});
+
+test("Plex invites that couldn't be loaded say so, with Try again", async () => {
+  mockClient.plexInvites.mockRejectedValueOnce(new Error("Plex didn’t answer."))
+    .mockResolvedValue([{ email: "sam@example.com", name: "", who: "Sam", sentAt: "2026-10-01T10:00:00Z" }]);
+  await show();
+  expect(screen.getByText("Couldn’t load the Plex invites nobody has accepted.")).toBeTruthy();
+  expect(screen.getByText("Plex didn’t answer.")).toBeTruthy();
+  await fireEvent.press(screen.getByLabelText("Try again"));
+  await settle();
+  expect(screen.getByText("Waiting on Plex · 1")).toBeTruthy();
+  expect(screen.queryByText("Plex didn’t answer.")).toBeNull();
 });

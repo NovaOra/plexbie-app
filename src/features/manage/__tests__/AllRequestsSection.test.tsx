@@ -1,6 +1,7 @@
 // Manage → All requests: a search that fails or waits for a connection says so (never
 // "Nothing found"), the header keeps its 30-day wording until every request has loaded
-// (with a way to try again when that fails), and a long list arrives 50 rows at a time.
+// (with a way to try again when that fails), and a long list arrives 50 rows at a time. A
+// first load that fails or waits for a connection says so, instead of a list of zeros.
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import { QueryClient, QueryClientProvider, onlineManager } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
@@ -137,4 +138,23 @@ test("a long history shows 50 rows at a time", async () => {
   // Coming back refreshes the full history in the background; let that land inside the test.
   await waitFor(() => expect(qc.isFetching()).toBe(0));
   expect(cards()).toHaveLength(50);
+});
+
+test("a first load that fails says so with Try again, instead of an empty list of zeros", async () => {
+  mockAdminAll.mockRejectedValueOnce(new Error("The server didn’t answer.")).mockResolvedValue(recent);
+  await show();
+  expect(await screen.findByText("Couldn’t load requests.")).toBeTruthy();
+  expect(screen.getByText("The server didn’t answer.")).toBeTruthy();
+  expect(screen.queryByText(/ · 0$/)).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+  await waitFor(() => expect(cards()).toHaveLength(2));
+  expect(screen.queryByText("Couldn’t load requests.")).toBeNull();
+});
+
+test("offline before anything has loaded, it says so instead of a list of zeros", async () => {
+  onlineManager.setOnline(false);
+  mockAdminAll.mockResolvedValue(recent);
+  await show();
+  expect(await screen.findByText("You’re offline.")).toBeTruthy();
+  expect(screen.queryByText(/ · 0$/)).toBeNull();
 });

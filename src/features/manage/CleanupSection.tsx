@@ -5,7 +5,7 @@
 // the same as /cleanup exempt add in Discord.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { SwitchRow } from "../../ui/SwitchRow";
 import { ApiError } from "../../api/client";
 import type { AppAdminCleanup, AppCleanupMatch, AppCleanupRow, AppCleanupSettings, AppKept } from "../../api/schemas";
@@ -14,8 +14,9 @@ import { Button } from "../../ui/Button";
 import { useConfirm } from "../../ui/Confirm";
 import { Chip } from "../../ui/Chip";
 import { Text } from "../../ui/Text";
-import { color, font, radius, space, TOUCH } from "../../ui/theme";
-import { AllClear, Heading, card } from "./bits";
+import { QueryGate } from "../../ui/QueryGate";
+import { color, font, radius, space } from "../../ui/theme";
+import { AllClear, Heading, TextField, card, optimistic } from "./bits";
 import { Stepper } from "./Stepper";
 import { useAct, useAdminKey } from "./useAdmin";
 import { GlassFill, glass } from "../../ui/Glass";
@@ -40,14 +41,7 @@ export function CleanupSection({ onFieldFocus }: { onFieldFocus?: () => void }) 
   const cleanup = useCleanup();
   const [view, setView] = useState<View3>("soon");
   const d = cleanup.data;
-  if (!d) {
-    return cleanup.error ? (
-      <>
-        <Text variant="body">Couldn’t load cleanup. {cleanup.error.message}</Text>
-        <Button kind="secondary" label="Try again" onPress={() => void cleanup.refetch()} style={styles.start} />
-      </>
-    ) : <View style={[card.box, { height: 220 }]} />;
-  }
+  if (!d) return <QueryGate query={cleanup} errorTitle="Couldn’t load cleanup." height={220} />;
   const views: [View3, string, number][] = [["soon", "Leaving soon", d.warning.length], ["next", "Next up", d.upcoming.length], ["kept", "Kept", d.exempt.length]];
   return (
     <>
@@ -220,30 +214,27 @@ function useKeep() {
   const key = useAdminKey()("cleanup");
   const { act } = useAct();
   const keep = async (row: AppCleanupRow | AppKept | AppCleanupMatch, on: boolean, quiet = false) => {
-    const before = qc.getQueryData<AppAdminCleanup>(key);
-    // Move it straight away; the server confirms, and a failure puts it back.
-    qc.setQueryData<AppAdminCleanup>(key, (x) => x && (on
-      ? {
-        ...x,
-        warning: x.warning.filter((c) => c.ratingKey !== row.ratingKey),
-        upcoming: x.upcoming.filter((c) => c.ratingKey !== row.ratingKey),
-        exempt: [{ ratingKey: row.ratingKey, title: row.title, type: row.type ?? null, year: typeof row.year === "number" ? row.year : null }, ...x.exempt.filter((e) => e.ratingKey !== row.ratingKey)],
-      }
-      : { ...x, exempt: x.exempt.filter((e) => e.ratingKey !== row.ratingKey) }));
-    const out = await act(null, () => client.exempt(row.ratingKey, on), {
-      done: () => (quiet ? null : { text: on ? `${row.title} is kept forever.` : `${row.title} is back on the clock.`, action: { label: "Undo", onPress: () => void keep(row, !on, true) } }),
-    });
-    // A failure puts back only this title, where it was: other changes may have landed since.
-    if (!out && before) {
-      const back = <T extends { ratingKey: string }>(now: T[], was: T[]) => {
-        const rest = now.filter((r) => r.ratingKey !== row.ratingKey);
-        const at = was.findIndex((r) => r.ratingKey === row.ratingKey);
-        return at < 0 ? rest : [...rest.slice(0, at), was[at], ...rest.slice(at)];
-      };
-      qc.setQueryData<AppAdminCleanup>(key, (x) => x && {
-        ...x, warning: back(x.warning, before.warning), upcoming: back(x.upcoming, before.upcoming), exempt: back(x.exempt, before.exempt),
-      });
-    }
+    // Puts this title back in a list where it was before.
+    const back = <T extends { ratingKey: string }>(now: T[], was: T[]) => {
+      const rest = now.filter((r) => r.ratingKey !== row.ratingKey);
+      const at = was.findIndex((r) => r.ratingKey === row.ratingKey);
+      return at < 0 ? rest : [...rest.slice(0, at), was[at], ...rest.slice(at)];
+    };
+    // Move it straight away; the server confirms, and a failure puts back only this title,
+    // where it was: other changes may have landed since.
+    await optimistic(qc, key,
+      (x: AppAdminCleanup) => (on
+        ? {
+          ...x,
+          warning: x.warning.filter((c) => c.ratingKey !== row.ratingKey),
+          upcoming: x.upcoming.filter((c) => c.ratingKey !== row.ratingKey),
+          exempt: [{ ratingKey: row.ratingKey, title: row.title, type: row.type ?? null, year: typeof row.year === "number" ? row.year : null }, ...x.exempt.filter((e) => e.ratingKey !== row.ratingKey)],
+        }
+        : { ...x, exempt: x.exempt.filter((e) => e.ratingKey !== row.ratingKey) }),
+      () => act(null, () => client.exempt(row.ratingKey, on), {
+        done: () => (quiet ? null : { text: on ? `${row.title} is kept forever.` : `${row.title} is back on the clock.`, action: { label: "Undo", onPress: () => void keep(row, !on, true) } }),
+      }),
+      (x, before) => ({ ...x, warning: back(x.warning, before.warning), upcoming: back(x.upcoming, before.upcoming), exempt: back(x.exempt, before.exempt) }));
     setTimeout(() => void qc.invalidateQueries({ queryKey: key }), 900);
   };
   return keep;
@@ -321,9 +312,9 @@ function KeepSearch({ kept, onFocus }: { kept: AppKept[]; onFocus?: () => void }
   return (
     <>
       <Text variant="body">Search Plex for any film or show, even one nowhere near the clock, and cleanup will never touch it.</Text>
-      <TextInput value={q} onChangeText={setQ} placeholder="Search Plex by title" placeholderTextColor={color.faint}
+      <TextField value={q} onChangeText={setQ} placeholder="Search Plex by title"
         autoCapitalize="none" autoCorrect={false} returnKeyType="search" clearButtonMode="while-editing"
-        accessibilityLabel="Search Plex by title" onFocus={onFocus} style={styles.input} />
+        accessibilityLabel="Search Plex by title" onFocus={onFocus} />
       {words ? (
         <Text variant="meta" accessibilityLiveRegion="polite">
           {found.data ? rows.length === 0 ? "Nothing on Plex by that title." : rows.length === 1 ? "1 title found" : `${rows.length} titles found`
@@ -375,8 +366,4 @@ const styles = StyleSheet.create({
   ringKept: { borderColor: color.screen },
   ringText: { fontFamily: font.bold, fontSize: 15, color: color.ink },
   hot: { color: color.tally },
-  input: {
-    minHeight: TOUCH, paddingHorizontal: space.l, borderRadius: radius.m, borderWidth: 1.5, borderColor: color.slate,
-    backgroundColor: color.field, color: color.ink, fontFamily: font.regular, fontSize: 16,
-  },
 });

@@ -3,7 +3,7 @@
 // to import it through their own Manual Import. Never blind: the files come first.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { StyleSheet, TextInput, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { ApiError, IMPORT_TIMEOUT_MS } from "../../api/client";
 import type { AppArrEpisode, AppArrItem, AppBlockedRef } from "../../api/schemas";
 import type { BlockedChoice } from "../../api/types";
@@ -13,8 +13,8 @@ import { useApi } from "../../auth/session";
 import { Button } from "../../ui/Button";
 import { HoldButton } from "../../ui/HoldButton";
 import { Text } from "../../ui/Text";
-import { color, font, radius, space } from "../../ui/theme";
-import { Heading } from "./bits";
+import { color, radius, space } from "../../ui/theme";
+import { Heading, TextField } from "./bits";
 import { useAct, useAdminKey } from "./useAdmin";
 
 /** What the button says while it's held: a little ceremony, so nobody imports blind. */
@@ -191,8 +191,8 @@ export function BlockedImport({ target, onDone }: { target: AppBlockedRef; onDon
                       label={p.options.languages.find((l) => l.id === (c.languageIds ?? f.languages.map((x) => x.id))[0])?.name ?? "Language"}
                       onChange={(v) => pick(f.name, { languageIds: [Number(v)] })} />
                   </View>
-                  <TextInput value={c.releaseGroup ?? f.releaseGroup} onChangeText={(v) => pick(f.name, { releaseGroup: v })} maxLength={60}
-                    placeholder="Release group" placeholderTextColor={color.faint} accessibilityLabel="Release group" style={styles.input} />
+                  <TextField value={c.releaseGroup ?? f.releaseGroup} onChangeText={(v) => pick(f.name, { releaseGroup: v })} maxLength={60}
+                    placeholder="Release group" accessibilityLabel="Release group" style={styles.input} />
                 </View>
               ) : null}
               <Chip label={skip ? "Skipped: tap to import it" : "Don’t import this file"} selected={skip} onPress={() => pick(f.name, { skip: !skip })} />
@@ -233,8 +233,8 @@ function ArrFinder({ app, onPick }: { app: "sonarr" | "radarr"; onPick: (item: A
   const name = app === "sonarr" ? "Sonarr" : "Radarr";
   return (
     <View style={styles.finder}>
-      <TextInput value={q} onChangeText={setQ} autoFocus placeholder={app === "sonarr" ? "Find the show in Sonarr" : "Find the film in Radarr"}
-        placeholderTextColor={color.faint} accessibilityLabel={app === "sonarr" ? "Find the show in Sonarr" : "Find the film in Radarr"} style={styles.input} />
+      <TextField value={q} onChangeText={setQ} autoFocus placeholder={app === "sonarr" ? "Find the show in Sonarr" : "Find the film in Radarr"}
+        accessibilityLabel={app === "sonarr" ? "Find the show in Sonarr" : "Find the film in Radarr"} style={styles.input} />
       {!words ? null : found.data ? (found.data.rows.length ? found.data.rows.map((r) => (
         <Button key={r.id} kind="secondary" label={`${r.title}${r.year ? ` (${r.year})` : ""}`} onPress={() => onPick(r)} />
       )) : <Text variant="meta">Nothing in {name} by that name.</Text>)
@@ -300,8 +300,7 @@ const styles = StyleSheet.create({
   edit: { gap: space.s, marginTop: space.xs },
   pills: { flexDirection: "row", flexWrap: "wrap", gap: space.s },
   finder: { gap: space.s },
-  input: { minHeight: 44, paddingHorizontal: space.m, borderRadius: radius.m, borderWidth: 1.5, borderColor: color.slate,
-    backgroundColor: color.field, color: color.ink, fontFamily: font.regular, fontSize: 16 },
+  input: { paddingHorizontal: space.m },
   row: { gap: space.s, padding: space.m, borderRadius: radius.m, backgroundColor: color.panel },
   start: { alignSelf: "flex-start" },
 });

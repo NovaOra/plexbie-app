@@ -1,12 +1,15 @@
 // Small pieces Manage's sections share: a section heading with a count, an "all clear"
-// note, a status pill, and an initial in a circle. And two the request and ticket screens
-// share: the "looks stuck" box and the search fixes.
-import { StyleSheet, View } from "react-native";
+// note, a status pill, an initial in a circle, a one-line text field and the "Find someone"
+// search, and a change shown before the bot has taken it. And two the request and ticket
+// screens share: the "looks stuck" box and the search fixes.
+import type { QueryClient, QueryKey } from "@tanstack/react-query";
+import type { Ref } from "react";
+import { StyleSheet, TextInput, View, type TextInputProps } from "react-native";
 import type { HelpSearch } from "../../api/client";
 import { Button } from "../../ui/Button";
 import { detailStyles } from "../../ui/DetailPage";
 import { Text } from "../../ui/Text";
-import { color, font, radius, space } from "../../ui/theme";
+import { color, font, radius, space, TOUCH } from "../../ui/theme";
 
 export function Heading({ title, count }: { title: string; count?: number }) {
   return (
@@ -35,6 +38,30 @@ export function Initial({ name }: { name: string }) {
       <Text style={styles.initialText}>{(name.trim()[0] ?? "?").toUpperCase()}</Text>
     </View>
   );
+}
+
+/** A one-line text field, styled as every other in Manage. */
+export function TextField({ ref, style, ...props }: TextInputProps & { ref?: Ref<TextInput> }) {
+  return <TextInput ref={ref} placeholderTextColor={color.faint} {...props} style={[styles.field, style]} />;
+}
+
+/** "Find someone" over a list of people; `label` names another search. */
+export function SearchField({ value, onChangeText, label = "Find someone" }: { value: string; onChangeText: (q: string) => void; label?: string }) {
+  return <TextField value={value} onChangeText={onChangeText} placeholder={label} accessibilityLabel={label} autoCorrect={false} autoCapitalize="none" />;
+}
+
+/**
+ * Shows a change straight away, before the bot has it: `change` patches the data under `key`,
+ * then `send` runs (an act, null when it failed). On a failure `undo` puts back what the
+ * change touched, from the data now and as it was before; other changes may have landed
+ * since, so it shouldn't simply restore the old data. Answers what `send` did.
+ */
+export async function optimistic<T, R>(qc: QueryClient, key: QueryKey, change: (d: T) => T, send: () => Promise<R | null>, undo: (now: T, before: T) => T) {
+  const before = qc.getQueryData<T>(key);
+  qc.setQueryData<T>(key, (d) => (d === undefined ? d : change(d)));
+  const out = await send();
+  if (out === null && before !== undefined) qc.setQueryData<T>(key, (d) => (d === undefined ? d : undo(d, before)));
+  return out;
 }
 
 /** Why a request looks stuck, one warning a line. Nothing when it doesn't. */
@@ -98,5 +125,9 @@ const styles = StyleSheet.create({
   stuckBox: { gap: space.s, backgroundColor: "rgba(255, 92, 147, 0.1)", borderColor: "rgba(255, 92, 147, 0.45)" },
   stuck: { color: color.tally },
   fixes: { flexDirection: "row", flexWrap: "wrap", gap: space.s },
+  field: {
+    minHeight: TOUCH, paddingHorizontal: space.l, borderRadius: radius.m, borderWidth: 1.5, borderColor: color.slate,
+    backgroundColor: color.field, color: color.ink, fontFamily: font.regular, fontSize: 16,
+  },
   fix: { flexGrow: 1, flexBasis: 150 },
 });

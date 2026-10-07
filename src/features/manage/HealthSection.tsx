@@ -5,9 +5,10 @@ import { StyleSheet, View } from "react-native";
 import { useApi } from "../../auth/session";
 import { Button } from "../../ui/Button";
 import { Text } from "../../ui/Text";
+import { QueryGate } from "../../ui/QueryGate";
 import { color, radius, space } from "../../ui/theme";
 import { since } from "../requests/stage";
-import { AllClear, Heading, card } from "./bits";
+import { AllClear, Heading } from "./bits";
 import { BlockedList } from "./BlockedImport";
 import { useAdminKey } from "./useAdmin";
 
@@ -40,7 +41,7 @@ export function HealthSection() {
           {health.isPaused ? "Offline" : "Couldn’t check"}. Last checked {checked}.
         </Text>
       ) : null}
-      {!rows ? (health.error ? <Text variant="body">{health.error.message}</Text> : <View style={[card.box, { height: 180 }]} />)
+      {!rows ? <QueryGate query={health} errorTitle="Couldn’t check the services." height={180} />
         : !rows.length ? <AllClear title="Nothing to check yet">Connect Sonarr, Radarr, Seerr, Tautulli or SABnzbd on the setup page and they’re watched here.</AllClear>
         : rows.map((h) => (
           <View key={h.name} style={[styles.item, !h.ok && styles.down, stale && styles.stale]} accessible
@@ -53,7 +54,10 @@ export function HealthSection() {
             </View>
           </View>
         ))}
-      <Button kind="secondary" label="Check again" busy={health.isFetching} busyLabel="Checking…" onPress={() => void health.refetch()} style={{ alignSelf: "flex-start" }} />
+      {/* Before the first check is in, the gate above has its own Try again. */}
+      {rows ? (
+        <Button kind="secondary" label="Check again" busy={health.isFetching} busyLabel="Checking…" onPress={() => void health.refetch()} style={{ alignSelf: "flex-start" }} />
+      ) : null}
     </>
   );
 }

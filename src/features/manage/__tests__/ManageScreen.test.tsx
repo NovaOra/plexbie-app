@@ -3,7 +3,8 @@
 // return to Messages. Services down and titles leaving show beside the picker, as links
 // big enough to tap. A new invite link waits there too, and is still on Invites after
 // another section. Someone who isn't an admin (an old alert, a link) is told it's for
-// admins, and none of its sections is asked for.
+// admins, and none of its sections is asked for. Until it's known who's signed in, offline
+// says so, and a failed ask can be tried again.
 import { beforeEach, expect, jest, test } from "@jest/globals";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react-native";
@@ -20,7 +21,7 @@ jest.mock("expo-router", () => ({
   router: { setParams: jest.fn((p: object) => { mockParams = { ...mockParams, ...p }; }), navigate: jest.fn() },
 }));
 // Who's signed in, as the bot last said.
-let mockMe: { data?: { admin?: boolean; member?: boolean } } = {};
+let mockMe: { data?: { admin?: boolean; member?: boolean }; error?: Error | null; fetchStatus?: string; isFetching?: boolean; refetch?: () => unknown } = {};
 jest.mock("../../me/useMe", () => ({ useMe: () => mockMe }));
 // Whether each count behind the picker was allowed to load.
 let mockAsked: Record<string, boolean | undefined> = {};
@@ -173,4 +174,22 @@ test("nothing is asked for until it's known who's signed in", async () => {
   expect(screen.queryByText(/section/)).toBeNull();
   expect(screen.queryByText("This page is for admins.")).toBeNull();
   for (const c of COUNTS) expect([c, mockAsked[c]]).toEqual([c, false]);
+});
+
+test("offline before it's known who's signed in, it says so", async () => {
+  mockMe = { error: null, fetchStatus: "paused", isFetching: false, refetch: jest.fn() };
+  await render(page());
+  expect(screen.getByText("You’re offline.")).toBeTruthy();
+  expect(screen.queryByLabelText("Loading")).toBeNull();
+  for (const c of COUNTS) expect([c, mockAsked[c]]).toEqual([c, false]);
+});
+
+test("a failed ask of who's signed in can be tried again", async () => {
+  const refetch = jest.fn();
+  mockMe = { error: new Error("The server didn’t answer."), fetchStatus: "idle", isFetching: false, refetch };
+  await render(page());
+  expect(screen.getByText("Couldn’t load Manage.")).toBeTruthy();
+  expect(screen.getByText("The server didn’t answer.")).toBeTruthy();
+  await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+  expect(refetch).toHaveBeenCalledTimes(1);
 });

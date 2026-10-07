@@ -35,7 +35,7 @@ export function AdminTicketScreen() {
   const who = useMe();
   const me = who.data?.user.name;
   const detailKey = [...key("tickets"), "ticket", id] as const;
-  const { data: t, error, refetch } = useQuery({
+  const { data: t, error, refetch, fetchStatus } = useQuery({
     queryKey: detailKey, queryFn: ({ signal }) => client.adminTicket(id, signal), refetchInterval: 30_000,
   });
   const { busy, isBusy, act } = useAct();
@@ -58,7 +58,7 @@ export function AdminTicketScreen() {
     return !!out;
   };
 
-  if (!t) return <DetailFallback error={error} errorTitle="Couldn’t load this ticket." onRetry={() => void refetch()} />;
+  if (!t) return <DetailFallback error={error} errorTitle="Couldn’t load this ticket." onRetry={() => void refetch()} offline={fetchStatus === "paused"} />;
 
   const state = ticketState(t);
   const open = t.status === "open";

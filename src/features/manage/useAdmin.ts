@@ -28,7 +28,7 @@ export function useAdminKey() {
  * Several can be on their way at once, each busy until its own is in; another call with an
  * id that's still on its way is ignored (null, nothing toasted). A refusal because the
  * sign-in has ended signs out, as it does for a read. `onFail` hears the failure as toasted,
- * for a sheet the toast would sit behind.
+ * for a sheet the toast would sit behind, and whether it was that no answer came.
  * `busy` is the latest id still on its way (or null); `isBusy(id)` asks about one.
  */
 export function useAct() {
@@ -43,7 +43,7 @@ export function useAct() {
     call: () => Promise<Ack>,
     opts: {
       done?: (out: Ack) => ToastIn | null; failText?: string; refresh?: Section[]; reward?: boolean; recheck?: () => Promise<unknown>;
-      onFail?: (t: ToastIn) => void;
+      onFail?: (t: ToastIn, unanswered: boolean) => void;
     } = {},
   ): Promise<Ack | null> => {
     if (id) {
@@ -69,7 +69,7 @@ export function useAct() {
         : { tone: "error", text: opts.failText ?? (e instanceof Error ? e.message : "That didn’t work."),
           detail: opts.failText && e instanceof Error ? e.message : undefined };
       toast(t);
-      opts.onFail?.(t);
+      opts.onFail?.(t, unsure);
       return null;
     } finally {
       if (unsure) {

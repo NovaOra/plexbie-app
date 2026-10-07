@@ -17,6 +17,7 @@ import { Button } from "../../ui/Button";
 import { Chip } from "../../ui/Chip";
 import { Poster } from "../../ui/Poster";
 import { PressableScale } from "../../ui/Pressable";
+import { QueryGate } from "../../ui/QueryGate";
 import { Text } from "../../ui/Text";
 import { color, font, radius, space } from "../../ui/theme";
 import { useArt } from "../art";
@@ -42,29 +43,32 @@ export function TitleScreen() {
     enabled: !!kind && !!id,
   });
 
-  // A failed background refetch keeps the loaded page (and the season pick) on screen.
-  if (!kind || !id || (title.error && !title.data)) {
+  if (!kind || !id) {
     return (
       <View style={[styles.page, { paddingBottom: insets.bottom }]}>
         <BackHeader />
         <View style={styles.pad}>
           <Text variant="title" accessibilityRole="alert">Couldn’t load this title.</Text>
-          <Text variant="body">{title.error?.message ?? "That link doesn’t point at a title."}</Text>
-          {title.error ? <Button kind="secondary" label="Try again" onPress={() => void title.refetch()} style={styles.start} /> : null}
+          <Text variant="body">That link doesn’t point at a title.</Text>
         </View>
       </View>
     );
   }
+  // A failed background refetch keeps the loaded page (and the season pick) on screen.
   if (!title.data) {
     return (
-      <View style={styles.page}>
+      <View style={[styles.page, { paddingBottom: insets.bottom }]}>
         <BackHeader />
-        <View style={[styles.pad, styles.head]} accessible accessibilityLabel="Loading">
-          <View style={[styles.poster, styles.skeleton]} />
-          <View style={{ flex: 1, gap: space.m }}>
-            <View style={[styles.skeleton, { height: 28, width: "80%" }]} />
-            <View style={[styles.skeleton, { height: 16, width: "55%" }]} />
-          </View>
+        <View style={styles.pad}>
+          <QueryGate query={title} errorTitle="Couldn’t load this title." skeleton={
+            <View style={styles.head}>
+              <View style={[styles.poster, styles.skeleton]} />
+              <View style={{ flex: 1, gap: space.m }}>
+                <View style={[styles.skeleton, { height: 28, width: "80%" }]} />
+                <View style={[styles.skeleton, { height: 16, width: "55%" }]} />
+              </View>
+            </View>
+          } />
         </View>
       </View>
     );

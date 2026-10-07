@@ -11,6 +11,7 @@ import { GlassFill, glass } from "../../ui/Glass";
 import { PickerPill } from "../../ui/PickerSheet";
 import { PressableScale } from "../../ui/Pressable";
 import { Text } from "../../ui/Text";
+import { QueryGate } from "../../ui/QueryGate";
 import { color, radius, space } from "../../ui/theme";
 import { formatSlot, seasonsLabel, since } from "../requests/stage";
 import { useMe } from "../me/useMe";
@@ -32,11 +33,7 @@ export function TicketsSection() {
   const me = useMe().data?.user.name;
   const [show, setShow] = useState<Show>("action");
   const list = tickets.data;
-  if (!list) {
-    return tickets.error
-      ? <Text variant="meta" style={styles.bad}>Couldn’t load tickets. Pull down to try again.</Text>
-      : <View style={styles.skeleton} accessibilityLabel="Loading" accessible />;
-  }
+  if (!list) return <QueryGate query={tickets} errorTitle="Couldn’t load tickets." height={120} />;
   const mine = list.rows.filter((t) => t.status === "open" && !!me && t.owner === me).length;
   const rows = list.rows.filter((t) =>
     show === "action" ? t.status === "open" && !t.waiting : show === "waiting" ? t.status === "open" && t.waiting
@@ -94,6 +91,4 @@ const styles = StyleSheet.create({
   hot: { borderColor: "rgba(255, 92, 147, 0.6)" },
   pills: { flexDirection: "row", flexWrap: "wrap", gap: space.xs, marginTop: space.xs },
   ink: { color: color.ink },
-  skeleton: { height: 120, borderRadius: radius.m, backgroundColor: color.panel },
-  bad: { color: color.tally },
 });

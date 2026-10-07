@@ -1,6 +1,6 @@
 // The frame of a pushed detail screen (a request, a ticket): the page runs up behind the
 // status bar under a floating Back and moves out of the keyboard's way. Until there's
-// something to show, DetailFallback stands in: loading, couldn't load, or not there.
+// something to show, DetailFallback stands in: loading, offline, couldn't load, or not there.
 import type { ReactNode, Ref } from "react";
 import { KeyboardAvoidingView, ScrollView, StyleSheet, View, type Text as RNText } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,6 +9,7 @@ import { Button } from "./Button";
 import { Ambient } from "./Glass";
 import { KEYBOARD_BEHAVIOR } from "./keyboard";
 import { Poster } from "./Poster";
+import { OfflineNote } from "./QueryGate";
 import { StatusBarScrim } from "./StatusBarScrim";
 import { Text } from "./Text";
 import { color, font, radius, space } from "./theme";
@@ -31,20 +32,21 @@ export function DetailPage({ scroll, children }: { scroll: Ref<ScrollView>; chil
 
 /** In the page's place until it loads: a placeholder, or `errorTitle` with Try again.
  *  `notFound` (passed once the load is done and the thing isn't in it) says so, with
- *  nothing to retry. */
-export function DetailFallback({ error, errorTitle, onRetry, notFound }: {
-  error: unknown; errorTitle: string; onRetry: () => void; notFound?: string;
+ *  nothing to retry. `offline` (the load is waiting for a connection, a Try again too) says
+ *  it loads then, in place of the last error. */
+export function DetailFallback({ error, errorTitle, onRetry, notFound, offline }: {
+  error: unknown; errorTitle: string; onRetry: () => void; notFound?: string; offline?: boolean;
 }) {
   return (
     <View style={styles.page}>
       <BackHeader />
       <View style={styles.pad}>
-        {error || notFound ? (
+        {offline && !notFound ? <OfflineNote /> : error || notFound ? (
           <>
             <Text variant="title" accessibilityRole="alert">{error ? errorTitle : notFound}</Text>
             {error ? <Button kind="secondary" label="Try again" onPress={onRetry} style={detailStyles.start} /> : null}
           </>
-        ) : <View style={styles.skeleton} accessibilityLabel="Loading" accessible />}
+        ) : <View style={styles.skeleton} accessibilityLabel="Loading" accessibilityState={{ busy: true }} accessible />}
       </View>
     </View>
   );

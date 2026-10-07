@@ -12,6 +12,7 @@ import type { AppNewInvite } from "../../api/schemas";
 import { useSession } from "../../auth/session";
 import { Button } from "../../ui/Button";
 import { PickerPill } from "../../ui/PickerSheet";
+import { QueryGate } from "../../ui/QueryGate";
 import { StatusBarScrim } from "../../ui/StatusBarScrim";
 import { ScreenTitle } from "../../ui/ScreenTitle";
 import { Text } from "../../ui/Text";
@@ -88,14 +89,14 @@ export function ManageScreen() {
     ["cleanup", "Cleanup", leaving], ["discord", "Discord", 0], ["messages", "Messages", newMessages], ["health", "Health", down],
   ];
 
-  // Not an admin, or not known yet: why there's nothing here, or that it's on its way.
+  // Not an admin, or not known yet: why there's nothing here, or that it's on its way (or
+  // waiting to be online, or couldn't be asked).
   const gate = admin ? null : me.data ? (
     <>
       <Text variant="body">This page is for admins.</Text>
       <Button kind="secondary" label="Go to Home" onPress={() => router.navigate("/home")} style={styles.home} />
     </>
-  ) : me.error ? <Text variant="body">{me.error.message}</Text>
-    : <View style={[card.box, { height: 220 }]} accessibilityLabel="Loading" accessible />;
+  ) : <QueryGate query={me} errorTitle="Couldn’t load Manage." skeleton={<View style={[card.box, { height: 220 }]} />} />;
 
   return (
     <KeyboardAvoidingView style={styles.page} behavior={KEYBOARD_BEHAVIOR}>

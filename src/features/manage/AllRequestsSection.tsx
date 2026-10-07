@@ -6,15 +6,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { StyleSheet, TextInput, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import type { AppAdminRequestRow } from "../../api/schemas";
 import { useApi } from "../../auth/session";
 import { PickerPill } from "../../ui/PickerSheet";
 import { Button } from "../../ui/Button";
 import { Text } from "../../ui/Text";
-import { color, font, radius, space, TOUCH } from "../../ui/theme";
+import { QueryGate } from "../../ui/QueryGate";
+import { color, space } from "../../ui/theme";
 import { RequestCard } from "../requests/RequestCard";
-import { AllClear } from "./bits";
+import { AllClear, TextField } from "./bits";
 import { useAdminKey } from "./useAdmin";
 
 type Show = "everything" | "progress" | "stuck" | "waiting" | "finished" | "declined";
@@ -81,26 +82,25 @@ export function AllRequestsSection() {
       <Text variant="body">
         Every request from everyone, waiting, approved or declined, and where each one is now. {everything ? "Showing every request since No. 0001." : "Showing the last 30 days, and anything still on its way."}
       </Text>
-      <TextInput value={q} onChangeText={setQ} placeholder="Search every request" placeholderTextColor={color.faint}
+      <TextField value={q} onChangeText={setQ} placeholder="Search every request"
         autoCapitalize="none" autoCorrect={false} returnKeyType="search" clearButtonMode="while-editing"
-        accessibilityLabel="Search every request, by title, who asked, or number" style={styles.input} />
+        accessibilityLabel="Search every request, by title, who asked, or number" />
       {words ? (
         <Text variant="meta" accessibilityLiveRegion="polite">
           {found.data ? rows.length === 0 ? "Nothing found" : rows.length === 1 ? "1 request found" : `${rows.length} requests found`
             : found.isPaused ? "Offline. Plexbie searches when you’re back online."
             : found.error && !found.isFetching ? "Couldn’t search." : "Searching…"}
         </Text>
-      ) : (
+      ) : all.data ? (
         <View style={styles.picker}>
           <PickerPill title="Show" label={options.find((o) => o.value === show)!.label} value={show} options={options}
             onChange={(v) => setShow(v as Show)} />
         </View>
-      )}
-      {!words && all.isLoading ? <View style={styles.skeleton} accessibilityLabel="Loading" accessible /> : null}
+      ) : <QueryGate query={recent} errorTitle="Couldn’t load requests." height={120} />}
       {words && found.error && !found.data && !found.isFetching ? (
         <Button kind="secondary" label="Try again" onPress={() => void found.refetch()} style={styles.start} />
       ) : null}
-      {!words && all.error ? <Text variant="meta" style={styles.bad}>Couldn’t load requests. Pull down to try again.</Text> : null}
+      {!words && all.error && all.data ? <Text variant="meta" style={styles.bad}>Couldn’t load requests. Pull down to try again.</Text> : null}
       {!words && history && every.error && !every.data && !every.isFetching ? (
         <>
           <Text variant="meta" style={styles.bad} accessibilityRole="alert">Couldn’t load every request.</Text>
@@ -136,12 +136,7 @@ export function AllRequestsSection() {
 
 const styles = StyleSheet.create({
   section: { gap: space.m },
-  input: {
-    minHeight: TOUCH, paddingHorizontal: space.l, borderRadius: radius.m, borderWidth: 1.5, borderColor: color.slate,
-    backgroundColor: color.field, color: color.ink, fontFamily: font.regular, fontSize: 16,
-  },
   picker: { flexDirection: "row" },
-  skeleton: { height: 120, borderRadius: radius.m, backgroundColor: color.panel },
   bad: { color: color.tally },
   more: { alignSelf: "center" },
   start: { alignSelf: "flex-start" },

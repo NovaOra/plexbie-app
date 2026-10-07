@@ -1,5 +1,6 @@
 // What a detail screen shows until it has its request or ticket: a placeholder while it
 // loads, the error with a way to try again, or, once loaded, that the thing isn't there.
+// Offline before it has loaded, it says it loads once back online, even after a failed load.
 import { expect, jest, test } from "@jest/globals";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { DetailFallback } from "../DetailPage";
@@ -17,7 +18,7 @@ jest.mock("../Glass", () => ({ Ambient: () => null, GlassFill: () => null, Frost
 
 test("while it loads, a placeholder and a way back", async () => {
   await render(<DetailFallback error={null} errorTitle="Couldn’t load this ticket." onRetry={() => undefined} />);
-  expect(screen.getByLabelText("Loading")).toBeTruthy();
+  expect(screen.getByLabelText("Loading").props.accessibilityState).toEqual({ busy: true });
   expect(screen.getByRole("button", { name: "Back" })).toBeTruthy();
   expect(screen.queryByRole("alert")).toBeNull();
 });
@@ -44,4 +45,19 @@ test("a failed load wins over not found", async () => {
     notFound="That request isn’t yours, or it’s gone." />);
   expect(screen.getByRole("alert").props.children).toBe("Couldn’t load this request.");
   expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+});
+
+test("offline before it has loaded, it says it loads once back online", async () => {
+  await render(<DetailFallback error={null} errorTitle="Couldn’t load this ticket." onRetry={() => undefined} offline />);
+  expect(screen.getByRole("alert").props.children).toBe("You’re offline.");
+  expect(screen.getByText("This loads when you’re back online.")).toBeTruthy();
+  expect(screen.queryByLabelText("Loading")).toBeNull();
+  expect(screen.getByRole("button", { name: "Back" })).toBeTruthy();
+});
+
+test("a failed load tried again offline says it's offline, not the old error", async () => {
+  await render(<DetailFallback error={new Error("The server didn’t answer.")} errorTitle="Couldn’t load this ticket." onRetry={() => undefined} offline />);
+  expect(screen.getByRole("alert").props.children).toBe("You’re offline.");
+  expect(screen.queryByText("Couldn’t load this ticket.")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
 });

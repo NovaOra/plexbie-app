@@ -12,6 +12,7 @@ import { since } from "../requests/stage";
 import { AllClear, Heading, Initial, Pill, card } from "./bits";
 import { useAct, useAdminKey } from "./useAdmin";
 import { GlassFill, glass } from "../../ui/Glass";
+import { QueryGate } from "../../ui/QueryGate";
 import { radius } from "../../ui/theme";
 
 export function useJoins(enabled = true) {
@@ -28,14 +29,7 @@ export function JoinsSection() {
   const joins = useJoins();
   const { isBusy, act } = useAct();
 
-  if (!joins.data) {
-    return joins.error ? (
-      <>
-        <Text variant="body">Couldn’t load join requests. {joins.error.message}</Text>
-        <Button kind="secondary" label="Try again" onPress={() => void joins.refetch()} style={{ alignSelf: "flex-start" }} />
-      </>
-    ) : <View style={[card.box, { height: 150 }]} />;
-  }
+  if (!joins.data) return <QueryGate query={joins} errorTitle="Couldn’t load join requests." height={150} />;
   const pending = joins.data.filter((j) => j.status === "pending");
   const earlier = joins.data.filter((j) => j.status !== "pending");
 

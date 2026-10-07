@@ -40,7 +40,7 @@ export function AdminRequestScreen() {
   const qc = useQueryClient();
   const heading = useFocusHere();
   const detailKey = [...key("all"), "request", id] as const;
-  const { data: r, error, refetch } = useQuery({
+  const { data: r, error, refetch, fetchStatus } = useQuery({
     queryKey: detailKey, queryFn: ({ signal }) => client.adminRequest(id, signal), refetchInterval: 30_000,
   });
   const { busy, isBusy, act } = useAct();
@@ -75,7 +75,7 @@ export function AdminRequestScreen() {
     after();
   };
 
-  if (!r) return <DetailFallback error={error} errorTitle="Couldn’t load this request." onRetry={() => void refetch()} />;
+  if (!r) return <DetailFallback error={error} errorTitle="Couldn’t load this request." onRetry={() => void refetch()} offline={fetchStatus === "paused"} />;
 
   // Only an approved request can be searched for (not one waiting for a decision, or declined).
   const video = (r.title.kind === "tv" || r.title.kind === "movie") && !["requested", "declined", "closed"].includes(r.stage);

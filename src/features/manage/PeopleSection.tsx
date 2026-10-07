@@ -3,7 +3,7 @@
 // confirm), keep someone forever (with Undo), or remove them from Plex (after a confirm).
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, KeyboardAvoidingView, Modal, Platform, StyleSheet, TextInput, View } from "react-native";
+import { FlatList, KeyboardAvoidingView, Modal, Platform, StyleSheet, View } from "react-native";
 import { SwitchRow } from "../../ui/SwitchRow";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { AppAdminPerson } from "../../api/schemas";
@@ -14,9 +14,10 @@ import { useConfirm } from "../../ui/Confirm";
 import { Chip } from "../../ui/Chip";
 import { PressableScale } from "../../ui/Pressable";
 import { Text } from "../../ui/Text";
-import { color, font, radius, space, TOUCH } from "../../ui/theme";
+import { QueryGate } from "../../ui/QueryGate";
+import { color, font, radius, space } from "../../ui/theme";
 import { since } from "../requests/stage";
-import { AllClear, Heading, Initial, Pill, card } from "./bits";
+import { AllClear, Heading, Initial, Pill, SearchField, TextField, card, optimistic } from "./bits";
 import { useAct, useAdminKey } from "./useAdmin";
 import { GlassFill, glass } from "../../ui/Glass";
 import { KEYBOARD_BEHAVIOR } from "../../ui/keyboard";
@@ -45,14 +46,7 @@ export function PeopleSection() {
     [rows, q],
   );
 
-  if (!rows) {
-    return people.error ? (
-      <>
-        <Text variant="body">Couldn’t load people. {people.error.message}</Text>
-        <Button kind="secondary" label="Try again" onPress={() => void people.refetch()} style={styles.start} />
-      </>
-    ) : <View style={[card.box, { height: 200 }]} />;
-  }
+  if (!rows) return <QueryGate query={people} errorTitle="Couldn’t load people." height={200} />;
 
   const link = async (p: AppAdminPerson, m: { id: string; name: string }, quiet = false, onFail?: (t: ToastIn) => void) => {
     const out = await act(`link:${p.plexName}`, () => client.linkPerson(p.plexName, m.id), {
@@ -77,12 +71,20 @@ export function PeopleSection() {
     setRenaming(null);
   };
   const keep = async (p: AppAdminPerson, on: boolean) => {
-    patch((d) => d.map((x) => (x.plexName === p.plexName ? { ...x, neverRemove: on, warned: on ? false : x.warned } : x)));
-    const out = await act(null, () => client.keepPerson(p.plexName, on), {
-      done: (o) => ({ text: o.message || (on ? "Never removed" : "Back on the check"), action: { label: "Undo", onPress: () => void keep(p, !on) } }),
-      refresh: ["people"],
-    });
-    if (!out) patch((d) => d.map((x) => (x.plexName === p.plexName ? { ...x, neverRemove: !on } : x)));
+    const them = (d: AppAdminPerson[], fn: (x: AppAdminPerson) => AppAdminPerson) => d.map((x) => (x.plexName === p.plexName ? fn(x) : x));
+    // Kept means no longer warned; a failure puts both back as they were. With no answer it
+    // may have gone through: People has been reloaded by then, and what the bot says stands.
+    let unanswered = false;
+    await optimistic(qc, key,
+      (d: AppAdminPerson[]) => them(d, (x) => ({ ...x, neverRemove: on, warned: on ? false : x.warned })),
+      () => act(null, () => client.keepPerson(p.plexName, on), {
+        done: (o) => ({ text: o.message || (on ? "Never removed" : "Back on the check"), action: { label: "Undo", onPress: () => void keep(p, !on) } }),
+        refresh: ["people"], onFail: (_, u) => { unanswered = u; },
+      }),
+      (now, before) => {
+        const was = unanswered ? undefined : before.find((x) => x.plexName === p.plexName);
+        return was ? them(now, (x) => ({ ...x, neverRemove: was.neverRemove, warned: was.warned })) : now;
+      });
   };
   const match = async (p: AppAdminPerson, account: string) => {
     const out = await act(p.plexName, () => client.matchPerson(p.plexName, account), {
@@ -118,8 +120,7 @@ export function PeopleSection() {
       <Heading title="Who’s on Plex" count={rows.length} />
       <Text variant="meta">Everyone your server is shared with. Closest to removal first; top-three watchers are always safe, and watching anything resets the clock.</Text>
       {rows.length > 4 || query ? (
-        <TextInput value={query} onChangeText={setQuery} placeholder="Find someone" placeholderTextColor={color.faint}
-          autoCorrect={false} autoCapitalize="none" accessibilityLabel="Find someone" style={styles.search} />
+        <SearchField value={query} onChangeText={setQuery} />
       ) : null}
       {!rows.length ? <AllClear title="Nobody else yet">When you share the server with someone (an invite link, or in Plex), they show up here.</AllClear> : null}
       {shown.map((p) => {
@@ -161,8 +162,8 @@ export function PeopleSection() {
             {renaming === p.plexName ? (
               <View style={styles.stack}>
                 <Text variant="meta">Shown everywhere in Plexbie and in Tautulli. Their Plex username stays {p.plexName}.</Text>
-                <TextInput value={newName} onChangeText={setNewName} maxLength={40} autoFocus accessibilityLabel={`Display name for ${p.plexName}`}
-                  returnKeyType="done" onSubmitEditing={() => { if (newName.trim()) void rename(p); }} style={styles.search} />
+                <TextField value={newName} onChangeText={setNewName} maxLength={40} autoFocus accessibilityLabel={`Display name for ${p.plexName}`}
+                  returnKeyType="done" onSubmitEditing={() => { if (newName.trim()) void rename(p); }} />
                 <View style={card.actions}>
                   <Button kind="secondary" label="Back" onPress={() => setRenaming(null)} style={card.grow} accessibilityLabel={`Back, keep ${name}`} />
                   <Button label="Save" busy={isBusy(p.plexName)} disabled={!newName.trim()} onPress={() => void rename(p)} style={card.grow}
@@ -258,8 +259,7 @@ function LinkSheet({ person, onClose, onPick }: {
         <View style={[styles.sheet, { paddingTop: (Platform.OS === "android" ? insets.top : 0) + space.xl, paddingBottom: insets.bottom + space.l }]}>
           <Text variant="title" accessibilityRole="header" style={styles.sheetTitle}>Link {person?.displayName || person?.plexName}</Text>
           <Text variant="meta">Which Discord member is this? Linking keeps Discord and Plex together for requests, alerts and the inactivity check.</Text>
-          <TextInput value={q} onChangeText={setQ} placeholder="Search Discord members" placeholderTextColor={color.faint}
-            autoCorrect={false} autoCapitalize="none" accessibilityLabel="Search Discord members" style={styles.search} />
+          <SearchField value={q} onChangeText={setQ} label="Search Discord members" />
           {candidates.error ? <Text variant="body">{candidates.error.message}</Text> : null}
           {/* Shown here: a toast would sit behind this sheet. */}
           {problem ? <Text variant="meta" style={styles.bad} accessibilityRole="alert">{problem}</Text> : null}
@@ -304,10 +304,6 @@ const styles = StyleSheet.create({
   textButton: { justifyContent: "center" },
   textButtonText: { color: color.screen, fontSize: 15 },
   stack: { gap: space.s },
-  search: {
-    minHeight: TOUCH, paddingHorizontal: space.l, borderRadius: radius.m, borderWidth: 1.5, borderColor: color.slate,
-    backgroundColor: color.field, color: color.ink, fontFamily: font.regular, fontSize: 16,
-  },
   meter: { height: 6, borderRadius: 3, backgroundColor: color.rule, overflow: "hidden" },
   meterFill: { height: 6, borderRadius: 3 },
   safe: { backgroundColor: color.screen },

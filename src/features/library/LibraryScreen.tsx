@@ -8,8 +8,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { AppLibraryItem } from "../../api/schemas";
 import { useApi, useSession } from "../../auth/session";
 import { announce } from "../../ui/announce";
-import { Button } from "../../ui/Button";
 import { PickerPill } from "../../ui/PickerSheet";
+import { QueryGate } from "../../ui/QueryGate";
 import { StatusBarScrim } from "../../ui/StatusBarScrim";
 import { ScreenTitle } from "../../ui/ScreenTitle";
 import { Text } from "../../ui/Text";
@@ -94,13 +94,9 @@ export function LibraryScreen() {
     </View>
   );
 
-  const empty = items.error && !current ? (
-    <View style={styles.message}>
-      <Text variant="body">Couldn’t load this shelf from Plex. Nothing is lost.</Text>
-      <Button kind="secondary" label="Try again" onPress={() => void items.refetch()} style={styles.start} />
-    </View>
-  ) : !current ? (
-    <View style={styles.skeletons}>{Array.from({ length: columns * 3 }, (_, i) => <View key={i} style={[styles.skeleton, { width: itemWidth }]} />)}</View>
+  const empty = !current ? (
+    <QueryGate query={items} errorTitle="Couldn’t load this shelf from Plex."
+      skeleton={<View style={styles.skeletons}>{Array.from({ length: columns * 3 }, (_, i) => <View key={i} style={[styles.skeleton, { width: itemWidth }]} />)}</View>} />
   ) : (
     <Text variant="body" style={styles.message}>
       {genre ? "Nothing on this shelf matches. Try another genre, or request it." : "Nothing on this shelf yet. Ask for something and it lands here."}
@@ -138,7 +134,6 @@ const styles = StyleSheet.create({
   bar: { flexDirection: "row", flexWrap: "wrap", gap: space.s },
   total: { marginTop: space.xs },
   gridRow: { gap: GAP, marginBottom: space.l },
-  start: { alignSelf: "flex-start" },
   message: { paddingVertical: space.l, gap: space.m },
   skeletons: { flexDirection: "row", flexWrap: "wrap", gap: GAP },
   skeleton: { aspectRatio: 2 / 3, borderRadius: radius.s, backgroundColor: color.panel },

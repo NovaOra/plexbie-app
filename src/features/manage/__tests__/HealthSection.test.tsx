@@ -1,6 +1,7 @@
 // Manage → Health: rows already on screen don't go on looking current after a check fails
 // or while offline (it says so, and when they were last checked), and the Manage tab's
-// badge counts services that aren't answering.
+// badge counts services that aren't answering. Before the first check is in, offline says
+// so, and a check that fails says why with Try again.
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import { QueryClient, QueryClientProvider, onlineManager } from "@tanstack/react-query";
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react-native";
@@ -93,4 +94,20 @@ test("the Manage tab's badge counts services that aren't answering", async () =>
   const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
   const { result } = await renderHook(() => useManageWaiting(true), { wrapper });
   await waitFor(() => expect(result.current).toBe(2));
+});
+
+test("offline before the first check, it says so instead of a blank card", async () => {
+  onlineManager.setOnline(false);
+  await render(<QueryClientProvider client={qc}><HealthSection /></QueryClientProvider>);
+  expect(await screen.findByText("You’re offline.")).toBeTruthy();
+  expect(mockHealth).not.toHaveBeenCalled();
+});
+
+test("a first check that fails says why, and Try again checks again", async () => {
+  mockHealth.mockRejectedValueOnce(new Error("The server didn’t answer."));
+  await render(<QueryClientProvider client={qc}><HealthSection /></QueryClientProvider>);
+  expect(await screen.findByText("Couldn’t check the services.")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Check again" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+  expect(await screen.findByText("Answering in 40 ms")).toBeTruthy();
 });

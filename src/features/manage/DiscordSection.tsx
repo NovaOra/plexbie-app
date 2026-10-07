@@ -9,9 +9,10 @@ import { Button } from "../../ui/Button";
 import { useConfirm } from "../../ui/Confirm";
 import { Chip } from "../../ui/Chip";
 import { Text } from "../../ui/Text";
-import { color, font, radius, space, TOUCH } from "../../ui/theme";
+import { QueryGate } from "../../ui/QueryGate";
+import { color, font, radius, space } from "../../ui/theme";
 import { since } from "../requests/stage";
-import { Heading, Initial, Pill, card } from "./bits";
+import { Heading, Initial, Pill, SearchField, card } from "./bits";
 import { useAct, useAdminKey } from "./useAdmin";
 import { GlassFill, glass } from "../../ui/Glass";
 import type { AppDiscordOverview } from "../../api/schemas";
@@ -34,9 +35,7 @@ export function DiscordSection() {
   const [tapped, setTapped] = useState<boolean | null>(null);
   const taps = useRef({ n: 0, out: 0, kept: 0 });
   const d = discord.data;
-  if (!d) {
-    return discord.error ? <Text variant="body">{discord.error.message}</Text> : <View style={[card.box, { height: 220 }]} />;
-  }
+  if (!d) return <QueryGate query={discord} errorTitle="Couldn’t load Discord." height={220} />;
   const chosen = channel || d.channels[0]?.id || "";
   const post = async () => {
     setSending(true);
@@ -133,8 +132,7 @@ export function DiscordSection() {
       <Heading title="Who brought whom" />
       <Text variant="meta">Discord invites people used to join the server, and Plexbie invite links people used to get on Plex.</Text>
       {d.joins.length > 5 ? (
-        <TextInput value={query} onChangeText={setQuery} placeholder="Find someone" placeholderTextColor={color.faint}
-          autoCorrect={false} autoCapitalize="none" accessibilityLabel="Find someone" style={styles.search} />
+        <SearchField value={query} onChangeText={setQuery} />
       ) : null}
       {joins.map((j, i) => (
         <View key={`${j.who}-${j.at}-${i}`} style={styles.log}>
@@ -161,10 +159,6 @@ const styles = StyleSheet.create({
   message: {
     minHeight: 110, padding: space.m, borderRadius: radius.m, borderWidth: 1.5, borderColor: color.slate, backgroundColor: color.field,
     color: color.ink, fontFamily: font.regular, fontSize: 16, textAlignVertical: "top",
-  },
-  search: {
-    minHeight: TOUCH, paddingHorizontal: space.l, borderRadius: radius.m, borderWidth: 1.5, borderColor: color.slate,
-    backgroundColor: color.field, color: color.ink, fontFamily: font.regular, fontSize: 16,
   },
   log: { flexDirection: "row", alignItems: "center", gap: space.m },
 });

@@ -1,8 +1,9 @@
 // The title page: a first load that fails shows the error with a way to try again, a
 // background refetch that fails later keeps the loaded page, with the seasons ticked so far,
 // and the same screen showing another title starts that title's request form afresh.
+// Offline before the title has loaded, it says so.
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, onlineManager } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { pepper } from "../../../api/__fixtures__/bot";
 import type { AppTitle } from "../../../api/schemas";
@@ -39,7 +40,7 @@ beforeEach(() => {
   mockParams = { kind: "tv", id: pepper.id };
   qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 });
-afterEach(() => qc.clear());
+afterEach(() => { qc.clear(); onlineManager.setOnline(true); });
 
 const show = () => render(<QueryClientProvider client={qc}><TitleScreen /></QueryClientProvider>);
 const seasonTwo = () => screen.getByRole("checkbox", { name: /^Season 2,/ });
@@ -93,4 +94,13 @@ test("the same screen showing another title doesn't keep the seasons picked for 
   await waitFor(() => expect(mockTitle).toHaveBeenCalledWith("tv", other.id, expect.anything()));
   await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
   expect(screen.getByRole("header", { name: other.title })).toBeTruthy();
+});
+
+test("offline before the title has loaded, it says so instead of a placeholder", async () => {
+  onlineManager.setOnline(false);
+  mockTitle.mockResolvedValue(pepper as AppTitle);
+  await show();
+  expect(await screen.findByText("You’re offline.")).toBeTruthy();
+  expect(screen.queryByLabelText("Loading")).toBeNull();
+  expect(mockTitle).not.toHaveBeenCalled();
 });

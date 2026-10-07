@@ -11,9 +11,10 @@ import { useFocusHere } from "../../ui/announce";
 import { Button } from "../../ui/Button";
 import { PressableScale } from "../../ui/Pressable";
 import { Text } from "../../ui/Text";
+import { QueryGate } from "../../ui/QueryGate";
 import { color, font, radius, space, TOUCH } from "../../ui/theme";
 import { since } from "../requests/stage";
-import { Heading, Initial, Pill, card } from "./bits";
+import { Heading, Initial, Pill, SearchField, card } from "./bits";
 import { useMe } from "../me/useMe";
 import { useAct, useAdminKey } from "./useAdmin";
 
@@ -44,7 +45,7 @@ export function MessagesSection({ who, onClose, onComposerFocus }: { who?: strin
   const open = people.data?.find((p) => p.id === openId) ?? null;
   if (open) return <Conversation person={open} onBack={() => { setOpen(null); onClose?.(); }} onComposerFocus={onComposerFocus} />;
   const rows = people.data;
-  if (!rows) return people.error ? <Text variant="body">{people.error.message}</Text> : <View style={[card.box, { height: 220 }]} />;
+  if (!rows) return <QueryGate query={people} errorTitle="Couldn’t load messages." height={220} />;
   const q = query.trim().toLowerCase();
   const shown = q ? rows.filter((p) => p.name.toLowerCase().includes(q)) : rows;
   return (
@@ -52,8 +53,7 @@ export function MessagesSection({ who, onClose, onComposerFocus }: { who?: strin
       <Heading title="Messages" count={rows.length} />
       <Text variant="meta">Every message Plexbie sends someone and how it got there, and what they send Plexbie: DMs, “Something wrong?” and answers on their tickets. Kept for 90 days.</Text>
       {rows.length > 5 || query ? (
-        <TextInput value={query} onChangeText={setQuery} placeholder="Find someone" placeholderTextColor={color.faint}
-          autoCorrect={false} autoCapitalize="none" accessibilityLabel="Find someone" style={styles.search} />
+        <SearchField value={query} onChangeText={setQuery} />
       ) : null}
       {shown.map((p) => (
         <PressableScale key={p.id} haptic="none" onPress={() => setOpen(p.id)} style={[styles.person, p.unread > 0 && styles.unread]}
@@ -127,8 +127,8 @@ function Conversation({ person, onBack, onComposerFocus }: { person: AppMessageP
         onPress={() => void done(!handled)} style={{ alignSelf: "flex-start" }}
         accessibilityLabel={handled ? `Mark the conversation with ${person.name} unread` : `Mark the conversation with ${person.name} done`} />
       {!valid ? <Text variant="meta">This person’s messages can’t be opened here.</Text> : null}
-      {res.error ? <Text variant="body">{res.error.message}</Text> : null}
-      {valid && !res.data && !res.error ? <View style={[card.box, { height: 160 }]} /> : null}
+      {valid && !res.data ? <QueryGate query={res} errorTitle="Couldn’t load this conversation." />
+        : res.error ? <Text variant="body">{res.error.message}</Text> : null}
       {(res.data ?? []).map((m) => {
         const day = dayLabel(m.at);
         const showDay = day !== lastDay;
@@ -177,10 +177,6 @@ function Conversation({ person, onBack, onComposerFocus }: { person: AppMessageP
 }
 
 const styles = StyleSheet.create({
-  search: {
-    minHeight: TOUCH, paddingHorizontal: space.l, borderRadius: radius.m, borderWidth: 1.5, borderColor: color.slate,
-    backgroundColor: color.field, color: color.ink, fontFamily: font.regular, fontSize: 16,
-  },
   person: { flexDirection: "row", gap: space.m, padding: space.m, borderRadius: radius.m, backgroundColor: color.panel },
   top: { flexDirection: "row", alignItems: "center", gap: space.s },
   head: { flexDirection: "row", alignItems: "center", gap: space.m },

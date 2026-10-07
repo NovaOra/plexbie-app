@@ -1,7 +1,8 @@
 // Library: after a pick in Shelf, Sort or Genre, a screen reader hears how many titles
-// are on show (the count above the grid). Opening the screen says nothing extra.
+// are on show (the count above the grid). Opening the screen says nothing extra. Offline
+// before a shelf has loaded, it says so instead of empty tiles.
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, onlineManager } from "@tanstack/react-query";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { AccessibilityInfo, Text as MockText } from "react-native";
 import { LibraryScreen } from "../LibraryScreen";
@@ -44,7 +45,7 @@ beforeEach(() => {
   said = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => undefined);
   qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 });
-afterEach(() => { qc.clear(); said.mockRestore(); });
+afterEach(() => { qc.clear(); said.mockRestore(); onlineManager.setOnline(true); });
 
 test("each pick says how many titles are on show", async () => {
   await render(<QueryClientProvider client={qc}><LibraryScreen /></QueryClientProvider>);
@@ -63,4 +64,12 @@ test("each pick says how many titles are on show", async () => {
   await settle();
   expect(screen.getByText("2 titles")).toBeTruthy();
   expect(said).toHaveBeenLastCalledWith("2 titles");
+});
+
+test("offline before a shelf has loaded, it says so instead of empty tiles", async () => {
+  onlineManager.setOnline(false);
+  await render(<QueryClientProvider client={qc}><LibraryScreen /></QueryClientProvider>);
+  await settle();
+  expect(screen.getByText("You’re offline.")).toBeTruthy();
+  expect(screen.getByText("This loads when you’re back online.")).toBeTruthy();
 });

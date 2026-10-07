@@ -1,7 +1,8 @@
 // Manage → Messages, one conversation: "Add to their ticket" is its own stop for a screen
 // reader, a send the bot refused still shows what it logged, and Android Back (or the
 // on-screen one) goes back to everyone and tells Manage the conversation is closed. The
-// search stays while it filters, after the list gets shorter.
+// search stays while it filters, after the list gets shorter. A first load that fails says
+// so, with Try again.
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
@@ -121,4 +122,13 @@ test("the search stays while it filters, after the list gets shorter", async () 
   expect(screen.getByLabelText("Find someone")).toBeTruthy();
   await fireEvent.changeText(screen.getByLabelText("Find someone"), "");
   expect(screen.queryByLabelText("Find someone")).toBeNull();
+});
+
+test("a first load that fails says so, with Try again", async () => {
+  mockClient.adminMessages.mockReset();
+  mockClient.adminMessages.mockRejectedValueOnce(new Error("The server didn’t answer.")).mockResolvedValue([sam]);
+  await render(<QueryClientProvider client={qc}><MessagesSection /></QueryClientProvider>);
+  expect(await screen.findByText("Couldn’t load messages.")).toBeTruthy();
+  await fireEvent.press(screen.getByLabelText("Try again"));
+  expect(await screen.findByText("Messages · 1")).toBeTruthy();
 });

@@ -12,6 +12,7 @@ import { useConfirm } from "../../ui/Confirm";
 import { Poster } from "../../ui/Poster";
 import { Text } from "../../ui/Text";
 import { useToast } from "../../ui/Toast";
+import { QueryGate } from "../../ui/QueryGate";
 import { color, radius, space } from "../../ui/theme";
 import { KIND_LABEL, formatSlot, seasonsLabel, since } from "../requests/stage";
 import { AllClear, Heading, Pill, card } from "./bits";
@@ -72,13 +73,8 @@ export function RequestsSection() {
 
   const data = requests.data;
   if (!data) {
-    return requests.error ? (
-      <View style={styles.message}>
-        <Text variant="title" accessibilityRole="alert">Couldn’t load the queue.</Text>
-        <Text variant="body">{requests.error.message}</Text>
-        <Button kind="secondary" label="Try again" onPress={() => void requests.refetch()} style={styles.start} />
-      </View>
-    ) : <>{[0, 1].map((i) => <View key={i} style={styles.skeleton} />)}</>;
+    return <QueryGate query={requests} errorTitle="Couldn’t load the queue."
+      skeleton={<View style={styles.skeletons}>{[0, 1].map((i) => <View key={i} style={styles.skeleton} />)}</View>} />;
   }
 
   return (
@@ -131,8 +127,7 @@ export function RequestsSection() {
 }
 
 const styles = StyleSheet.create({
-  start: { alignSelf: "flex-start" },
-  message: { gap: space.s, paddingVertical: space.l },
+  skeletons: { gap: space.m },
   skeleton: { height: 170, borderRadius: radius.m, backgroundColor: color.panel },
   poster: { width: 64 },
   logRow: { flexDirection: "row", alignItems: "center", gap: space.m },

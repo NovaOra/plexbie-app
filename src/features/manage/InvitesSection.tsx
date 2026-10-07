@@ -14,9 +14,10 @@ import { useConfirm } from "../../ui/Confirm";
 import { Chip } from "../../ui/Chip";
 import { Text } from "../../ui/Text";
 import { useToast } from "../../ui/Toast";
-import { color, font, radius, space, TOUCH } from "../../ui/theme";
+import { QueryGate } from "../../ui/QueryGate";
+import { color, font, radius } from "../../ui/theme";
 import { since } from "../requests/stage";
-import { AllClear, Heading, Initial, Pill, card } from "./bits";
+import { AllClear, Heading, Initial, Pill, TextField, card } from "./bits";
 import { useAct, useAdminKey } from "./useAdmin";
 import { GlassFill, glass } from "../../ui/Glass";
 
@@ -136,12 +137,12 @@ export function InvitesSection({ fresh, onMade, onDone }: {
         <View style={[card.box, glass.surface]}>
           <GlassFill radius={radius.m} />
           <Text variant="label" nativeID="inv-name">Who’s it for?</Text>
-          <TextInput value={label} onChangeText={setLabel} placeholder="Mum" placeholderTextColor={color.faint} maxLength={60} returnKeyType="next"
-            submitBehavior="submit" onSubmitEditing={() => emailField.current?.focus()} accessibilityLabel="Who’s it for?" accessibilityLabelledBy="inv-name" style={styles.input} />
+          <TextField value={label} onChangeText={setLabel} placeholder="Mum" maxLength={60} returnKeyType="next"
+            submitBehavior="submit" onSubmitEditing={() => emailField.current?.focus()} accessibilityLabel="Who’s it for?" accessibilityLabelledBy="inv-name" />
           <Text variant="label" nativeID="inv-email">Their Plex email <Text variant="meta">(optional)</Text></Text>
-          <TextInput ref={emailField} value={email} onChangeText={setEmail} placeholder="name@example.com" placeholderTextColor={color.faint}
+          <TextField ref={emailField} value={email} onChangeText={setEmail} placeholder="name@example.com"
             keyboardType="email-address" autoCapitalize="none" autoCorrect={false} returnKeyType="done" onSubmitEditing={() => void create()}
-            accessibilityLabel="Their Plex email, optional" accessibilityLabelledBy="inv-email" style={styles.input} />
+            accessibilityLabel="Their Plex email, optional" accessibilityLabelledBy="inv-email" />
           <Text variant="meta">Locks the link to that Plex account, so a forwarded link won’t work for anyone else.</Text>
           <Text variant="label">Link works for</Text>
           <View style={card.pills} accessibilityRole="radiogroup" accessibilityLabel="Link works for">
@@ -152,10 +153,16 @@ export function InvitesSection({ fresh, onMade, onDone }: {
         </View>
       )}
 
-      <PlexInvites rows={plexInvites.data ?? []} />
+      {/* Only there when some are waiting; a load that failed still says so. */}
+      {plexInvites.error && !plexInvites.data ? (
+        <>
+          <Heading title="Waiting on Plex" />
+          <QueryGate query={plexInvites} errorTitle="Couldn’t load the Plex invites nobody has accepted." />
+        </>
+      ) : <PlexInvites rows={plexInvites.data ?? []} />}
 
       <Heading title="Open invites" count={active.length} />
-      {!rows ? (invites.error ? <Text variant="body">{invites.error.message}</Text> : <View style={[card.box, { height: 100 }]} />)
+      {!rows ? <QueryGate query={invites} errorTitle="Couldn’t load invites." height={100} />
         : active.length ? active.map((i) => (
           <View key={i.id} style={[card.box, glass.surface]}>
             <GlassFill radius={radius.m} />
@@ -283,8 +290,8 @@ function PlexInvites({ rows }: { rows: AppPlexInvite[] }) {
           </View>
           {!i.email ? null : editing === i.email ? (
             <>
-              <TextInput value={next} onChangeText={setNext} placeholder="their Plex email" placeholderTextColor={color.faint} autoFocus
-                keyboardType="email-address" autoCapitalize="none" autoCorrect={false} accessibilityLabel="The right email" style={styles.input} />
+              <TextField value={next} onChangeText={setNext} placeholder="their Plex email" autoFocus
+                keyboardType="email-address" autoCapitalize="none" autoCorrect={false} accessibilityLabel="The right email" />
               <View style={card.actions}>
                 <Button kind="secondary" label="Back" onPress={() => { setEditing(null); setNext(""); }} style={card.grow} />
                 <Button label="Send invite" busy={isBusy(i.email)} busyLabel="Sending…" disabled={!EMAIL.test(next.trim())}
@@ -305,10 +312,6 @@ function PlexInvites({ rows }: { rows: AppPlexInvite[] }) {
 }
 
 const styles = StyleSheet.create({
-  input: {
-    minHeight: TOUCH, paddingHorizontal: space.l, borderRadius: radius.m, borderWidth: 1.5, borderColor: color.slate,
-    backgroundColor: color.field, color: color.ink, fontFamily: font.regular, fontSize: 16,
-  },
   bad: { color: color.tally },
   fresh: { borderColor: color.screen },
   freshEyebrow: { color: color.screen },

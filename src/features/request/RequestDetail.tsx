@@ -30,13 +30,13 @@ const HELP_REASON: Record<string, string> = {
 export function RequestDetail() {
   const { slot } = useLocalSearchParams<{ slot: string }>();
   const heading = useFocusHere();
-  const { data, error, refetch } = useRequests();
+  const { data, error, refetch, fetchStatus } = useRequests();
   const r = data?.find((x) => String(x.slot) === slot);
   const field = useScrollToField();
 
   if (!r) {
     return <DetailFallback error={error} errorTitle="Couldn’t load this request." onRetry={() => void refetch()}
-      notFound={data ? "That request isn’t yours, or it’s gone." : undefined} />;
+      notFound={data ? "That request isn’t yours, or it’s gone." : undefined} offline={fetchStatus === "paused"} />;
   }
 
   const ended = r.stage === "declined" || r.stage === "closed";
