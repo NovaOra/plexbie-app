@@ -30,9 +30,9 @@ function clockText(reason: string, when?: string) {
 }
 
 /** Cleanup's settings and titles on the clock: this section, and the "N leaving" beside Manage's section picker. */
-export function useCleanup() {
+export function useCleanup(enabled = true) {
   const client = useApi();
-  return useQuery({ queryKey: useAdminKey()("cleanup"), queryFn: ({ signal }) => client.adminCleanup(signal), staleTime: 60_000 });
+  return useQuery({ queryKey: useAdminKey()("cleanup"), queryFn: ({ signal }) => client.adminCleanup(signal), staleTime: 60_000, enabled });
 }
 
 /** `onFieldFocus` scrolls Manage to its end, so the title search at the bottom shows above the keyboard. */

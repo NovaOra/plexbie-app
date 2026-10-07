@@ -12,9 +12,9 @@ import { BlockedList } from "./BlockedImport";
 import { useAdminKey } from "./useAdmin";
 
 /** The services, asked again every minute: Health, and the "N down" beside Manage's section picker. */
-export function useHealth() {
+export function useHealth(enabled = true) {
   const client = useApi();
-  return useQuery({ queryKey: useAdminKey()("health"), queryFn: ({ signal }) => client.adminHealth(signal), refetchInterval: 60_000 });
+  return useQuery({ queryKey: useAdminKey()("health"), queryFn: ({ signal }) => client.adminHealth(signal), refetchInterval: 60_000, enabled });
 }
 
 export function HealthSection() {

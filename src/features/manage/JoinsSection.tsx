@@ -14,10 +14,10 @@ import { useAct, useAdminKey } from "./useAdmin";
 import { GlassFill, glass } from "../../ui/Glass";
 import { radius } from "../../ui/theme";
 
-export function useJoins() {
+export function useJoins(enabled = true) {
   const client = useApi();
   const key = useAdminKey();
-  return useQuery({ queryKey: key("joins"), queryFn: ({ signal }) => client.adminJoins(signal), refetchInterval: 60_000 });
+  return useQuery({ queryKey: key("joins"), queryFn: ({ signal }) => client.adminJoins(signal), refetchInterval: 60_000, enabled });
 }
 
 export function JoinsSection() {

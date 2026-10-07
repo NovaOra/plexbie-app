@@ -2,7 +2,8 @@
 // the last one said the same, and a DM alert's conversation opens once, not on every
 // return to Messages. Services down and titles leaving show beside the picker, as links
 // big enough to tap. A new invite link waits there too, and is still on Invites after
-// another section.
+// another section. Someone who isn't an admin (an old alert, a link) is told it's for
+// admins, and none of its sections is asked for.
 import { beforeEach, expect, jest, test } from "@jest/globals";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react-native";
@@ -16,10 +17,20 @@ let mockParams: { tab?: string; who?: string } = {};
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => mockParams,
   useFocusEffect: () => undefined,
-  router: { setParams: jest.fn((p: object) => { mockParams = { ...mockParams, ...p }; }) },
+  router: { setParams: jest.fn((p: object) => { mockParams = { ...mockParams, ...p }; }), navigate: jest.fn() },
 }));
+// Who's signed in, as the bot last said.
+let mockMe: { data?: { admin?: boolean; member?: boolean } } = {};
+jest.mock("../../me/useMe", () => ({ useMe: () => mockMe }));
+// Whether each count behind the picker was allowed to load.
+let mockAsked: Record<string, boolean | undefined> = {};
 jest.mock("react-native-worklets", () => jest.requireActual("react-native-worklets/src/mock"));
-jest.mock("react-native-reanimated", () => jest.requireActual("react-native-reanimated/mock"));
+jest.mock("react-native-reanimated", () => ({
+  ...jest.requireActual<object>("react-native-reanimated/mock"),
+  cubicBezier: () => "ease-out",
+  useReducedMotion: () => false,
+}));
+jest.mock("../../../ui/haptics", () => ({ tap: () => undefined, select: () => undefined, success: () => undefined, reward: () => undefined, error: () => undefined }));
 jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock("../../../auth/session", () => ({
   useSession: () => ({ state: { phase: "signedIn", server: "https://plexbie.example", token: "t", sample: false } }),
@@ -36,10 +47,10 @@ jest.mock("../../../ui/PickerSheet", () => {
 });
 // Each section as its name; Messages also says whose conversation it opens on.
 function mockSection(name: string) { return () => <MockText>{`${name} section`}</MockText>; }
-jest.mock("../TicketsSection", () => ({ TicketsSection: mockSection("Tickets"), useTickets: () => ({ data: undefined }) }));
-jest.mock("../RequestsSection", () => ({ RequestsSection: mockSection("Requests"), useRequestsCount: () => ({ waiting: 0 }) }));
-jest.mock("../AllRequestsSection", () => ({ AllRequestsSection: mockSection("All requests"), useAllRequests: () => ({ data: undefined }) }));
-jest.mock("../JoinsSection", () => ({ JoinsSection: mockSection("Joins"), useJoins: () => ({ data: [] }) }));
+jest.mock("../TicketsSection", () => ({ TicketsSection: mockSection("Tickets"), useTickets: (on?: boolean) => { mockAsked.tickets = on; return { data: undefined }; } }));
+jest.mock("../RequestsSection", () => ({ RequestsSection: mockSection("Requests"), useRequestsCount: (on?: boolean) => { mockAsked.requests = on; return { waiting: 0 }; } }));
+jest.mock("../AllRequestsSection", () => ({ AllRequestsSection: mockSection("All requests"), useAllRequests: (on?: boolean) => { mockAsked.all = on; return { data: undefined }; } }));
+jest.mock("../JoinsSection", () => ({ JoinsSection: mockSection("Joins"), useJoins: (on?: boolean) => { mockAsked.joins = on; return { data: [] }; } }));
 jest.mock("../PeopleSection", () => ({ PeopleSection: mockSection("People") }));
 // Invites says how many new links it was handed, and makes one.
 jest.mock("../InvitesSection", () => ({
@@ -53,11 +64,11 @@ jest.mock("../InvitesSection", () => ({
 // What Cleanup and Health last said: titles in the warning window, and each service.
 let mockLeaving: { ratingKey: string }[] = [];
 let mockHealth: { name: string; ok: boolean }[] = [];
-jest.mock("../CleanupSection", () => ({ CleanupSection: mockSection("Cleanup"), useCleanup: () => ({ data: { warning: mockLeaving } }) }));
-jest.mock("../HealthSection", () => ({ HealthSection: mockSection("Health"), useHealth: () => ({ data: mockHealth }) }));
+jest.mock("../CleanupSection", () => ({ CleanupSection: mockSection("Cleanup"), useCleanup: (on?: boolean) => { mockAsked.cleanup = on; return { data: { warning: mockLeaving } }; } }));
+jest.mock("../HealthSection", () => ({ HealthSection: mockSection("Health"), useHealth: (on?: boolean) => { mockAsked.health = on; return { data: mockHealth }; } }));
 jest.mock("../DiscordSection", () => ({ DiscordSection: mockSection("Discord") }));
 jest.mock("../MessagesSection", () => ({
-  useMessagePeople: () => ({ data: [] }),
+  useMessagePeople: (on?: boolean) => { mockAsked.messages = on; return { data: [] }; },
   MessagesSection: ({ who, onClose }: { who?: string; onClose?: () => void }) => (
     <>
       <MockText>{`Messages section, open on ${who ?? "everyone"}`}</MockText>
@@ -74,7 +85,10 @@ beforeEach(() => {
   mockParams = {};
   mockLeaving = [];
   mockHealth = [];
+  mockMe = { data: { admin: true, member: true } };
+  mockAsked = {};
   jest.mocked(router.setParams).mockClear();
+  jest.mocked(router.navigate).mockClear();
 });
 
 test("an alert's section opens again after another was picked", async () => {
@@ -131,4 +145,32 @@ test("a new invite link waits beside the picker and is still on Invites after an
   expect(screen.getByRole("button", { name: "Invites, 1 waiting. Opens it." })).toBeTruthy();
   await pick("invites");
   expect(screen.getByText("Invites section, 1 new")).toBeTruthy();
+});
+
+const COUNTS = ["tickets", "requests", "all", "joins", "cleanup", "health", "messages"];
+
+test("an admin's counts are asked for", async () => {
+  await render(page());
+  for (const c of COUNTS) expect([c, mockAsked[c]]).toEqual([c, true]);
+});
+
+test("a member who isn't an admin is told it's for admins, and nothing is asked of the bot", async () => {
+  mockMe = { data: { admin: false, member: true } };
+  mockParams = { tab: "messages", who: "d1" };
+  await render(page());
+  expect(screen.getByText("This page is for admins.")).toBeTruthy();
+  expect(screen.queryByText(/section/)).toBeNull();
+  expect(screen.queryByRole("button", { name: "Pick requests" })).toBeNull();
+  for (const c of COUNTS) expect([c, mockAsked[c]]).toEqual([c, false]);
+  await fireEvent.press(screen.getByRole("button", { name: "Go to Home" }));
+  expect(router.navigate).toHaveBeenCalledWith("/home");
+});
+
+test("nothing is asked for until it's known who's signed in", async () => {
+  mockMe = {};
+  await render(page());
+  expect(screen.getByLabelText("Loading")).toBeTruthy();
+  expect(screen.queryByText(/section/)).toBeNull();
+  expect(screen.queryByText("This page is for admins.")).toBeNull();
+  for (const c of COUNTS) expect([c, mockAsked[c]]).toEqual([c, false]);
 });

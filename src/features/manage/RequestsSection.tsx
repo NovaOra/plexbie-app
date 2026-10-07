@@ -18,10 +18,10 @@ import { AllClear, Heading, Pill, card } from "./bits";
 import { useAdminKey } from "./useAdmin";
 import { GlassFill, glass } from "../../ui/Glass";
 
-export function useRequestsCount() {
+export function useRequestsCount(enabled = true) {
   const client = useApi();
   const key = useAdminKey();
-  const requests = useQuery({ queryKey: key("requests"), queryFn: ({ signal }) => client.adminRequests(signal), refetchInterval: 30_000 });
+  const requests = useQuery({ queryKey: key("requests"), queryFn: ({ signal }) => client.adminRequests(signal), refetchInterval: 30_000, enabled });
   return { requests, waiting: requests.data?.pending.length ?? 0 };
 }
 

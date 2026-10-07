@@ -1,5 +1,7 @@
 // Manage, for admins: everything the website's Manage page does. A section dropdown (like
 // the Request and Library pages' pickers) that says what's waiting, then that section.
+// Anyone else who reaches it (an alert from when they were an admin, a link) is told it's
+// for admins, and none of its sections is asked for.
 import { useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -8,6 +10,7 @@ import { KEYBOARD_BEHAVIOR, useScrollToEnd } from "../../ui/keyboard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { AppNewInvite } from "../../api/schemas";
 import { useSession } from "../../auth/session";
+import { Button } from "../../ui/Button";
 import { PickerPill } from "../../ui/PickerSheet";
 import { StatusBarScrim } from "../../ui/StatusBarScrim";
 import { ScreenTitle } from "../../ui/ScreenTitle";
@@ -24,6 +27,8 @@ import { RequestsSection, useRequestsCount } from "./RequestsSection";
 import { AllRequestsSection, useAllRequests } from "./AllRequestsSection";
 import { TicketsSection, useTickets } from "./TicketsSection";
 import { Ambient, TAB_BAR_CLEARANCE } from "../../ui/Glass";
+import { useMe } from "../me/useMe";
+import { card } from "./bits";
 
 type Tab = "requests" | "tickets" | "all" | "joins" | "people" | "invites" | "cleanup" | "messages" | "health" | "discord";
 const TAB_IDS: Tab[] = ["requests", "tickets", "all", "joins", "people", "invites", "cleanup", "messages", "health", "discord"];
@@ -52,19 +57,23 @@ export function ManageScreen() {
   const holdLink = (made: AppNewInvite) => setFresh((f) => ({ server, links: [made, ...(f.server === server ? f.links : [])] }));
   const dropLink = (id: string) => setFresh((f) => ({ ...f, links: f.links.filter((m) => m.invite.id !== id) }));
   const end = useScrollToEnd();
-  const newMessages = useMessagePeople().data?.filter((p) => p.unread > 0).length ?? 0;
-  const { waiting } = useRequestsCount();
-  const joins = useJoins();
+  // Nothing is asked for until the bot has said this is an admin: for anyone else each would be refused.
+  const me = useMe();
+  const admin = !!me.data?.admin;
+  const newMessages = useMessagePeople(admin).data?.filter((p) => p.unread > 0).length ?? 0;
+  const { waiting } = useRequestsCount(admin);
+  const joins = useJoins(admin);
   const joinsWaiting = joins.data?.filter((j) => j.status === "pending").length ?? 0;
-  const stuck = useAllRequests().data?.counts?.stuck ?? 0;
-  const tickets = useTickets().data?.counts.action ?? 0;
-  const leaving = useCleanup().data?.warning.length ?? 0;
-  const down = useHealth().data?.filter((h) => !h.ok).length ?? 0;
+  const stuck = useAllRequests(admin).data?.counts?.stuck ?? 0;
+  const tickets = useTickets(admin).data?.counts.action ?? 0;
+  const leaving = useCleanup(admin).data?.warning.length ?? 0;
+  const down = useHealth(admin).data?.filter((h) => !h.ok).length ?? 0;
   const [pulling, setPulling] = useState(false);
   const onRefresh = useCallback(async () => {
     setPulling(true);
-    try { await qc.refetchQueries({ queryKey: ["admin", server] }); } finally { setPulling(false); }
-  }, [qc, server]);
+    // Not (yet) an admin: ask again who this is, in case that has changed or the last try failed.
+    try { await qc.refetchQueries({ queryKey: admin ? ["admin", server] : ["session", server] }); } finally { setPulling(false); }
+  }, [qc, server, admin]);
 
   /** "Requests · 4 waiting" (or "All requests · 2 stuck", "Tickets · 1 open", "Health · 1 down"): the section, and what's waiting in it. */
   const word = (id: Tab) => (id === "all" ? "stuck" : id === "tickets" ? "open" : id === "messages" ? "new"
@@ -79,6 +88,15 @@ export function ManageScreen() {
     ["cleanup", "Cleanup", leaving], ["discord", "Discord", 0], ["messages", "Messages", newMessages], ["health", "Health", down],
   ];
 
+  // Not an admin, or not known yet: why there's nothing here, or that it's on its way.
+  const gate = admin ? null : me.data ? (
+    <>
+      <Text variant="body">This page is for admins.</Text>
+      <Button kind="secondary" label="Go to Home" onPress={() => router.navigate("/home")} style={styles.home} />
+    </>
+  ) : me.error ? <Text variant="body">{me.error.message}</Text>
+    : <View style={[card.box, { height: 220 }]} accessibilityLabel="Loading" accessible />;
+
   return (
     <KeyboardAvoidingView style={styles.page} behavior={KEYBOARD_BEHAVIOR}>
       <Ambient />
@@ -89,21 +107,25 @@ export function ManageScreen() {
         refreshControl={<RefreshControl refreshing={pulling} onRefresh={onRefresh} tintColor={color.screen} colors={[color.onScreen]} progressBackgroundColor={color.screen} />}
       >
         <ScreenTitle>Manage</ScreenTitle>
-        <Text variant="body">Deciding here is the same as the buttons in Discord.</Text>
-        <View style={styles.picker}>
-          <PickerPill title="Section" label={sectionLabel(tab)} value={tab}
-            options={tabs.map(([value]) => ({ value, label: sectionLabel(value) }))} onChange={(v) => pick(v as Tab)} />
-          {/* What's waiting elsewhere, so it isn't hidden behind the dropdown. */}
-          {tabs.filter(([id, , n]) => id !== tab && n > 0).map(([id, label, n]) => (
-            <Text key={id} variant="meta" style={styles.waiting} onPress={() => pick(id)} accessibilityRole="button"
-              accessibilityLabel={`${label}, ${n} ${word(id)}. Opens it.`}>{label} · {n} {word(id)}</Text>
-          ))}
-        </View>
-        <View style={styles.section}>
-          {tab === "tickets" ? <TicketsSection /> : tab === "requests" ? <RequestsSection /> : tab === "all" ? <AllRequestsSection /> : tab === "joins" ? <JoinsSection /> : tab === "people" ? <PeopleSection />
-            : tab === "invites" ? <InvitesSection fresh={freshLinks} onMade={holdLink} onDone={dropLink} /> : tab === "cleanup" ? <CleanupSection onFieldFocus={end.onFocus} /> : tab === "messages" ? <MessagesSection key={who ?? "all"} who={who} onClose={() => setWho(undefined)} onComposerFocus={end.onFocus} />
-            : tab === "health" ? <HealthSection /> : <DiscordSection />}
-        </View>
+        {gate ?? (
+          <>
+            <Text variant="body">Deciding here is the same as the buttons in Discord.</Text>
+            <View style={styles.picker}>
+              <PickerPill title="Section" label={sectionLabel(tab)} value={tab}
+                options={tabs.map(([value]) => ({ value, label: sectionLabel(value) }))} onChange={(v) => pick(v as Tab)} />
+              {/* What's waiting elsewhere, so it isn't hidden behind the dropdown. */}
+              {tabs.filter(([id, , n]) => id !== tab && n > 0).map(([id, label, n]) => (
+                <Text key={id} variant="meta" style={styles.waiting} onPress={() => pick(id)} accessibilityRole="button"
+                  accessibilityLabel={`${label}, ${n} ${word(id)}. Opens it.`}>{label} · {n} {word(id)}</Text>
+              ))}
+            </View>
+            <View style={styles.section}>
+              {tab === "tickets" ? <TicketsSection /> : tab === "requests" ? <RequestsSection /> : tab === "all" ? <AllRequestsSection /> : tab === "joins" ? <JoinsSection /> : tab === "people" ? <PeopleSection />
+                : tab === "invites" ? <InvitesSection fresh={freshLinks} onMade={holdLink} onDone={dropLink} /> : tab === "cleanup" ? <CleanupSection onFieldFocus={end.onFocus} /> : tab === "messages" ? <MessagesSection key={who ?? "all"} who={who} onClose={() => setWho(undefined)} onComposerFocus={end.onFocus} />
+                : tab === "health" ? <HealthSection /> : <DiscordSection />}
+            </View>
+          </>
+        )}
       </ScrollView>
       <StatusBarScrim />
     </KeyboardAvoidingView>
@@ -116,4 +138,5 @@ const styles = StyleSheet.create({
   picker: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: space.m, paddingVertical: space.s },
   waiting: { color: color.screen, minHeight: TOUCH, textAlignVertical: "center", lineHeight: TOUCH },
   section: { gap: space.m },
+  home: { alignSelf: "flex-start", marginTop: space.s },
 });

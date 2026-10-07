@@ -25,10 +25,10 @@ const showing = (show: Show, r: AppAdminRequestRow) =>
     : show === "waiting" ? r.stage === "requested" : show === "finished" ? r.stage === "available" : show === "declined" ? ENDED.includes(r.stage) : true;
 
 /** Everyone's requests, kept fresh while Manage is open (also feeds the "· 2 stuck" label). */
-export function useAllRequests() {
+export function useAllRequests(enabled = true) {
   const client = useApi();
   const key = useAdminKey();
-  return useQuery({ queryKey: key("all"), queryFn: ({ signal }) => client.adminAll("", signal), refetchInterval: 60_000 });
+  return useQuery({ queryKey: key("all"), queryFn: ({ signal }) => client.adminAll("", signal), refetchInterval: 60_000, enabled });
 }
 
 export function AllRequestsSection() {
