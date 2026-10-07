@@ -3,6 +3,7 @@
 // exchange proves the app with the verifier behind the challenge it sent.
 import { afterEach, beforeEach, describe, expect, jest, test } from "@jest/globals";
 import { act, renderHook, waitFor } from "@testing-library/react-native";
+import { Image } from "expo-image";
 import * as Linking from "expo-linking";
 import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
@@ -49,7 +50,7 @@ jest.mock("expo-linking", () => ({
   ...jest.requireActual<typeof import("expo-linking")>("expo-linking"),
   addEventListener: jest.fn(),
 }));
-jest.mock("expo-image", () => ({ Image: { clearMemoryCache: async () => true } }));
+jest.mock("expo-image", () => ({ Image: { clearMemoryCache: jest.fn(async () => true), clearDiskCache: jest.fn(async () => true) } }));
 jest.mock("../../api/persist", () => ({ forgetCache: async () => undefined }));
 jest.mock("../../features/push/push", () => ({ forgetPush: jest.fn(async () => null), savedPush: jest.fn(async () => null) }));
 
@@ -482,6 +483,14 @@ describe("signing out", () => {
     helpDrafts.set(`${SERVER} 7`, { reason: "stuck", note: "It’s been at 0% since this morning" });
     await signOutWith(200);
     expect(helpDrafts.size).toBe(0);
+  });
+
+  test("pictures go with the sign-in, from memory and from disk", async () => {
+    jest.mocked(Image.clearMemoryCache).mockClear();
+    jest.mocked(Image.clearDiskCache).mockClear();
+    await signOutWith(200);
+    expect(Image.clearMemoryCache).toHaveBeenCalled();
+    expect(Image.clearDiskCache).toHaveBeenCalled();
   });
 
   test("the bot is told: this phone's alerts stop, then the sign-in ends there too", async () => {

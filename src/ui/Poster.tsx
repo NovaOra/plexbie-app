@@ -1,4 +1,5 @@
-// A poster or cover from the bot's address for it, or a code-drawn cover when there's none:
+// A poster or cover from the bot's address for it, or a code-drawn cover when there's none
+// or it won't load:
 // the same six gradients as the website (a title gets the same colours in both), with the
 // title on covers big enough to read it and two-letter initials on small thumbnails.
 // Everything is sized by the cover's own width, so it looks composed at any size.
@@ -12,13 +13,16 @@ import { color, font, radius } from "./theme";
 export function Poster({ poster, title, id, size = "w185", style }: {
   poster: string | null | undefined; title: string; id: string; size?: "w185" | "w342"; style?: StyleProp<ViewStyle>;
 }) {
-  const art = useArt()(poster, size);
+  const [broken, setBroken] = useState<string | null>(null);
+  const found = useArt()(poster, size);
+  // Offline, the bot's posters don't load: the drawn cover stands in, until a new address.
+  const art = found && broken !== found.uri ? found : null;
   return (
     <View style={[styles.box, style]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       {art ? (
         <Image source={art} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} recyclingKey={id}
           // Member-only posters (with the token) stay in memory, never on disk.
-          cachePolicy={art.headers ? "memory" : "memory-disk"} />
+          cachePolicy={art.headers ? "memory" : "memory-disk"} onError={() => setBroken(art.uri ?? null)} />
       ) : (
         <DrawnCover title={title} />
       )}

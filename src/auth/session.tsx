@@ -121,15 +121,15 @@ export function normalizeServer(input: string): string {
 
 /**
  * Nothing of one sign-in survives into the next: cached answers (in memory and the offline
- * cache file), member-only posters (only ever cached in memory, so nothing on disk), and
- * help notes not sent.
+ * cache file), pictures (member-only ones are only ever cached in memory; the disk cache
+ * goes too, for anything an older version kept there), and help notes not sent.
  * Runs before the next screen mounts, never during, or it clears that screen's own loads.
  */
 async function forgetEverything() {
   await queryClient.cancelQueries();
   queryClient.clear();
   helpDrafts.clear();
-  await Promise.all([Image.clearMemoryCache(), forgetCache()]);
+  await Promise.all([Image.clearMemoryCache(), Image.clearDiskCache(), forgetCache()]);
 }
 
 /** The site a host belongs to ("home.plexbie.com" and "plexbie.com" are both plexbie.com;
