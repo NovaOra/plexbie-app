@@ -13,7 +13,7 @@ const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOSt
 
 export const SAMPLE_SERVER = "sample://plexbie";
 
-export const sampleSession: AppSession = {
+const sampleSession: AppSession = {
   user: { id: "sample", name: "Alex Kim", avatar: null, via: "discord" },
   member: true,
   joinPending: false,
@@ -470,7 +470,6 @@ export const sampleApi: Api = {
       notes: "**New in 2.0.0: an example**\n- Plexbie tells you when a new version is out.\n- Download it straight from the app." };
   },
   appDownloadLink: async () => "",                // nothing to download in the sample household
-  adminHelp: async () => { await pause(300); return house.help; },
   adminAll: async (q, _signal, everything) => { await pause(350); return allOf(q, everything); },
   adminRequest: async (key) => {
     await pause(250);
@@ -599,15 +598,6 @@ export const sampleApi: Api = {
     await pause(600);
     return ok({ again: "Sonarr is searching for season 2 again.", episodes: "Sonarr is searching season 2 one episode at a time.",
       name: "Plexbie is searching NZBHydra for “Elephants Dream 2016”. It reports back here, and closes this if it finds it." }[how]);
-  },
-  helpResolve: async (id, reply) => {
-    await pause(500);
-    const sent = reply.trim() ? say(id, "reply", reply.trim()) : undefined;
-    say(id, "status", "Solved");
-    house.help = house.help.map((h) => (h.id === id ? { ...h, status: "resolved" } : h));
-    markHelp(id, false);
-    const who = house.help.find((h) => h.id === id)?.who ?? "Someone";
-    return told({ id, who }, `Resolved, and ${who} has been told (Discord DM).`, "Resolved", sent);
   },
   adminPeople: async () => { await pause(350); return house.people; },
   linkCandidates: async () => ({ discord: [{ id: "203", name: "Rosa M", username: "rosam" }, { id: "204", name: "Dev", username: "devr" }] }),

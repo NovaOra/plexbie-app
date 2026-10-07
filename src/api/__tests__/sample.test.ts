@@ -33,7 +33,7 @@ test("a new visit doesn't show what the last one decided", async () => {
   expect((await answer(sampleApi.plexInvites())).map((i) => i.email)).toContain("jordan@example.com");
   expect((await answer(sampleApi.myRequests())).map((r) => r.title.title)).not.toContain("Night of the Living Dead");
   expect((await answer(sampleApi.title("movie", "900003"))).yourRequest).toBeUndefined();
-  expect((await answer(sampleApi.adminHelp())).find((h) => h.id === "h1")?.status).toBe("open");
+  expect((await answer(sampleApi.adminTicket("h1"))).status).toBe("open");
   expect((await answer(sampleApi.adminRequests())).pending.map((r) => r.id)).toContain("7001");
   expect((await sampleApi.adminDiscord()).inbox?.autoreply).toBe(true);
 });
@@ -43,7 +43,6 @@ test("importing the blocked download takes it off the list and closes its ticket
   await answer(sampleApi.blockedImport("sonarr", "SABnzbd_nzo_demo"));
 
   expect((await answer(sampleApi.adminBlocked())).rows).toEqual([]);
-  expect((await answer(sampleApi.adminHelp())).find((h) => h.id === "h4")?.status).toBe("resolved");
   const ticket = await answer(sampleApi.adminTicket("h4"));
   expect(ticket.status).toBe("resolved");
   expect(ticket.blocked).toBeNull();
@@ -62,7 +61,7 @@ test("a call still waiting when the visit ends leaves the next visit alone", asy
   await failed;
 
   expect((await answer(sampleApi.adminBlocked())).rows.map((r) => r.ticket)).toEqual(["h4"]);
-  expect((await answer(sampleApi.adminHelp())).find((h) => h.id === "h4")?.status).toBe("open");
+  expect((await answer(sampleApi.adminTicket("h4"))).status).toBe("open");
 });
 
 test("every season a request asks for is one its show has", async () => {

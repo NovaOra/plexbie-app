@@ -8,7 +8,7 @@ import { Platform } from "react-native";
 import { endAllLive, endLive, liveSupported, showLive } from "../../../modules/plexbie-live";
 import { flagSetting } from "../../ui/flagSetting";
 
-export const LIVE_TASK = "plexbie-live-progress";
+const LIVE_TASK = "plexbie-live-progress";
 /** A live notification goes by itself this long after its last update (the bot sends one
  *  at least every 10 minutes while it's moving), so a quiet bot never leaves one behind. */
 const LIVE_TIMEOUT = 30 * 60_000;

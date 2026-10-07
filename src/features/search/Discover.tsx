@@ -22,7 +22,7 @@ export type RequestType = "all" | "movie" | "tv" | "book";
 const TYPES: [RequestType, string][] = [["all", "Everything"], ["movie", "Films"], ["tv", "Shows"], ["book", "Books"]];
 const NOUN = { movie: "films", tv: "shows" } as const;
 
-export function tileMeta(t: AppTitle) {
+function tileMeta(t: AppTitle) {
   return t.availability === "blocked" ? "Not available"
     : t.availability === "available" ? "On Plex"
     : t.yourRequest ? "You asked"
@@ -39,7 +39,7 @@ function shelfHeading(key: string, kind: "movie" | "tv") {
 }
 
 /** A row of posters to scroll sideways, with a More tile at the end when there's more. */
-export function Rail({ heading, titles, onMore, busy }: { heading: string; titles: AppTitle[]; onMore?: () => void; busy?: boolean }) {
+function Rail({ heading, titles, onMore, busy }: { heading: string; titles: AppTitle[]; onMore?: () => void; busy?: boolean }) {
   const large = useLargeText();
   const width = large ? 160 : 112;   // as Home's Just arrived
   if (!titles.length) return null;

@@ -7,7 +7,7 @@
 // A write that got no answer may still have gone through: callers say so rather than "no".
 import { z } from "zod";
 import {
-  AckSchema, AdminCleanupSchema, CleanupMatchesSchema, AdminHelpListSchema, InviteCheckSchema, ConversationSchema, DiscordOverviewSchema, HealthSchema, MessagePeopleSchema, AdminInvitesSchema, AdminJoinsSchema, AdminPeopleSchema, AdminRequestsSchema, LinkCandidatesSchema, NewInviteSchema, PlexInvitesSchema, ArrivalsSchema, CommunitySchema, HelpAnswerSchema, StatusSchema, MediaRequestSchema, MediaRequestsSchema, MobileInfoSchema, NothingSchema, LibrarySchema, PopularSchema, SessionSchema, TitleDetailSchema, TitlesSchema, TokenSchema, WatchPartySchema, AppReleaseSchema, DownloadLinkSchema, DiscoverSchema, ShelfPageSchema, SearchAllSchema, PrefsSchema, AdminAllRequestsSchema, AdminRequestDetailSchema, AdminTicketsSchema, AdminTicketDetailSchema, BlockedListSchema, BlockedPreviewSchema, ArrLibrarySchema, ArrEpisodesSchema,
+  AckSchema, AdminCleanupSchema, CleanupMatchesSchema, InviteCheckSchema, ConversationSchema, DiscordOverviewSchema, HealthSchema, MessagePeopleSchema, AdminInvitesSchema, AdminJoinsSchema, AdminPeopleSchema, AdminRequestsSchema, LinkCandidatesSchema, NewInviteSchema, PlexInvitesSchema, ArrivalsSchema, CommunitySchema, HelpAnswerSchema, StatusSchema, MediaRequestSchema, MediaRequestsSchema, MobileInfoSchema, NothingSchema, LibrarySchema, PopularSchema, SessionSchema, TitleDetailSchema, TitlesSchema, TokenSchema, WatchPartySchema, AppReleaseSchema, DownloadLinkSchema, DiscoverSchema, ShelfPageSchema, SearchAllSchema, PrefsSchema, AdminAllRequestsSchema, AdminRequestDetailSchema, AdminTicketsSchema, AdminTicketDetailSchema, BlockedListSchema, BlockedPreviewSchema, ArrLibrarySchema, ArrEpisodesSchema,
 } from "./schemas";
 import type { AppCleanupSettings } from "./schemas";
 import type { BlockedChoice, BookFormat, HelpReason, MediaKind } from "./types";
@@ -195,11 +195,9 @@ export function api(conn: Connection) {
     adminJoins: (signal?: AbortSignal) => request(conn, "/api/admin/joins", AdminJoinsSchema, {}, signal),
     decideJoin: (messageId: string, approve: boolean) =>
       request(conn, `/api/admin/joins/${encodeURIComponent(messageId)}/${approve ? "approve" : "decline"}`, AckSchema, json({})),
-    adminHelp: (signal?: AbortSignal) => request(conn, "/api/admin/help", AdminHelpListSchema, {}, signal),
     /** again: by the title's IDs; episodes: a show episode by episode; name: NZBHydra by name. */
     helpSearch: (id: string, how: HelpSearch) =>
       request(conn, `/api/admin/help/${encodeURIComponent(id)}/${{ again: "search", episodes: "episodes", name: "name" }[how]}`, AckSchema, json({})),
-    helpResolve: (id: string, reply: string) => request(conn, `/api/admin/help/${encodeURIComponent(id)}/resolve`, AckSchema, json({ reply })),
     adminPeople: (signal?: AbortSignal) => request(conn, "/api/admin/people", AdminPeopleSchema, {}, signal),
     linkCandidates: (signal?: AbortSignal) => request(conn, "/api/admin/links", LinkCandidatesSchema, {}, signal),
     linkPerson: (plexName: string, discordId: string) => request(conn, "/api/admin/people/link", AckSchema, json({ plexName, discordId })),

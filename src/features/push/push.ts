@@ -30,11 +30,11 @@ export function projectId(): string | null {
  * builds members install with SideStore/AltStore are signed with their own free Apple ID,
  * which can't carry it. A build that can sets `extra.iosPush: true` in app.json.
  */
-export const IOS_PUSH = Constants.expoConfig?.extra?.iosPush === true;
+const IOS_PUSH = Constants.expoConfig?.extra?.iosPush === true;
 
 /** Can this build, on this device, get alerts at all? (A simulator or emulator without
  *  Google Play can't, nor an iPhone build without Apple's push entitlement.) */
-export const pushPossible = () => !!projectId() && Device.isDevice !== false && (Platform.OS !== "ios" || IOS_PUSH);
+const pushPossible = () => !!projectId() && Device.isDevice !== false && (Platform.OS !== "ios" || IOS_PUSH);
 
 // Shown while the app is open, too: a banner, in the list, with sound, and a knock-knock.
 Notifications.setNotificationHandler({
@@ -52,7 +52,7 @@ const PATTERN = [0, 70, 90, 70, 90, 180];
 /** The Android channel this phone's alerts should use: Android fixes a channel's sound and
  *  vibration once it exists, so the Vibration setting picks between two. ("default", from
  *  older versions, stays for older Plexbie bots, which only know it.) */
-export const alertChannel = () => (haptics.hapticsOn() ? "alerts" : "alerts-quiet");
+const alertChannel = () => (haptics.hapticsOn() ? "alerts" : "alerts-quiet");
 
 async function makeChannels() {
   if (Platform.OS !== "android") return;

@@ -61,7 +61,7 @@ export const TitlesSchema = z.array(z.unknown()).transform((rows) =>
 );
 
 /** A shelf of what's already there (GET /api/library?kind=movie|tv|book). */
-export const LibraryItemSchema = TitleDetailSchema.extend({ addedAt: z.string().catch("") });
+const LibraryItemSchema = TitleDetailSchema.extend({ addedAt: z.string().catch("") });
 export type AppLibraryItem = z.infer<typeof LibraryItemSchema>;
 export const LibrarySchema = z.array(z.unknown()).transform((rows) =>
   rows.flatMap((row) => { const p = LibraryItemSchema.safeParse(row); return p.success ? [p.data] : []; }));
@@ -128,7 +128,6 @@ export const StatusSchema = z.looseObject({
   streams: z.number().catch(0),
   libraries: z.array(z.looseObject({ title: z.string(), kind: z.string(), count: z.number().catch(0) })).catch([]),
 });
-export type AppStatus = z.infer<typeof StatusSchema>;
 
 const ArrivalSchema = z.looseObject({ title: TitleDetailSchema, addedAt: z.string(), detail: z.string().nullable().optional().catch(null) });
 export type AppArrival = z.infer<typeof ArrivalSchema>;
@@ -190,7 +189,7 @@ const rowsOf = <T extends z.ZodTypeAny>(row: T) => z.array(z.unknown()).transfor
   rows.flatMap((r) => { const p = row.safeParse(r); return p.success ? [p.data as z.infer<T>] : []; }));
 
 /** A request on Manage → All requests: what its member sees, plus who asked and why it looks stuck. */
-export const AdminRequestRowSchema = MediaRequestSchema.extend({
+const AdminRequestRowSchema = MediaRequestSchema.extend({
   requester: z.string().catch("Someone"),
   status: z.string().catch(""),
   approvedBy: z.string().nullable().optional().catch(null),
@@ -253,10 +252,9 @@ export const AdminTicketsSchema = z.looseObject({
   counts: z.looseObject({ action: z.number().catch(0), waiting: z.number().catch(0), solved: z.number().catch(0) })
     .catch({ action: 0, waiting: 0, solved: 0 }),
 });
-export type AppAdminTickets = z.infer<typeof AdminTicketsSchema>;
 /** GET /api/admin/ticket/<id>: one ticket, its whole timeline, and its request as All requests shows it. */
 /** A finished download Sonarr or Radarr won't import by themselves (the bot's core/blocked_imports). */
-export const BlockedRefSchema = z.looseObject({ app: z.enum(["sonarr", "radarr"]), downloadId: z.string() });
+const BlockedRefSchema = z.looseObject({ app: z.enum(["sonarr", "radarr"]), downloadId: z.string() });
 export type AppBlockedRef = z.infer<typeof BlockedRefSchema>;
 export const AdminTicketDetailSchema = AdminTicketRowSchema.extend({
   note: z.string().nullable().optional().catch(null),
@@ -274,11 +272,10 @@ export const BlockedListSchema = z.looseObject({
     ticket: z.string().nullable().optional().catch(null),
   })).catch([]),
 });
-export type AppBlockedRow = z.infer<typeof BlockedListSchema>["rows"][number];
 /** A show (Sonarr) or film (Radarr) in the library, and an episode in Sonarr. */
-export const ArrItemSchema = z.looseObject({ id: z.number(), title: z.string().catch(""), year: z.number().nullable().optional().catch(null) });
+const ArrItemSchema = z.looseObject({ id: z.number(), title: z.string().catch(""), year: z.number().nullable().optional().catch(null) });
 export type AppArrItem = z.infer<typeof ArrItemSchema>;
-export const ArrEpisodeSchema = z.looseObject({ id: z.number(), label: z.string().catch(""), season: z.number().catch(0),
+const ArrEpisodeSchema = z.looseObject({ id: z.number(), label: z.string().catch(""), season: z.number().catch(0),
   episode: z.number().catch(0), title: z.string().catch(""), hasFile: z.boolean().catch(false) });
 export type AppArrEpisode = z.infer<typeof ArrEpisodeSchema>;
 const NamedSchema = z.looseObject({ id: z.number(), name: z.string().catch("") });
@@ -300,7 +297,6 @@ export const BlockedPreviewSchema = BlockedRefSchema.extend({
 });
 export const ArrLibrarySchema = z.looseObject({ rows: z.array(ArrItemSchema).catch([]) });
 export const ArrEpisodesSchema = z.looseObject({ rows: z.array(ArrEpisodeSchema).catch([]) });
-export type AppBlockedPreview = z.infer<typeof BlockedPreviewSchema>;
 
 /** Someone asking to join (GET /api/admin/joins). Decided by messageId, the Discord card. */
 const AdminJoinSchema = z.looseObject({
@@ -310,7 +306,7 @@ const AdminJoinSchema = z.looseObject({
 export type AppAdminJoin = z.infer<typeof AdminJoinSchema>;
 export const AdminJoinsSchema = rowsOf(AdminJoinSchema);
 
-/** A member's "Something wrong?" (GET /api/admin/help). */
+/** A member's "Something wrong?", as the bot keeps it. The sample tickets are built from this shape. */
 const AdminHelpSchema = z.looseObject({
   id: z.string(), slot: z.number().catch(0), title: z.string().catch(""), kind: z.string().catch(""),
   seasons: z.union([z.array(z.number()), z.literal("all")]).nullable().optional().catch(null),
@@ -321,7 +317,6 @@ const AdminHelpSchema = z.looseObject({
   offer: z.string().nullable().optional().catch(null),
 });
 export type AppAdminHelp = z.infer<typeof AdminHelpSchema>;
-export const AdminHelpListSchema = rowsOf(AdminHelpSchema);
 
 /** Someone the server is shared with (GET /api/admin/people), closest to removal first. */
 const AdminPersonSchema = z.looseObject({
@@ -381,7 +376,7 @@ export type AppPlexInvite = z.infer<typeof PlexInviteSchema>;
 export const PlexInvitesSchema = rowsOf(PlexInviteSchema);
 
 /** Media cleanup: its settings and the titles on the clock (GET /api/admin/cleanup). */
-export const CleanupSettingsSchema = z.looseObject({
+const CleanupSettingsSchema = z.looseObject({
   enabled: z.boolean().catch(false), practice: z.boolean().catch(true),
   inactivityDays: z.number().catch(90), warnDaysBefore: z.number().catch(7),
   excludedLibraries: z.array(z.string()).catch([]), channelId: z.string().nullable().optional().catch(null),
@@ -464,7 +459,6 @@ export const MobileInfoSchema = z.looseObject({
   /** The server's own address, when it has moved: the app follows it (auth/session.tsx). */
   home: z.string().nullable().optional().catch(null),
 });
-export type MobileInfo = z.infer<typeof MobileInfoSchema>;
 
 /** The token exchange answer (POST /auth/mobile/token on the bot). Header-safe characters only. */
 export const TokenSchema = z.object({ token: z.string().regex(/^[A-Za-z0-9._~-]{32,512}$/), expiresAt: z.number() });

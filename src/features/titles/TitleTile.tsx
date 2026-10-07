@@ -9,7 +9,7 @@ import { Text } from "../../ui/Text";
 import { useLargeText } from "../../ui/useColumns";
 import { color, space } from "../../ui/theme";
 
-export const hasPage = (t: Pick<AppTitle, "id">) => !!t.id && !t.id.startsWith("plex:");
+const hasPage = (t: Pick<AppTitle, "id">) => !!t.id && !t.id.startsWith("plex:");
 
 export function TitleTile({ title: t, width, meta, highlight }: { title: AppTitle; width: number; meta?: string | null; highlight?: boolean }) {
   const large = useLargeText();

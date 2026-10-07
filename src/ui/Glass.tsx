@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const IOS = Platform.OS === "ios";
 /** iOS 26 or later: the real Liquid Glass. */
-export const LIQUID = IOS && isLiquidGlassAvailable();
+const LIQUID = IOS && isLiquidGlassAvailable();
 
 /** The panel colour the glass carries, so text on it keeps its contrast over anything. */
 const TINT = "rgba(24, 33, 58, 0.42)";

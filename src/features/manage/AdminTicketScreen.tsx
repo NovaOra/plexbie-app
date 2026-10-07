@@ -52,7 +52,7 @@ export function AdminTicketScreen() {
   const run = async (busyKey: string, call: () => Promise<Ack>, done?: string) => {
     const out = await act(busyKey, call, {
       // Without a title of its own, the bot's sentence is the toast ("It's yours. …").
-      done: (o) => (done ? { text: done, detail: o.message || undefined } : { text: o.message || "Done" }), refresh: ["tickets", "all", "help"],
+      done: (o) => (done ? { text: done, detail: o.message || undefined } : { text: o.message || "Done" }), refresh: ["tickets", "all"],
     });
     if (out) void qc.invalidateQueries({ queryKey: detailKey });
     return !!out;
