@@ -11,7 +11,10 @@ import type { Ack, AppLoggedMessage, AppMessagePerson } from "../../../api/schem
 import { MessagesSection } from "../MessagesSection";
 
 jest.mock("react-native-worklets", () => jest.requireActual("react-native-worklets/src/mock"));
-jest.mock("react-native-reanimated", () => jest.requireActual("react-native-reanimated/mock"));
+jest.mock("react-native-reanimated", () => ({
+  ...jest.requireActual<object>("react-native-reanimated/mock"),
+  cubicBezier: () => "ease-out",
+}));
 jest.mock("../../../ui/Pressable", () => ({ PressableScale: jest.requireActual<typeof import("react-native")>("react-native").Pressable }));
 jest.mock("../../../ui/haptics", () => ({ tap: () => undefined, select: () => undefined, success: () => undefined, reward: () => undefined, error: () => undefined }));
 const mockToast = jest.fn();

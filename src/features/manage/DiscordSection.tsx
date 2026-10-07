@@ -10,7 +10,7 @@ import { useConfirm } from "../../ui/Confirm";
 import { Chip } from "../../ui/Chip";
 import { Text } from "../../ui/Text";
 import { QueryGate } from "../../ui/QueryGate";
-import { color, font, radius, space } from "../../ui/theme";
+import { color, multilineInput, radius, space } from "../../ui/theme";
 import { since } from "../requests/stage";
 import { Heading, Initial, Pill, SearchField, card } from "./bits";
 import { useAct, useAdminKey } from "./useAdmin";
@@ -156,9 +156,6 @@ const styles = StyleSheet.create({
   party: { borderColor: color.tally },
   liveText: { color: color.tally },
   chips: { gap: space.s, paddingVertical: space.xs },
-  message: {
-    minHeight: 110, padding: space.m, borderRadius: radius.m, borderWidth: 1.5, borderColor: color.slate, backgroundColor: color.field,
-    color: color.ink, fontFamily: font.regular, fontSize: 16, textAlignVertical: "top",
-  },
+  message: { ...multilineInput, minHeight: 110 },
   log: { flexDirection: "row", alignItems: "center", gap: space.m },
 });

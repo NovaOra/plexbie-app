@@ -3,10 +3,8 @@
 import * as haptics from "./haptics";
 import { useState, type ReactNode } from "react";
 import { Pressable as RNPressable, StyleSheet, type PressableProps, type StyleProp, type ViewStyle } from "react-native";
-import Animated, { cubicBezier, useReducedMotion } from "react-native-reanimated";
-import { TOUCH } from "./theme";
-
-const EASE = cubicBezier(0.23, 1, 0.32, 1);
+import Animated, { useReducedMotion } from "react-native-reanimated";
+import { EASE_OUT_CSS, TOUCH } from "./theme";
 
 export function PressableScale({
   children, style, haptic = "light", onPress, disabled, ...rest
@@ -45,7 +43,7 @@ export function PressableScale({
             ...(reduced && down ? { opacity: 0.7 } : null),
             transitionProperty: ["transform", "opacity"],
             transitionDuration: 120,
-            transitionTimingFunction: EASE,
+            transitionTimingFunction: EASE_OUT_CSS,
           },
         ]}
       >

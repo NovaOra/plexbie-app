@@ -16,7 +16,7 @@ import { DetailFallback, DetailPage, detailStyles } from "../../ui/DetailPage";
 import { GlassFill, glass } from "../../ui/Glass";
 import { useScrollToField } from "../../ui/keyboard";
 import { Text } from "../../ui/Text";
-import { color, font, radius, space, TOUCH } from "../../ui/theme";
+import { color, multilineInput, radius, replyRim, space } from "../../ui/theme";
 import { useDraftGuard } from "../../ui/useDraftGuard";
 import { useMe } from "../me/useMe";
 import { StageBox } from "../request/StageBox";
@@ -158,13 +158,10 @@ export function AdminTicketScreen() {
 const styles = StyleSheet.create({
   headText: { gap: space.xs },
   owner: { gap: space.m },
-  noteBox: { borderWidth: 1, borderColor: "rgba(229, 160, 13, 0.45)" },
-  replyBox: { borderWidth: 1, borderColor: "rgba(255, 209, 228, 0.45)" },
+  noteBox: { borderWidth: 1, ...replyRim(0.45, "note") },
+  replyBox: { borderWidth: 1, ...replyRim(0.45) },
   seg: { flexDirection: "row", flexWrap: "wrap", gap: space.s },
-  input: {
-    minHeight: TOUCH * 2, padding: space.m, borderRadius: radius.m, borderWidth: 1.5, borderColor: color.slate,
-    backgroundColor: color.field, color: color.ink, fontFamily: font.regular, fontSize: 16, textAlignVertical: "top",
-  },
-  inputNote: { borderColor: "rgba(229, 160, 13, 0.6)" },
-  inputReply: { borderColor: "rgba(255, 209, 228, 0.6)" },
+  input: multilineInput,
+  inputNote: replyRim(0.6, "note"),
+  inputReply: replyRim(0.6),
 });

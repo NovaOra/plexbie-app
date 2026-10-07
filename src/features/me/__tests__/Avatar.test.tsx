@@ -6,7 +6,10 @@ import type { ImageSource } from "expo-image";
 import { Avatar } from "../Avatar";
 
 jest.mock("react-native-worklets", () => jest.requireActual("react-native-worklets/src/mock"));
-jest.mock("react-native-reanimated", () => jest.requireActual("react-native-reanimated/mock"));
+jest.mock("react-native-reanimated", () => ({
+  ...jest.requireActual<object>("react-native-reanimated/mock"),
+  cubicBezier: () => "ease-out",
+}));
 jest.mock("expo-image", () => {
   const { createElement } = jest.requireActual<typeof import("react")>("react");
   const { View } = jest.requireActual<typeof import("react-native")>("react-native");

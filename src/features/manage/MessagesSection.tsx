@@ -12,7 +12,7 @@ import { Button } from "../../ui/Button";
 import { PressableScale } from "../../ui/Pressable";
 import { Text } from "../../ui/Text";
 import { QueryGate } from "../../ui/QueryGate";
-import { color, font, radius, space, TOUCH } from "../../ui/theme";
+import { color, font, multilineInput, radius, replyRim, space } from "../../ui/theme";
 import { since } from "../requests/stage";
 import { Heading, Initial, Pill, SearchField, card } from "./bits";
 import { useMe } from "../me/useMe";
@@ -188,10 +188,7 @@ const styles = StyleSheet.create({
   them: { color: color.screen, fontFamily: font.semibold },
   plexbie: { color: color.screen },
   unread: { borderWidth: 1, borderColor: "rgba(255, 92, 147, 0.5)" },
-  composer: { gap: space.s, padding: space.m, borderRadius: radius.m, backgroundColor: color.panel, borderWidth: 1, borderColor: "rgba(255, 209, 228, 0.35)" },
-  reply: {
-    minHeight: TOUCH * 2, padding: space.m, borderRadius: radius.m, borderWidth: 1.5, borderColor: "rgba(255, 209, 228, 0.6)",
-    backgroundColor: color.field, color: color.ink, fontFamily: font.regular, fontSize: 16, textAlignVertical: "top",
-  },
+  composer: { gap: space.s, padding: space.m, borderRadius: radius.m, backgroundColor: color.panel, borderWidth: 1, ...replyRim(0.35) },
+  reply: { ...multilineInput, ...replyRim(0.6) },
   ink: { color: color.ink },
 });

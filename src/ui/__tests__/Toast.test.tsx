@@ -9,7 +9,10 @@ let mockPath = "/";
 jest.mock("expo-router", () => ({ usePathname: () => mockPath }));
 jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock("react-native-worklets", () => jest.requireActual("react-native-worklets/src/mock"));
-jest.mock("react-native-reanimated", () => jest.requireActual("react-native-reanimated/mock"));
+jest.mock("react-native-reanimated", () => ({
+  ...jest.requireActual<object>("react-native-reanimated/mock"),
+  cubicBezier: () => "ease-out",
+}));
 jest.mock("../Glass", () => ({ GlassFill: () => null, glass: { surface: {} } }));
 
 let checks: ((on: boolean) => void)[];

@@ -15,7 +15,7 @@ import { Button } from "../../ui/Button";
 import { Chip } from "../../ui/Chip";
 import { Text } from "../../ui/Text";
 import { useToast } from "../../ui/Toast";
-import { color, font, radius, space } from "../../ui/theme";
+import { color, multilineInput, space } from "../../ui/theme";
 import { useDraftGuard } from "../../ui/useDraftGuard";
 import { formatSlot, seasonsLabel } from "../requests/stage";
 import { useRequests } from "../requests/useRequests";
@@ -120,9 +120,6 @@ const styles = StyleSheet.create({
   heading: { fontSize: 20, lineHeight: 26 },
   start: { alignSelf: "flex-start" },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: space.s },
-  note: {
-    minHeight: 96, padding: space.m, borderRadius: radius.m, borderWidth: 1.5, borderColor: color.slate, backgroundColor: color.field,
-    color: color.ink, fontFamily: font.regular, fontSize: 16, textAlignVertical: "top",
-  },
+  note: multilineInput,
   bad: { color: color.tally },
 });

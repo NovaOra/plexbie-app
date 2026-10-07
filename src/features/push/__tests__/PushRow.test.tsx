@@ -11,7 +11,10 @@ import { disablePush, enablePush, pushState, type PushState } from "../push";
 import { LiveRow, PushOffer, PushRow } from "../PushRow";
 
 jest.mock("react-native-worklets", () => jest.requireActual("react-native-worklets/src/mock"));
-jest.mock("react-native-reanimated", () => jest.requireActual("react-native-reanimated/mock"));
+jest.mock("react-native-reanimated", () => ({
+  ...jest.requireActual<object>("react-native-reanimated/mock"),
+  cubicBezier: () => "ease-out",
+}));
 // Buttons without their press animation; cards without the glass.
 jest.mock("../../../ui/Pressable", () => ({ PressableScale: jest.requireActual<typeof import("react-native")>("react-native").Pressable }));
 jest.mock("../../../ui/Glass", () => ({ GlassFill: () => null, glass: { surface: {} } }));

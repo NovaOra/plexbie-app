@@ -13,7 +13,10 @@ import { InvitesSection } from "../InvitesSection";
 
 jest.mock("expo-router", () => ({ useFocusEffect: () => undefined }));
 jest.mock("react-native-worklets", () => jest.requireActual("react-native-worklets/src/mock"));
-jest.mock("react-native-reanimated", () => jest.requireActual("react-native-reanimated/mock"));
+jest.mock("react-native-reanimated", () => ({
+  ...jest.requireActual<object>("react-native-reanimated/mock"),
+  cubicBezier: () => "ease-out",
+}));
 jest.mock("../../../ui/Pressable", () => {
   const { Pressable } = jest.requireActual<typeof import("react-native")>("react-native");
   return { PressableScale: Pressable };

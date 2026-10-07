@@ -1,5 +1,5 @@
 // Plexbie's "On Air" palette, the same tokens as the website (web/src/styles.css).
-import { Easing } from "react-native-reanimated";
+import { cubicBezier, Easing } from "react-native-reanimated";
 
 export const color = {
   field: "#10172b",        // the page: a dark studio
@@ -34,3 +34,17 @@ export const TOUCH = 48;
 
 /** Strong ease-out for UI, the website's --ease-out. Never ease-in. */
 export const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
+
+/** The same curve for CSS-style transitions (transitionTimingFunction). Built when this file
+ * loads, so a test on Reanimated's own mock adds `cubicBezier: () => "ease-out"` to it. */
+export const EASE_OUT_CSS = cubicBezier(0.23, 1, 0.32, 1);
+
+/** A multiline text box: notes, answers and replies. */
+export const multilineInput = {
+  minHeight: TOUCH * 2, padding: space.m, borderRadius: radius.m, borderWidth: 1.5, borderColor: color.slate,
+  backgroundColor: color.field, color: color.ink, fontFamily: font.regular, fontSize: 16, textAlignVertical: "top",
+} as const;
+
+/** The rim round a reply (pink) or a staff-only note (amber), at the given strength. */
+export const replyRim = (alpha: number, tone: "reply" | "note" = "reply") =>
+  ({ borderColor: `rgba(${tone === "note" ? "229, 160, 13" : "255, 209, 228"}, ${alpha})` }) as const;

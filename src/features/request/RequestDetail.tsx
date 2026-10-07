@@ -12,7 +12,7 @@ import { useFocusHere } from "../../ui/announce";
 import { Button } from "../../ui/Button";
 import { DetailFallback, DetailPage, TitleHead, detailStyles } from "../../ui/DetailPage";
 import { Text } from "../../ui/Text";
-import { color, font, radius, space } from "../../ui/theme";
+import { color, multilineInput, radius, replyRim } from "../../ui/theme";
 import { KIND_LABEL, formatSlot, isBook, seasonsLabel, since } from "../requests/stage";
 import { useRequests } from "../requests/useRequests";
 import { GlassFill, glass } from "../../ui/Glass";
@@ -129,11 +129,8 @@ function YourTicket({ request: r, ticket, onFocus }: { request: AppRequest; tick
 }
 
 const styles = StyleSheet.create({
-  asked: { borderWidth: 1, borderColor: "rgba(255, 209, 228, 0.55)" },
+  asked: { borderWidth: 1, ...replyRim(0.55) },
   askedText: { color: color.screen },
-  input: {
-    minHeight: 96, padding: space.m, borderRadius: radius.m, borderWidth: 1.5, borderColor: "rgba(255, 209, 228, 0.6)",
-    backgroundColor: color.field, color: color.ink, fontFamily: font.regular, fontSize: 16, textAlignVertical: "top",
-  },
+  input: { ...multilineInput, ...replyRim(0.6) },
   bad: { color: color.tally },
 });

@@ -13,7 +13,10 @@ import type { ConfirmButton } from "../../../ui/Confirm";
 import { PeopleSection } from "../PeopleSection";
 
 jest.mock("react-native-worklets", () => jest.requireActual("react-native-worklets/src/mock"));
-jest.mock("react-native-reanimated", () => jest.requireActual("react-native-reanimated/mock"));
+jest.mock("react-native-reanimated", () => ({
+  ...jest.requireActual<object>("react-native-reanimated/mock"),
+  cubicBezier: () => "ease-out",
+}));
 jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 // What each tappable row does, by its label, to tap it twice before the first is done.
 const mockPresses: Record<string, () => unknown> = {};

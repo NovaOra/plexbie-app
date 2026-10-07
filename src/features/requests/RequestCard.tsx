@@ -1,16 +1,14 @@
 import { memo } from "react";
 import { StyleSheet, View } from "react-native";
-import Animated, { cubicBezier, useReducedMotion } from "react-native-reanimated";
+import Animated, { useReducedMotion } from "react-native-reanimated";
 import type { AppRequest } from "../../api/schemas";
 import { PressableScale } from "../../ui/Pressable";
 import { Text } from "../../ui/Text";
 import { useLargeText } from "../../ui/useColumns";
-import { color, font, radius, space } from "../../ui/theme";
+import { color, EASE_OUT_CSS, font, radius, space } from "../../ui/theme";
 import { KIND_LABEL, formatSlot, isLive, seasonsLabel, since, stageHelp, stageLabel } from "./stage";
 import { GlassFill, glass } from "../../ui/Glass";
 import { Poster } from "../../ui/Poster";
-
-const EASE = cubicBezier(0.23, 1, 0.32, 1);
 
 /** One request, as its "slot" on the schedule: number, poster, title, where it is now.
  *  On Manage → All requests it also says who asked (`by`) and why it looks stuck (`stuck`). */
@@ -45,7 +43,7 @@ export const RequestCard = memo(function RequestCard({ request: r, onPress, by, 
         {!by && r.help?.waiting && r.help.status !== "resolved" ? <Text variant="meta" style={styles.asked}>An admin asked you something</Text> : null}
         {live && percent !== null ? (
           <View style={styles.track} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-            <Animated.View style={[styles.fill, { width: `${percent}%`, transitionProperty: "width", transitionDuration: reduced ? 0 : 600, transitionTimingFunction: EASE }]} />
+            <Animated.View style={[styles.fill, { width: `${percent}%`, transitionProperty: "width", transitionDuration: reduced ? 0 : 600, transitionTimingFunction: EASE_OUT_CSS }]} />
           </View>
         ) : null}
         {r.note ? <Text variant="meta" style={styles.note}>“{r.note}”</Text> : null}

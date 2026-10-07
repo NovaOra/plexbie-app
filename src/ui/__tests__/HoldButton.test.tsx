@@ -12,7 +12,7 @@ import { color } from "../theme";
 jest.mock("react-native-worklets", () => jest.requireActual("react-native-worklets/src/mock"));
 jest.mock("react-native-reanimated", () => {
   const mock = jest.requireActual<typeof import("react-native-reanimated")>("react-native-reanimated/mock");
-  return { ...mock, withTiming: jest.fn(mock.withTiming) };
+  return { ...mock, cubicBezier: () => "ease-out", withTiming: jest.fn(mock.withTiming) };
 });
 let mockLarge = false;
 jest.mock("../useColumns", () => ({ useLargeText: () => mockLarge }));

@@ -1,14 +1,12 @@
 // Where a request is on its way, as a box: the stage, live progress, the five steps, and
 // season by season. The member's request page and an admin's (Manage → All requests) share it.
 import { StyleSheet, View } from "react-native";
-import Animated, { cubicBezier, useReducedMotion } from "react-native-reanimated";
+import Animated, { useReducedMotion } from "react-native-reanimated";
 import type { AppRequest } from "../../api/schemas";
 import { Text } from "../../ui/Text";
-import { color, font, radius, space } from "../../ui/theme";
+import { color, EASE_OUT_CSS, font, radius, space } from "../../ui/theme";
 import { GlassFill, glass } from "../../ui/Glass";
 import { home, isLive, stageHelp, stageLabel } from "../requests/stage";
-
-const EASE = cubicBezier(0.23, 1, 0.32, 1);
 
 /** Where each stage sits on the way: asked, approved, on its way, being added, there. */
 const STEP: Record<string, number> = {
@@ -39,7 +37,7 @@ export function StageBox({ r }: { r: AppRequest }) {
       <Text variant="body" style={styles.ink}>{r.progress?.detail || stageHelp(r.stage, r.title.kind, r.format)}</Text>
       {live && percent !== null ? (
         <View style={styles.track}>
-          <Animated.View style={[styles.fill, { width: `${percent}%`, transitionProperty: "width", transitionDuration: reduced ? 0 : 600, transitionTimingFunction: EASE }]} />
+          <Animated.View style={[styles.fill, { width: `${percent}%`, transitionProperty: "width", transitionDuration: reduced ? 0 : 600, transitionTimingFunction: EASE_OUT_CSS }]} />
         </View>
       ) : null}
       {r.progress?.problem ? <Text variant="meta" style={styles.problem}>{r.progress.problem}</Text> : null}

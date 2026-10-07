@@ -15,7 +15,7 @@ import { GlassFill, glass } from "../../ui/Glass";
 import { useScrollToField } from "../../ui/keyboard";
 import { SwitchRow } from "../../ui/SwitchRow";
 import { Text } from "../../ui/Text";
-import { color, font, radius, space, TOUCH } from "../../ui/theme";
+import { color, multilineInput, radius, replyRim, space } from "../../ui/theme";
 import { useDraftGuard } from "../../ui/useDraftGuard";
 import { SeasonsBox, StageBox } from "../request/StageBox";
 import { KIND_LABEL, formatSlot, seasonsLabel, since, stageLabel } from "../requests/stage";
@@ -178,9 +178,6 @@ const styles = StyleSheet.create({
   fact: { flexDirection: "row", gap: space.m },
   factKey: { width: 104 },
   factValue: { flex: 1 },
-  inputReply: { borderColor: "rgba(255, 209, 228, 0.6)" },
-  input: {
-    minHeight: TOUCH * 2, padding: space.m, borderRadius: radius.m, borderWidth: 1.5, borderColor: color.slate,
-    backgroundColor: color.field, color: color.ink, fontFamily: font.regular, fontSize: 16, textAlignVertical: "top",
-  },
+  inputReply: replyRim(0.6),
+  input: multilineInput,
 });
