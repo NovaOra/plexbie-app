@@ -7,7 +7,7 @@
 // A write that got no answer may still have gone through: callers say so rather than "no".
 import { z } from "zod";
 import {
-  AckSchema, AdminCleanupSchema, CleanupMatchesSchema, InviteCheckSchema, ConversationSchema, DiscordOverviewSchema, HealthSchema, MessagePeopleSchema, AdminInvitesSchema, AdminJoinsSchema, AdminPeopleSchema, AdminRequestsSchema, LinkCandidatesSchema, NewInviteSchema, PlexInvitesSchema, ArrivalsSchema, CommunitySchema, HelpAnswerSchema, StatusSchema, MediaRequestSchema, MediaRequestsSchema, MobileInfoSchema, NothingSchema, LibrarySchema, PopularSchema, SessionSchema, TitleDetailSchema, TitlesSchema, TokenSchema, WatchPartySchema, AppReleaseSchema, DownloadLinkSchema, DiscoverSchema, ShelfPageSchema, SearchAllSchema, PrefsSchema, AdminAllRequestsSchema, AdminRequestDetailSchema, AdminTicketsSchema, AdminTicketDetailSchema, BlockedListSchema, BlockedPreviewSchema, ArrLibrarySchema, ArrEpisodesSchema,
+  AckSchema, AdminCleanupSchema, CleanupMatchesSchema, InviteCheckSchema, ConversationSchema, DiscordOverviewSchema, HealthSchema, MessagePeopleSchema, AdminInvitesSchema, AdminJoinsSchema, AdminPeopleSchema, AdminRequestsSchema, LinkCandidatesSchema, NewInviteSchema, PlexInvitesSchema, ArrivalsSchema, CommunitySchema, HelpAnswerSchema, StatusSchema, MediaRequestSchema, MediaRequestsSchema, MobileInfoSchema, NothingSchema, LibrarySchema, PopularSchema, SessionSchema, TitleDetailSchema, TitlesSchema, TokenSchema, WatchPartySchema, AppReleaseSchema, DownloadLinkSchema, DiscoverSchema, ShelfPageSchema, SearchAllSchema, PrefsSchema, AdminAllRequestsSchema, AdminRequestDetailSchema, AdminTicketsSchema, AdminTicketDetailSchema, BlockedListSchema, BlockedPreviewSchema, ArrLibrarySchema, ArrEpisodesSchema, SignedOutOthersSchema,
 } from "./schemas";
 import type { AppCleanupSettings } from "./schemas";
 import type { BlockedChoice, BookFormat, HelpReason, MediaKind } from "./types";
@@ -222,6 +222,8 @@ export function api(conn: Connection) {
     cleanupSettings: (change: Partial<AppCleanupSettings>) => request(conn, "/api/admin/cleanup/settings", AckSchema, json(change)),
     cleanupScan: () => request(conn, "/api/admin/cleanup/scan", AckSchema, json({}), undefined, SCAN_TIMEOUT_MS),
     adminHealth: (signal?: AbortSignal) => request(conn, "/api/admin/health", HealthSchema, {}, signal),
+    /** Ends every website and app sign-in but this one (for one made in an admin's name). */
+    signOutOthers: () => request(conn, "/api/admin/sign-out-others", SignedOutOthersSchema, json({})),
     adminDiscord: (signal?: AbortSignal) => request(conn, "/api/admin/discord", DiscordOverviewSchema, {}, signal),
     say: (channelId: string, message: string, allowMassPings: boolean) =>
       request(conn, "/api/admin/say", AckSchema, json({ channelId, message, allowMassPings })),

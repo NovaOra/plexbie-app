@@ -408,6 +408,11 @@ export const CleanupMatchesSchema = rowsOf(CleanupMatchSchema);
 /** Each connected service and whether it answers (GET /api/admin/health). */
 export const HealthSchema = rowsOf(z.looseObject({ name: z.string(), ok: z.boolean(), ms: z.number().catch(0), detail: z.string().nullable().optional().catch(null) }));
 
+/** Manage → Health → Sign out every other session (POST /api/admin/sign-out-others): `ended`
+ *  counts the app sign-ins it ended. Without it there's nothing to tell the admin. */
+export const SignedOutOthersSchema = AckSchema.extend({ ended: z.number().int().nonnegative() });
+export type AppSignedOutOthers = z.infer<typeof SignedOutOthersSchema>;
+
 /** Discord tools (GET /api/admin/discord): channels to post in, who brought whom, a live watch party. */
 export const DiscordOverviewSchema = z.looseObject({
   /** DMs to Plexbie: whether it answers them itself, and what it lacks to keep a thread per person. */

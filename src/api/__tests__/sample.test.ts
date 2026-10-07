@@ -109,3 +109,7 @@ test("every email address in the household is a reserved example one", async () 
   expect(emails.length).toBeGreaterThan(0);
   for (const email of emails) expect(email).toMatch(/@example\.(com|org|net)$/);
 });
+
+test("signing out every other session in the household says how many app sign-ins ended", async () => {
+  expect(await answer(sampleApi.signOutOthers())).toEqual({ ok: true, ended: 2, message: "Signed out every other website sign-in and 2 app sign-ins." });
+});

@@ -656,6 +656,7 @@ export const sampleApi: Api = {
       { name: "Sonarr", ok: true, ms: 120 }, { name: "SABnzbd", ok: false, ms: 0, detail: "Not answering (timed out)" },
     ];
   },
+  signOutOthers: async () => { await pause(700); return { ...ok("Signed out every other website sign-in and 2 app sign-ins."), ended: 2 }; },
   adminDiscord: async () => ({
     channels: [{ id: "c1", name: "general" }, { id: "c2", name: "movie-night" }],
     inbox: { autoreply: house.autoreply, threadsMissing: null },

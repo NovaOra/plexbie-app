@@ -42,6 +42,12 @@ and its **Keep a title forever** search finds any film or show on Plex by title,
 `/cleanup exempt add` does in Discord, leaving out the libraries cleanup skips. The search
 needs a Plexbie that answers `GET /api/admin/cleanup/search`; an older one is told to update.
 
+**A sign-in that wasn't yours:** Manage → Health → **Sign out every other session**, held as on
+the website, ends every website and app sign-in except the app's own on this phone, and says how
+many app sign-ins ended. This phone stays signed in and keeps its alerts; alerts turned on
+anywhere else stop, and everyone else signs in again. It needs a Plexbie that answers
+`POST /api/admin/sign-out-others`; an older one is told to update.
+
 **Live progress (Android):** while one of your requests downloads, it stays in the notification
 shade with a bar that fills up until it's on Plex; on Android 16 it's a Live Update, a chip in
 the status bar. The bot sends silent updates (`core/live_progress.py` there) and the app draws

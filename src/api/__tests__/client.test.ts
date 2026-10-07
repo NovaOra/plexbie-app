@@ -111,3 +111,18 @@ test("a line cut after a long wait, or a proxy that gave up, is no answer rather
   fetchMock.mockRejectedValue(new TypeError("Network request failed"));
   expect(await api({ server: SERVER, token: null }).cleanupScan().catch((e: unknown) => e)).toMatchObject({ kind: "network", unanswered: false });
 });
+
+test("signing out every other session posts once, says how many app sign-ins ended, and is never repeated", async () => {
+  fetchMock.mockResolvedValue(answer(200, { ok: true, ended: 3, message: "Signed out every other website sign-in and 3 app sign-ins." }));
+  const client = api({ server: SERVER, token: token.token });
+  await expect(client.signOutOthers()).resolves.toMatchObject({ ok: true, ended: 3 });
+  const [url, init] = fetchMock.mock.calls[0];
+  expect(url).toBe(`${SERVER}/api/admin/sign-out-others`);
+  expect(init).toMatchObject({ method: "POST", headers: { Authorization: `Bearer ${token.token}`, "X-Plexbie": "1" } });
+
+  // The bot couldn't save it: its own sentence, and no second try behind the admin's back.
+  fetchMock.mockReset();
+  fetchMock.mockResolvedValue(answer(503, { error: "Plexbie can't check sign-ins right now. Try again in a moment." }));
+  await expect(client.signOutOthers()).rejects.toThrow("Plexbie can't check sign-ins right now. Try again in a moment.");
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});

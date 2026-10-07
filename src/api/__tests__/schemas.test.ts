@@ -3,7 +3,7 @@
 // dropped instead of failing the whole screen.
 import { expect, test } from "@jest/globals";
 import {
-  ArrivalsSchema, CommunitySchema, DiscoverSchema, MediaRequestsSchema, MobileInfoSchema, SessionSchema, StatusSchema,
+  ArrivalsSchema, CommunitySchema, DiscoverSchema, MediaRequestsSchema, MobileInfoSchema, SessionSchema, SignedOutOthersSchema, StatusSchema,
   TitleDetailSchema, TitlesSchema, TokenSchema,
 } from "../schemas";
 import * as fx from "../__fixtures__/bot";
@@ -97,4 +97,10 @@ test("the sign-in token is only ever header-safe", () => {
     expect(TokenSchema.safeParse({ ...fx.token, token: bad }).success).toBe(false);
   }
   expect(TokenSchema.safeParse({ token: fx.token.token }).success).toBe(false);
+});
+
+test("sign out every other session: the count of app sign-ins it ended comes through, and an answer without it is refused", () => {
+  const sent = { ok: true, ended: 2, message: "Signed out every other website sign-in and 2 app sign-ins." };
+  expect(SignedOutOthersSchema.parse(wire(sent))).toEqual(sent);
+  expect(SignedOutOthersSchema.safeParse({ ok: true, message: "Done." }).success).toBe(false);
 });
