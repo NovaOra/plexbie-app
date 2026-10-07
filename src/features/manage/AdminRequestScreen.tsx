@@ -4,18 +4,15 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { StyleSheet, TextInput, View } from "react-native";
 import type { HelpSearch } from "../../api/client";
 import type { AppAdminRequestDetail, AppAdminTicket } from "../../api/schemas";
 import { useApi } from "../../auth/session";
 import { useFocusHere } from "../../ui/announce";
-import { BackHeader } from "../../ui/BackHeader";
 import { Button } from "../../ui/Button";
-import { Ambient, GlassFill, glass } from "../../ui/Glass";
-import { Poster } from "../../ui/Poster";
-import { KEYBOARD_BEHAVIOR, useScrollToField } from "../../ui/keyboard";
-import { StatusBarScrim } from "../../ui/StatusBarScrim";
+import { DetailFallback, DetailPage, TitleHead, detailStyles } from "../../ui/DetailPage";
+import { GlassFill, glass } from "../../ui/Glass";
+import { useScrollToField } from "../../ui/keyboard";
 import { SwitchRow } from "../../ui/SwitchRow";
 import { Text } from "../../ui/Text";
 import { color, font, radius, space, TOUCH } from "../../ui/theme";
@@ -40,7 +37,6 @@ export function AdminRequestScreen() {
   const client = useApi();
   const key = useAdminKey();
   const qc = useQueryClient();
-  const insets = useSafeAreaInsets();
   const heading = useFocusHere();
   const detailKey = [...key("all"), "request", id] as const;
   const { data: r, error, refetch } = useQuery({
@@ -75,21 +71,7 @@ export function AdminRequestScreen() {
     after();
   };
 
-  if (!r) {
-    return (
-      <View style={styles.page}>
-        <BackHeader />
-        <View style={styles.pad}>
-          {error ? (
-            <>
-              <Text variant="title" accessibilityRole="alert">Couldn’t load this request.</Text>
-              <Button kind="secondary" label="Try again" onPress={() => void refetch()} style={styles.start} />
-            </>
-          ) : <View style={styles.skeleton} accessibilityLabel="Loading" accessible />}
-        </View>
-      </View>
-    );
-  }
+  if (!r) return <DetailFallback error={error} errorTitle="Couldn’t load this request." onRetry={() => void refetch()} />;
 
   const openTicket = r.tickets.find((t) => t.status === "open");
   // Only an approved request can be searched for (not one waiting for a decision, or declined).
@@ -100,22 +82,14 @@ export function AdminRequestScreen() {
   ].sort((a, b) => b.at.localeCompare(a.at));
 
   return (
-    <KeyboardAvoidingView style={styles.page} behavior={KEYBOARD_BEHAVIOR}>
-      <Ambient />
-      <ScrollView ref={field.scroll} contentContainerStyle={[styles.pad, { paddingTop: insets.top + 64, paddingBottom: insets.bottom + space.xxl }]}
-        keyboardShouldPersistTaps="handled">
-        <View style={styles.head}>
-          <Poster poster={r.title.poster} title={r.title.title} id={r.title.id} size="w342" style={styles.poster} />
-          <View style={styles.headText}>
-            <Text variant="eyebrow">{[`No. ${formatSlot(r.slot)}`, KIND[r.title.kind]].filter(Boolean).join(" · ")}</Text>
-            <Text ref={heading} style={styles.name} accessibilityRole="header">{r.title.title}</Text>
-            {seasonsText(r.seasons) ? <Text variant="meta">{seasonsText(r.seasons)}</Text> : null}
-            <Text variant="meta">Asked {since(r.requestedAt)} by {r.requester} · via {r.via}</Text>
-          </View>
-        </View>
+    <DetailPage scroll={field.scroll}>
+        <TitleHead title={r.title} eyebrow={[`No. ${formatSlot(r.slot)}`, KIND[r.title.kind]].filter(Boolean).join(" · ")} heading={heading}>
+          {seasonsText(r.seasons) ? <Text variant="meta">{seasonsText(r.seasons)}</Text> : null}
+          <Text variant="meta">Asked {since(r.requestedAt)} by {r.requester} · via {r.via}</Text>
+        </TitleHead>
 
         {r.stuck.length ? (
-          <View style={[styles.box, styles.stuckBox]} accessibilityRole="summary" accessibilityLabel={`Looks stuck: ${r.stuck.join(". ")}`}>
+          <View style={[detailStyles.box, styles.stuckBox]} accessibilityRole="summary" accessibilityLabel={`Looks stuck: ${r.stuck.join(". ")}`}>
             {r.stuck.map((s) => <Text key={s} variant="label" style={styles.stuck}>⚠︎ {s}</Text>)}
           </View>
         ) : null}
@@ -139,14 +113,14 @@ export function AdminRequestScreen() {
         ) : null}
 
         {openTicket ? (
-          <View style={[styles.box, glass.surface]} accessibilityRole="summary">
+          <View style={[detailStyles.box, glass.surface]} accessibilityRole="summary">
             <GlassFill radius={radius.m} />
             <Text variant="label">There’s an open ticket on this: {openTicket.reason}.</Text>
-            <Button label="Open the ticket" style={styles.start}
+            <Button label="Open the ticket" style={detailStyles.start}
               onPress={() => router.push({ pathname: "/manage-ticket/[id]", params: { id: openTicket.id } })} />
           </View>
         ) : writing ? (
-          <View style={[styles.box, glass.surface]} onLayout={field.onLayout}>
+          <View style={[detailStyles.box, glass.surface]} onLayout={field.onLayout}>
             <GlassFill radius={radius.m} />
             <Text variant="label" nativeID="ticket-note">What’s wrong, or what you’ve found</Text>
             <TextInput value={note} onChangeText={setNote} multiline maxLength={600} autoFocus onFocus={field.onFocus}
@@ -156,7 +130,7 @@ export function AdminRequestScreen() {
               setTell(on);
               if (on && !message) setMessage(`An admin is looking into your request for ${r.title.title}. You’ll hear back when it’s sorted.`);
             }}>
-              <Text variant="body" style={styles.ink}>Let {r.requester} know</Text>
+              <Text variant="body" style={detailStyles.ink}>Let {r.requester} know</Text>
             </SwitchRow>
             {tell ? (
               <>
@@ -177,18 +151,15 @@ export function AdminRequestScreen() {
         )}
 
         {history.length ? (
-          <View style={[styles.box, glass.surface]}>
+          <View style={[detailStyles.box, glass.surface]}>
             <GlassFill radius={radius.m} />
             <Text variant="title" accessibilityRole="header">History</Text>
             {history.map((e, n) => (
-              <Text key={n} variant="meta"><Text variant="meta" style={styles.when}>{since(e.at)} </Text><Text variant="meta" style={styles.ink}>{e.text}</Text></Text>
+              <Text key={n} variant="meta"><Text variant="meta" style={styles.when}>{since(e.at)} </Text><Text variant="meta" style={detailStyles.ink}>{e.text}</Text></Text>
             ))}
           </View>
         ) : null}
-      </ScrollView>
-      <StatusBarScrim />
-      <BackHeader overlay />
-    </KeyboardAvoidingView>
+    </DetailPage>
   );
 }
 
@@ -206,7 +177,7 @@ function Facts({ r }: { r: AppAdminRequestDetail }) {
       {rows.map(([k, v]) => (
         <View key={k} style={styles.fact}>
           <Text variant="meta" style={styles.factKey}>{k}</Text>
-          <Text variant="body" style={[styles.ink, styles.factValue]}>{v}</Text>
+          <Text variant="body" style={[detailStyles.ink, styles.factValue]}>{v}</Text>
         </View>
       ))}
     </View>
@@ -214,17 +185,8 @@ function Facts({ r }: { r: AppAdminRequestDetail }) {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: color.field },
-  pad: { paddingHorizontal: space.l, gap: space.l },
-  start: { alignSelf: "flex-start" },
-  head: { flexDirection: "row", alignItems: "flex-end", gap: space.l },
-  poster: { width: 104 },
-  headText: { flex: 1, gap: space.xs },
-  name: { fontFamily: font.black, fontSize: 24, lineHeight: 28, color: color.ink },
-  box: { gap: space.m, padding: space.l, borderRadius: radius.m, backgroundColor: color.panel, borderWidth: StyleSheet.hairlineWidth, borderColor: color.rule },
   stuckBox: { gap: space.s, backgroundColor: "rgba(255, 92, 147, 0.1)", borderColor: "rgba(255, 92, 147, 0.45)" },
   stuck: { color: color.tally },
-  ink: { color: color.ink },
   when: { color: color.faint },
   facts: { gap: space.s },
   fact: { flexDirection: "row", gap: space.m },
@@ -237,5 +199,4 @@ const styles = StyleSheet.create({
     minHeight: TOUCH * 2, padding: space.m, borderRadius: radius.m, borderWidth: 1.5, borderColor: color.slate,
     backgroundColor: color.field, color: color.ink, fontFamily: font.regular, fontSize: 16, textAlignVertical: "top",
   },
-  skeleton: { height: 160, borderRadius: radius.m, backgroundColor: color.panel },
 });

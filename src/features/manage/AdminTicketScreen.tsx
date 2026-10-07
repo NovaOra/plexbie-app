@@ -5,18 +5,16 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { StyleSheet, TextInput, View } from "react-native";
 import type { HelpSearch } from "../../api/client";
 import type { Ack } from "../../api/schemas";
 import { useApi } from "../../auth/session";
 import { useFocusHere } from "../../ui/announce";
-import { BackHeader } from "../../ui/BackHeader";
 import { Button } from "../../ui/Button";
 import { Chip } from "../../ui/Chip";
-import { Ambient, GlassFill, glass } from "../../ui/Glass";
-import { KEYBOARD_BEHAVIOR, useScrollToField } from "../../ui/keyboard";
-import { StatusBarScrim } from "../../ui/StatusBarScrim";
+import { DetailFallback, DetailPage, detailStyles } from "../../ui/DetailPage";
+import { GlassFill, glass } from "../../ui/Glass";
+import { useScrollToField } from "../../ui/keyboard";
 import { Text } from "../../ui/Text";
 import { color, font, radius, space, TOUCH } from "../../ui/theme";
 import { useMe } from "../me/useMe";
@@ -33,7 +31,6 @@ export function AdminTicketScreen() {
   const client = useApi();
   const key = useAdminKey();
   const qc = useQueryClient();
-  const insets = useSafeAreaInsets();
   const heading = useFocusHere();
   const me = useMe().data?.user.name;
   const detailKey = [...key("tickets"), "ticket", id] as const;
@@ -57,21 +54,7 @@ export function AdminTicketScreen() {
     return !!out;
   };
 
-  if (!t) {
-    return (
-      <View style={styles.page}>
-        <BackHeader />
-        <View style={styles.pad}>
-          {error ? (
-            <>
-              <Text variant="title" accessibilityRole="alert">Couldn’t load this ticket.</Text>
-              <Button kind="secondary" label="Try again" onPress={() => void refetch()} style={styles.start} />
-            </>
-          ) : <View style={styles.skeleton} accessibilityLabel="Loading" accessible />}
-        </View>
-      </View>
-    );
-  }
+  if (!t) return <DetailFallback error={error} errorTitle="Couldn’t load this ticket." onRetry={() => void refetch()} />;
 
   const state = ticketState(t);
   const open = t.status === "open";
@@ -90,13 +73,10 @@ export function AdminTicketScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.page} behavior={KEYBOARD_BEHAVIOR}>
-      <Ambient />
-      <ScrollView ref={field.scroll} contentContainerStyle={[styles.pad, { paddingTop: insets.top + 64, paddingBottom: insets.bottom + space.xxl }]}
-        keyboardShouldPersistTaps="handled">
+    <DetailPage scroll={field.scroll}>
         <View style={styles.headText}>
           <Text variant="eyebrow">No. {formatSlot(t.slot)} · {t.reason}</Text>
-          <Text ref={heading} style={styles.name} accessibilityRole="header">{t.title}{seasons ? ` · ${seasons}` : ""}</Text>
+          <Text ref={heading} style={detailStyles.name} accessibilityRole="header">{t.title}{seasons ? ` · ${seasons}` : ""}</Text>
           <Text variant="meta">{t.openedBy ? `Opened by ${t.openedBy}` : `Asked by ${t.who}`} {since(t.createdAt)}</Text>
         </View>
 
@@ -115,7 +95,7 @@ export function AdminTicketScreen() {
           <>
             <StageBox r={t.request} />
             {t.request.stuck.length ? (
-              <View style={[styles.box, styles.stuckBox]} accessibilityRole="summary" accessibilityLabel={`Looks stuck: ${t.request.stuck.join(". ")}`}>
+              <View style={[detailStyles.box, styles.stuckBox]} accessibilityRole="summary" accessibilityLabel={`Looks stuck: ${t.request.stuck.join(". ")}`}>
                 {t.request.stuck.map((s) => <Text key={s} variant="label" style={styles.stuck}>⚠︎ {s}</Text>)}
               </View>
             ) : null}
@@ -143,7 +123,7 @@ export function AdminTicketScreen() {
           <Button kind="secondary" label="Reopen" busy={busy === "reopen"} busyLabel="Reopening…" disabled={!!busy}
             onPress={() => void run("reopen", () => client.ticketStatus(id, "open"), "Reopened")} />
         ) : solving ? (
-          <View style={[styles.box, glass.surface, styles.replyBox]} onLayout={field.onLayout}>
+          <View style={[detailStyles.box, glass.surface, styles.replyBox]} onLayout={field.onLayout}>
             <GlassFill radius={radius.m} />
             <Text variant="label" nativeID="ticket-last">Last word to {t.who} <Text variant="meta">(optional)</Text></Text>
             <TextInput value={last} onChangeText={setLast} multiline maxLength={600} autoFocus onFocus={field.onFocus}
@@ -155,7 +135,7 @@ export function AdminTicketScreen() {
             </View>
           </View>
         ) : (
-          <View style={[styles.box, glass.surface, kind === "note" ? styles.noteBox : styles.replyBox]} onLayout={field.onLayout}>
+          <View style={[detailStyles.box, glass.surface, kind === "note" ? styles.noteBox : styles.replyBox]} onLayout={field.onLayout}>
             <GlassFill radius={radius.m} />
             <View style={styles.seg} accessibilityRole="radiogroup" accessibilityLabel="Who sees it">
               <Chip label="Note for admins" selected={kind === "note"} onPress={() => setKind("note")} />
@@ -175,21 +155,13 @@ export function AdminTicketScreen() {
             </View>
           </View>
         )}
-      </ScrollView>
-      <StatusBarScrim />
-      <BackHeader overlay />
-    </KeyboardAvoidingView>
+    </DetailPage>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: color.field },
-  pad: { paddingHorizontal: space.l, gap: space.l },
-  start: { alignSelf: "flex-start" },
   headText: { gap: space.xs },
-  name: { fontFamily: font.black, fontSize: 24, lineHeight: 28, color: color.ink },
   owner: { gap: space.m },
-  box: { gap: space.m, padding: space.l, borderRadius: radius.m, backgroundColor: color.panel, borderWidth: StyleSheet.hairlineWidth, borderColor: color.rule },
   stuckBox: { gap: space.s, backgroundColor: "rgba(255, 92, 147, 0.1)", borderColor: "rgba(255, 92, 147, 0.45)" },
   noteBox: { borderWidth: 1, borderColor: "rgba(229, 160, 13, 0.45)" },
   replyBox: { borderWidth: 1, borderColor: "rgba(255, 209, 228, 0.45)" },
@@ -203,5 +175,4 @@ const styles = StyleSheet.create({
   },
   inputNote: { borderColor: "rgba(229, 160, 13, 0.6)" },
   inputReply: { borderColor: "rgba(255, 209, 228, 0.6)" },
-  skeleton: { height: 160, borderRadius: radius.m, backgroundColor: color.panel },
 });

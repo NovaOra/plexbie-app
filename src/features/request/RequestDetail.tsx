@@ -5,22 +5,19 @@ import { useQueryClient } from "@tanstack/react-query";
 import * as haptic from "../../ui/haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { StyleSheet, TextInput, View } from "react-native";
 import type { AppMemberTicket, AppRequest } from "../../api/schemas";
 import { useApi, useSession } from "../../auth/session";
 import { useFocusHere } from "../../ui/announce";
-import { BackHeader } from "../../ui/BackHeader";
 import { Button } from "../../ui/Button";
-import { Poster } from "../../ui/Poster";
+import { DetailFallback, DetailPage, TitleHead, detailStyles } from "../../ui/DetailPage";
 import { Text } from "../../ui/Text";
 import { color, font, radius, space } from "../../ui/theme";
 import { formatSlot, since } from "../requests/stage";
 import { useRequests } from "../requests/useRequests";
-import { Ambient, GlassFill, glass } from "../../ui/Glass";
+import { GlassFill, glass } from "../../ui/Glass";
 import { SeasonsBox, StageBox } from "./StageBox";
-import { StatusBarScrim } from "../../ui/StatusBarScrim";
-import { KEYBOARD_BEHAVIOR, useScrollToField } from "../../ui/keyboard";
+import { useScrollToField } from "../../ui/keyboard";
 import { useToast } from "../../ui/Toast";
 import { Thread } from "../tickets/Thread";
 
@@ -40,25 +37,13 @@ export function seasonsText(s: AppRequest["seasons"]) {
 export function RequestDetail() {
   const { slot } = useLocalSearchParams<{ slot: string }>();
   const heading = useFocusHere();
-  const insets = useSafeAreaInsets();
   const { data, error, refetch } = useRequests();
   const r = data?.find((x) => String(x.slot) === slot);
   const field = useScrollToField();
 
   if (!r) {
-    return (
-      <View style={styles.page}>
-        <BackHeader />
-        <View style={styles.pad}>
-          {data || error ? (
-            <>
-              <Text variant="title" accessibilityRole="alert">{error ? "Couldn’t load this request." : "That request isn’t yours, or it’s gone."}</Text>
-              {error ? <Button kind="secondary" label="Try again" onPress={() => void refetch()} style={styles.start} /> : null}
-            </>
-          ) : <View style={styles.skeleton} accessibilityLabel="Loading" accessible />}
-        </View>
-      </View>
-    );
+    return <DetailFallback error={error} errorTitle="Couldn’t load this request." onRetry={() => void refetch()}
+      notFound={data ? "That request isn’t yours, or it’s gone." : undefined} />;
   }
 
   const ended = r.stage === "declined" || r.stage === "closed";
@@ -66,27 +51,20 @@ export function RequestDetail() {
   const canAsk = !!r.id && !ended && !r.help;
 
   return (
-    <KeyboardAvoidingView style={styles.page} behavior={KEYBOARD_BEHAVIOR}>
-      <Ambient />
-      <ScrollView ref={field.scroll} contentContainerStyle={[styles.pad, { paddingTop: insets.top + 64, paddingBottom: insets.bottom + space.xxl }]}
-        keyboardShouldPersistTaps="handled">
-        <View style={styles.head}>
-          <Poster poster={r.title.poster} title={r.title.title} id={r.title.id} size="w342" style={styles.poster} />
-          <View style={styles.headText}>
-            <Text variant="eyebrow">{[`No. ${formatSlot(r.slot)}`, KIND[r.title.kind], r.format && book ? r.format : null].filter(Boolean).join(" · ")}</Text>
-            <Text ref={heading} style={styles.name} accessibilityRole="header">{r.title.title}</Text>
-            {seasonsText(r.seasons) ? <Text variant="meta">{seasonsText(r.seasons)}</Text> : null}
-          </View>
-        </View>
+    <DetailPage scroll={field.scroll}>
+        <TitleHead title={r.title} eyebrow={[`No. ${formatSlot(r.slot)}`, KIND[r.title.kind], r.format && book ? r.format : null].filter(Boolean).join(" · ")}
+          heading={heading}>
+          {seasonsText(r.seasons) ? <Text variant="meta">{seasonsText(r.seasons)}</Text> : null}
+        </TitleHead>
 
         <StageBox r={r} />
         <SeasonsBox r={r} />
 
         {r.note ? (
-          <View style={[styles.box, glass.surface]}>
+          <View style={[detailStyles.box, glass.surface]}>
             <GlassFill radius={radius.m} />
             <Text variant="eyebrow">From the admins</Text>
-            <Text variant="body" style={styles.ink}>“{r.note}”</Text>
+            <Text variant="body" style={detailStyles.ink}>“{r.note}”</Text>
           </View>
         ) : null}
 
@@ -97,13 +75,10 @@ export function RequestDetail() {
             <YourTicket request={r} ticket={r.help} onFocus={field.onFocus} />
           </View>
         ) : canAsk ? (
-          <Button kind="secondary" label="Something wrong? Ask for help" style={styles.start}
+          <Button kind="secondary" label="Something wrong? Ask for help" style={detailStyles.start}
             onPress={() => router.push({ pathname: "/help/[slot]", params: { slot: String(r.slot) } })} />
         ) : null}
-      </ScrollView>
-      <StatusBarScrim />
-      <BackHeader overlay />
-    </KeyboardAvoidingView>
+    </DetailPage>
   );
 }
 
@@ -140,7 +115,7 @@ function YourTicket({ request: r, ticket, onFocus }: { request: AppRequest; tick
     }
   };
   return (
-    <View style={[styles.box, glass.surface, ticket.waiting && styles.asked]}>
+    <View style={[detailStyles.box, glass.surface, ticket.waiting && styles.asked]}>
       <GlassFill radius={radius.m} />
       <Text variant="eyebrow" accessibilityRole="header" style={ticket.waiting && !solved ? styles.askedText : undefined}>{ticket.waiting ? "An admin asked you something" : solved ? "Your ticket · solved" : "Your ticket"}</Text>
       <Text variant="label">Help asked: {reason}.</Text>
@@ -159,15 +134,6 @@ function YourTicket({ request: r, ticket, onFocus }: { request: AppRequest; tick
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: color.field },
-  pad: { paddingHorizontal: space.l, gap: space.l },
-  start: { alignSelf: "flex-start" },
-  head: { flexDirection: "row", alignItems: "flex-end", gap: space.l },
-  poster: { width: 104 },
-  headText: { flex: 1, gap: space.xs },
-  name: { fontFamily: font.black, fontSize: 24, lineHeight: 28, color: color.ink },
-  box: { gap: space.m, padding: space.l, borderRadius: radius.m, backgroundColor: color.panel, borderWidth: StyleSheet.hairlineWidth, borderColor: color.rule },
-  ink: { color: color.ink },
   asked: { borderWidth: 1, borderColor: "rgba(255, 209, 228, 0.55)" },
   askedText: { color: color.screen },
   input: {
@@ -175,5 +141,4 @@ const styles = StyleSheet.create({
     backgroundColor: color.field, color: color.ink, fontFamily: font.regular, fontSize: 16, textAlignVertical: "top",
   },
   bad: { color: color.tally },
-  skeleton: { height: 160, borderRadius: radius.m, backgroundColor: color.panel },
 });
