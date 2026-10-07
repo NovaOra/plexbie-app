@@ -69,7 +69,8 @@ export function TitleScreen() {
       </View>
     );
   }
-  return <Loaded t={title.data} />;
+  // Keyed by title, so a screen reused for another title starts with nothing picked or sent.
+  return <Loaded key={`${title.data.kind}/${title.data.id}`} t={title.data} />;
 }
 
 function Loaded({ t }: { t: AppTitle }) {
@@ -114,7 +115,7 @@ function Loaded({ t }: { t: AppTitle }) {
         <View style={[styles.pad, styles.body]}>
           {plexUrl ? <Button label="Watch on Plex" onPress={() => void Linking.openURL(plexUrl)} /> : null}
           {t.overview ? <Text variant="body" style={styles.overview}>{t.overview.replace(/\s*[—–]\s*/g, ", ")}</Text> : null}
-          <Ask t={t} book={book} />
+          <Ask key={`${t.kind}/${t.id}`} t={t} book={book} />
           {t.kind === "movie" || t.kind === "tv" ? <MoreLikeThis kind={t.kind} id={t.id} /> : null}
         </View>
       </ScrollView>

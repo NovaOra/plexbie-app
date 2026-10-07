@@ -1,5 +1,6 @@
-// The title page: a first load that fails shows the error with a way to try again, and a
-// background refetch that fails later keeps the loaded page, with the seasons ticked so far.
+// The title page: a first load that fails shows the error with a way to try again, a
+// background refetch that fails later keeps the loaded page, with the seasons ticked so far,
+// and the same screen showing another title starts that title's request form afresh.
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
@@ -7,13 +8,14 @@ import { pepper } from "../../../api/__fixtures__/bot";
 import type { AppTitle } from "../../../api/schemas";
 import { TitleScreen } from "../TitleScreen";
 
+let mockParams = { kind: "tv", id: "900102" };          // Pepper & Carrot
 const mockTitle = jest.fn<(kind: string, id: string, signal?: AbortSignal) => Promise<AppTitle>>();
 jest.mock("../../../auth/session", () => ({
   useApi: () => ({ title: mockTitle }),
   useSession: () => ({ state: { phase: "signedIn", server: "https://plexbie.example", token: "t", sample: false } }),
 }));
 jest.mock("expo-router", () => ({
-  useLocalSearchParams: () => ({ kind: "tv", id: "900102" }),          // Pepper & Carrot
+  useLocalSearchParams: () => mockParams,
   useFocusEffect: () => undefined,
   router: { push: jest.fn(), navigate: jest.fn(), back: jest.fn(), replace: jest.fn(), canGoBack: () => true },
 }));
@@ -34,6 +36,7 @@ jest.mock("../../push/PushRow", () => ({ PushOffer: () => null }));
 let qc: QueryClient;
 beforeEach(() => {
   mockTitle.mockReset();
+  mockParams = { kind: "tv", id: pepper.id };
   qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 });
 afterEach(() => qc.clear());
@@ -68,4 +71,26 @@ test("a background refetch that fails keeps the page and the seasons picked", as
   expect(screen.getByRole("header", { name: pepper.title })).toBeTruthy();
   expect(seasonTwo().props.accessibilityState).toMatchObject({ checked: true });
   expect(screen.getByText(/You’re asking for season 2\./)).toBeTruthy();
+});
+
+test("the same screen showing another title doesn't keep the seasons picked for the last one", async () => {
+  const other = { ...pepper, id: "900103", title: "Pepper & Carrot: Shorts" } as AppTitle;
+  mockTitle.mockImplementation(async (_kind, id) => (id === other.id ? other : pepper) as AppTitle);
+  // Already cached, so the screen goes straight from one loaded title to the next.
+  qc.setQueryData(["title", "https://plexbie.example", "tv", other.id], other);
+  const view = await show();
+  expect(await screen.findByRole("header", { name: pepper.title })).toBeTruthy();
+  await fireEvent.press(seasonTwo());
+  expect(seasonTwo().props.accessibilityState).toMatchObject({ checked: true });
+
+  mockParams = { kind: "tv", id: other.id };
+  await view.rerender(<QueryClientProvider client={qc}><TitleScreen /></QueryClientProvider>);
+
+  expect(await screen.findByRole("header", { name: other.title })).toBeTruthy();
+  expect(seasonTwo().props.accessibilityState).toMatchObject({ checked: false });
+  expect(screen.queryByText(/You’re asking for season 2\./)).toBeNull();
+  // Its own background refetch settles on the same title.
+  await waitFor(() => expect(mockTitle).toHaveBeenCalledWith("tv", other.id, expect.anything()));
+  await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+  expect(screen.getByRole("header", { name: other.title })).toBeTruthy();
 });
