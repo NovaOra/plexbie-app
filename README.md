@@ -38,7 +38,8 @@ browser.
 shade with a bar that fills up until it's on Plex; on Android 16 it's a Live Update, a chip in
 the status bar. The bot sends silent updates (`core/live_progress.py` there) and the app draws
 them in its own module, `modules/plexbie-live`, even when it's closed. Nothing shows before a
-request is downloading, and a stuck one is taken down. It's on the You screen, with a preview.
+request is downloading, and a stuck one is taken down. Tapping it opens the request, with Home
+behind it (Back goes there, even when the tap started the app). It's on the You screen, with a preview.
 
 **Vibration:** Plexbie's own patterns (a little fanfare when a request is sent), and alerts that
 buzz tap-tap-buzz on Android. One switch on the You screen turns all of it off.
@@ -47,6 +48,9 @@ buzz tap-tap-buzz on Android. One switch on the You screen turns all of it off.
 bot, off by default). App alerts go through the Plexbie project's Expo account, so they're
 for the project's own household; every other Plexbie's members turn on its website's
 alerts instead, which each install sends itself. The app says so and opens the website.
+Tapping an alert opens its page once, over Home (Back goes there), even when the tap starts the
+app; signing out and back in doesn't open it again. One tapped while signed out, or in the sample household,
+opens nothing: the app can't tell which server sent it.
 
 **Versions:** one step per release (1.0.9, then 1.1.0), from 1.0.0, the first public
 release; the current one is in `app.json`. Android's `versionCode` (and the iPhone build

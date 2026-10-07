@@ -3,11 +3,11 @@ import NetInfo from "@react-native-community/netinfo";
 import { focusManager, onlineManager } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import * as Notifications from "expo-notifications";
-import { router, Stack } from "expo-router";
+import { router, Stack, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { AppState, Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -29,19 +29,36 @@ onlineManager.setEventListener((setOnline) => NetInfo.addEventListener((s) => se
 AppState.addEventListener("change", (s) => { if (Platform.OS !== "web") focusManager.setFocused(s === "active"); });
 
 
-/** Tapping an alert (app open, in the background, or started by the tap) opens its screen. */
-function useAlertTaps(signedIn: boolean) {
+// A screen opened straight from a link (a live-progress notification's request) gets Home
+// beneath it, so Back goes there instead of closing the app.
+export const unstable_settings = { anchor: "(app)" };
+
+/** Tapping an alert (app open, in the background, or started by the tap) opens its screen, once.
+ *  Rendered with the Stack: navigating before it mounts throws and loses the tap. Its own
+ *  component, so following the route doesn't re-render the whole Stack. */
+function AlertTaps({ live }: { live: boolean }) {
   const last = Notifications.useLastNotificationResponse();
+  const pathname = usePathname();
+  // The tap already acted on: signing out and back in (or into another server) doesn't replay it.
+  const handled = useRef<string | null>(null);
   useEffect(() => {
-    if (!signedIn || !last || last.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
-    router.navigate(routeFor(last.notification.request.content.data?.url));
-  }, [last, signedIn]);
+    if (!last || last.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
+    const id = last.notification.request.identifier;
+    if (handled.current === id) return;
+    // A tap that started the app waits for the start screen to hand over to Home, so the alert's
+    // screen opens from Home (Back goes there) rather than over a blank one.
+    if (live && pathname === "/") return;
+    handled.current = id;
+    // Signed out or in the sample, there's no telling which server sent it: the tap opens nothing.
+    if (live) router.navigate(routeFor(last.notification.request.content.data?.url));
+    try { Notifications.clearLastNotificationResponse(); } catch { /* not on every platform */ }
+  }, [last, live, pathname]);
+  return null;
 }
 
 function Routes() {
   const { state, client } = useSession();
   const live = state.phase === "signedIn" && !state.sample;
-  useAlertTaps(live);
   // Once a start: the alert channels exist and the bot has this phone on the right one.
   useEffect(() => { if (live && client) void refreshPush(client); }, [live, client]);
   const [fonts, fontError] = useFonts({ Archivo_400Regular, Archivo_500Medium, Archivo_600SemiBold, Archivo_700Bold, Archivo_800ExtraBold });
@@ -75,6 +92,7 @@ function Routes() {
       {/* Signed in or out: it stays through the sign-in that uses the invite, to say how it went. */}
       <Stack.Screen name="invite" options={{ animation: "default" }} />
     </Stack>
+    <AlertTaps live={live} />
     <LaunchOverlay ready />
     </>
   );
