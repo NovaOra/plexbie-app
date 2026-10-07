@@ -1,33 +1,17 @@
-import { useState } from "react";
 import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { Button } from "../../ui/Button";
 import { Text } from "../../ui/Text";
-import { useToast } from "../../ui/Toast";
 import { color, radius, space } from "../../ui/theme";
 import { UPDATE_VERB, installed, useAppUpdate, whatsNew } from "./useAppUpdate";
+import { useDownloadUpdate } from "./useDownloadUpdate";
 import { GlassFill, glass } from "../../ui/Glass";
 
 /** "Plexbie 1.5.0 is out" on Home: what's new, Download, Not now (until the next version). */
 export function UpdateCard({ style }: { style?: StyleProp<ViewStyle> }) {
   const { newer, card, dismiss, download } = useAppUpdate();
-  const toast = useToast();
-  const [busy, setBusy] = useState(false);
+  const { busy, get } = useDownloadUpdate(download, { keepsSignedIn: true });
   if (!card || !newer) return null;
   const lines = whatsNew(newer.notes);
-  const get = async () => {
-    setBusy(true);
-    try {
-      const opened = await download();
-      toast(typeof opened === "string" ? { text: `Opening ${opened}`, detail: "Plexbie’s update is waiting there. It keeps you signed in." }
-        : opened ? { text: "Downloading in your browser", detail: "Open the file when it’s done to install. It keeps you signed in." }
-        : Platform.OS === "ios" ? { text: "Update from SideStore", detail: "Open SideStore (or AltStore) and update Plexbie there." }
-        : { text: "Nothing to download here", detail: "The sample household has no app to download." });
-    } catch {
-      toast({ text: "Couldn’t start the download", detail: "Try again in a moment." });
-    } finally {
-      setBusy(false);
-    }
-  };
   return (
     <View style={style}>
     <View style={[styles.card, glass.surface, styles.cardRim]} accessibilityRole="summary">
