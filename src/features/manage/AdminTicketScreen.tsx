@@ -21,7 +21,7 @@ import { useMe } from "../me/useMe";
 import { StageBox } from "../request/StageBox";
 import { formatSlot, seasonsLabel, since } from "../requests/stage";
 import { Thread, TicketPill, ticketState } from "../tickets/Thread";
-import { card } from "./bits";
+import { SEARCH_DONE, SearchFixes, StuckBox, card } from "./bits";
 import { BlockedImport } from "./BlockedImport";
 import { useAct, useAdminKey } from "./useAdmin";
 
@@ -66,7 +66,7 @@ export function AdminTicketScreen() {
     if (await run("send", () => client.ticketComment(id, kind, text.trim()), kind === "reply" ? "Sent" : "Note added")) setText("");
   };
   const search = (how: HelpSearch) =>
-    void run(how, () => client.helpSearch(id, how), { again: "Searching again", episodes: "Searching episode by episode", name: "Searching by name" }[how]);
+    void run(how, () => client.helpSearch(id, how), SEARCH_DONE[how]);
   const solve = async () => {
     if (await run("solve", () => client.ticketStatus(id, "resolved", last.trim()), "Solved")) { setSolving(false); setLast(""); }
   };
@@ -93,28 +93,13 @@ export function AdminTicketScreen() {
         {t.request ? (
           <>
             <StageBox r={t.request} />
-            {t.request.stuck.length ? (
-              <View style={[detailStyles.box, styles.stuckBox]} accessibilityRole="summary" accessibilityLabel={`Looks stuck: ${t.request.stuck.join(". ")}`}>
-                {t.request.stuck.map((s) => <Text key={s} variant="label" style={styles.stuck}>⚠︎ {s}</Text>)}
-              </View>
-            ) : null}
+            <StuckBox stuck={t.request.stuck} />
           </>
         ) : null}
 
         {t.blocked && open ? <BlockedImport target={t.blocked} onDone={() => void qc.invalidateQueries({ queryKey: detailKey })} /> : null}
 
-        {video && open ? (
-          <View style={styles.fixes}>
-            <Button kind="secondary" label="Search again" busy={busy === "again"} busyLabel="Searching…" disabled={!!busy}
-              onPress={() => search("again")} style={styles.fix} />
-            {t.kind === "tv" ? (
-              <Button kind="secondary" label="Episode by episode" busy={busy === "episodes"} busyLabel="Searching…" disabled={!!busy}
-                onPress={() => search("episodes")} style={styles.fix} />
-            ) : null}
-            <Button kind={t.offer === "name" ? "primary" : "secondary"} label="Search by name" busy={busy === "name"} busyLabel="Starting…"
-              disabled={!!busy} onPress={() => search("name")} style={styles.fix} />
-          </View>
-        ) : null}
+        {video && open ? <SearchFixes kind={t.kind} busy={busy} onSearch={search} byName={t.offer === "name"} /> : null}
 
         <Thread entries={t.thread} who={t.who} admin />
 
@@ -161,12 +146,8 @@ export function AdminTicketScreen() {
 const styles = StyleSheet.create({
   headText: { gap: space.xs },
   owner: { gap: space.m },
-  stuckBox: { gap: space.s, backgroundColor: "rgba(255, 92, 147, 0.1)", borderColor: "rgba(255, 92, 147, 0.45)" },
   noteBox: { borderWidth: 1, borderColor: "rgba(229, 160, 13, 0.45)" },
   replyBox: { borderWidth: 1, borderColor: "rgba(255, 209, 228, 0.45)" },
-  stuck: { color: color.tally },
-  fixes: { flexDirection: "row", flexWrap: "wrap", gap: space.s },
-  fix: { flexGrow: 1, flexBasis: 150 },
   seg: { flexDirection: "row", flexWrap: "wrap", gap: space.s },
   input: {
     minHeight: TOUCH * 2, padding: space.m, borderRadius: radius.m, borderWidth: 1.5, borderColor: color.slate,

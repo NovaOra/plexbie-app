@@ -18,7 +18,7 @@ import { Text } from "../../ui/Text";
 import { color, font, radius, space, TOUCH } from "../../ui/theme";
 import { SeasonsBox, StageBox } from "../request/StageBox";
 import { KIND_LABEL, formatSlot, seasonsLabel, since, stageLabel } from "../requests/stage";
-import { card } from "./bits";
+import { SEARCH_DONE, SearchFixes, StuckBox, card } from "./bits";
 import { useAct, useAdminKey } from "./useAdmin";
 
 /** A ticket in the request's history, in a sentence. */
@@ -54,7 +54,7 @@ export function AdminRequestScreen() {
   const search = async (how: HelpSearch) => {
     const out = await act(how, () => client.requestSearch(id, how), {
       failText: "Couldn’t search",
-      done: (o) => ({ text: { again: "Searching again", episodes: "Searching episode by episode", name: "Searching by name" }[how], detail: o.message }),
+      done: (o) => ({ text: SEARCH_DONE[how], detail: o.message }),
     });
     if (out) after();
   };
@@ -85,29 +85,14 @@ export function AdminRequestScreen() {
           <Text variant="meta">Asked {since(r.requestedAt)} by {r.requester} · via {r.via}</Text>
         </TitleHead>
 
-        {r.stuck.length ? (
-          <View style={[detailStyles.box, styles.stuckBox]} accessibilityRole="summary" accessibilityLabel={`Looks stuck: ${r.stuck.join(". ")}`}>
-            {r.stuck.map((s) => <Text key={s} variant="label" style={styles.stuck}>⚠︎ {s}</Text>)}
-          </View>
-        ) : null}
+        <StuckBox stuck={r.stuck} />
 
         <StageBox r={r} />
         <SeasonsBox r={r} />
 
         <Facts r={r} />
 
-        {video ? (
-          <View style={styles.fixes}>
-            <Button kind="secondary" label="Search again" busy={busy === "again"} busyLabel="Searching…" disabled={!!busy}
-              onPress={() => void search("again")} style={styles.fix} />
-            {r.title.kind === "tv" ? (
-              <Button kind="secondary" label="Episode by episode" busy={busy === "episodes"} busyLabel="Searching…" disabled={!!busy}
-                onPress={() => void search("episodes")} style={styles.fix} />
-            ) : null}
-            <Button kind="secondary" label="Search by name" busy={busy === "name"} busyLabel="Starting…" disabled={!!busy}
-              onPress={() => void search("name")} style={styles.fix} />
-          </View>
-        ) : null}
+        {video ? <SearchFixes kind={r.title.kind} busy={busy} onSearch={(how) => void search(how)} /> : null}
 
         {openTicket ? (
           <View style={[detailStyles.box, glass.surface]} accessibilityRole="summary">
@@ -182,15 +167,11 @@ function Facts({ r }: { r: AppAdminRequestDetail }) {
 }
 
 const styles = StyleSheet.create({
-  stuckBox: { gap: space.s, backgroundColor: "rgba(255, 92, 147, 0.1)", borderColor: "rgba(255, 92, 147, 0.45)" },
-  stuck: { color: color.tally },
   when: { color: color.faint },
   facts: { gap: space.s },
   fact: { flexDirection: "row", gap: space.m },
   factKey: { width: 104 },
   factValue: { flex: 1 },
-  fixes: { flexDirection: "row", flexWrap: "wrap", gap: space.s },
-  fix: { flexGrow: 1, flexBasis: 150 },
   inputReply: { borderColor: "rgba(255, 209, 228, 0.6)" },
   input: {
     minHeight: TOUCH * 2, padding: space.m, borderRadius: radius.m, borderWidth: 1.5, borderColor: color.slate,

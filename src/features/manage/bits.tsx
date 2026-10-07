@@ -1,6 +1,10 @@
 // Small pieces Manage's sections share: a section heading with a count, an "all clear"
-// note, a status pill, and an initial in a circle.
+// note, a status pill, and an initial in a circle. And two the request and ticket screens
+// share: the "looks stuck" box and the search fixes.
 import { StyleSheet, View } from "react-native";
+import type { HelpSearch } from "../../api/client";
+import { Button } from "../../ui/Button";
+import { detailStyles } from "../../ui/DetailPage";
 import { Text } from "../../ui/Text";
 import { color, font, radius, space } from "../../ui/theme";
 
@@ -33,6 +37,42 @@ export function Initial({ name }: { name: string }) {
   );
 }
 
+/** Why a request looks stuck, one warning a line. Nothing when it doesn't. */
+export function StuckBox({ stuck }: { stuck: string[] }) {
+  if (!stuck.length) return null;
+  return (
+    <View style={[detailStyles.box, styles.stuckBox]} accessibilityRole="summary" accessibilityLabel={`Looks stuck: ${stuck.join(". ")}`}>
+      {stuck.map((s) => <Text key={s} variant="label" style={styles.stuck}>⚠︎ {s}</Text>)}
+    </View>
+  );
+}
+
+/** The toast for each search fix. */
+export const SEARCH_DONE: Record<HelpSearch, string> = {
+  again: "Searching again", episodes: "Searching episode by episode", name: "Searching by name",
+};
+
+/**
+ * Search again, episode by episode (a show only), or by name. `busy` is the action under
+ * way, if any; `byName` makes "Search by name" the main button.
+ */
+export function SearchFixes({ kind, busy, onSearch, byName = false }: {
+  kind: string; busy: string | null; onSearch: (how: HelpSearch) => void; byName?: boolean;
+}) {
+  return (
+    <View style={styles.fixes}>
+      <Button kind="secondary" label="Search again" busy={busy === "again"} busyLabel="Searching…" disabled={!!busy}
+        onPress={() => onSearch("again")} style={styles.fix} />
+      {kind === "tv" ? (
+        <Button kind="secondary" label="Episode by episode" busy={busy === "episodes"} busyLabel="Searching…" disabled={!!busy}
+          onPress={() => onSearch("episodes")} style={styles.fix} />
+      ) : null}
+      <Button kind={byName ? "primary" : "secondary"} label="Search by name" busy={busy === "name"} busyLabel="Starting…"
+        disabled={!!busy} onPress={() => onSearch("name")} style={styles.fix} />
+    </View>
+  );
+}
+
 export const card = StyleSheet.create({
   box: {
     gap: space.m, padding: space.m, borderRadius: radius.m, backgroundColor: color.panel,
@@ -55,4 +95,8 @@ const styles = StyleSheet.create({
   bad: { backgroundColor: "rgba(255, 92, 147, 0.10)", color: color.tally },
   initial: { width: 44, height: 44, borderRadius: 22, backgroundColor: color.panelRaised, alignItems: "center", justifyContent: "center" },
   initialText: { fontFamily: font.bold, fontSize: 17, color: color.screen },
+  stuckBox: { gap: space.s, backgroundColor: "rgba(255, 92, 147, 0.1)", borderColor: "rgba(255, 92, 147, 0.45)" },
+  stuck: { color: color.tally },
+  fixes: { flexDirection: "row", flexWrap: "wrap", gap: space.s },
+  fix: { flexGrow: 1, flexBasis: 150 },
 });
