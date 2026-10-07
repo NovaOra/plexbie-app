@@ -45,6 +45,13 @@ export function SignInScreen() {
   const go = async (via: Via) => {
     setProblem(null);
     if (!server.trim()) { setProblem("Enter your domain, or your Plexbie’s address."); return; }
+    // An address that can't be signed in to (the Plexbie project's own site, say) is said
+    // here, before any sign-in starts.
+    try { normalizeServer(server); } catch (e) {
+      setProblem(e instanceof Error ? e.message : "That doesn't look like a web address.");
+      haptic.error();
+      return;
+    }
     setBusy(via);
     try {
       await signIn(server, via);

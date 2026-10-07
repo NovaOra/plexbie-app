@@ -97,6 +97,9 @@ const octet = "(25[0-5]|2[0-4]\\d|1?\\d?\\d)";
 const LOOPBACK_HTTP = new RegExp(`^(localhost|\\[::1\\]|127(\\.${octet}){3})$`);
 /** Development builds also take a Tailscale address over plain http, to reach a test bot. */
 const TAILSCALE_HTTP = new RegExp(`^100\\.(6[4-9]|[7-9]\\d|1[01]\\d|12[0-7])(\\.${octet}){2}$`);
+/** The Plexbie project's own site, never a household's Plexbie. Names under it
+ *  (home.plexbie.com) are households' own, and stay theirs. */
+const PROJECT_SITE = /^(www\.)?plexbie\.com\.?$/i;
 
 /** Remembers the address for the sign-in screen. Removed first: the Keychain keeps an item's
  *  first accessibility when it's only updated, and older ones were saved like the sign-in. */
@@ -105,18 +108,25 @@ async function rememberServer(server: string) {
   await SecureStore.setItemAsync(KEY_LAST_SERVER, server, LAST_STORE);
 }
 
-/** "plexbie.com" → "https://plexbie.com". Plain http only for this phone itself (see LOOPBACK_HTTP). */
+/** "plexbie.example.com" → "https://plexbie.example.com". Plain http only for this phone itself
+ *  (see LOOPBACK_HTTP), and never the project's own site (PROJECT_SITE). */
 export function normalizeServer(input: string): string {
   let s = input.trim().replace(/\/+$/, "");
   if (!s) throw new SignInError("Enter your Plexbie address.");
   if (!/^[a-z]+:\/\//i.test(s)) s = `https://${s}`;
   let url: URL;
   try { url = new URL(s); } catch { throw new SignInError("That doesn't look like a web address."); }
+  if (PROJECT_SITE.test(url.hostname)) throw new SignInError("plexbie.com is the Plexbie project’s site. Type your own Plexbie’s address.");
   if (url.protocol === "http:" && !LOOPBACK_HTTP.test(url.hostname) && !(__DEV__ && TAILSCALE_HTTP.test(url.hostname))) {
     throw new SignInError("Use the https:// address: sign-in can't travel over plain http (on Tailscale, use its https:// ….ts.net name).");
   }
   if (url.protocol !== "https:" && url.protocol !== "http:") throw new SignInError("That doesn't look like a web address.");
   return `${url.protocol}//${url.host}`;
+}
+
+/** An address saved by an older version that took the project's own site as a server. */
+function onProjectSite(server: string): boolean {
+  try { return PROJECT_SITE.test(new URL(server).hostname); } catch { return false; }
 }
 
 /**
@@ -145,8 +155,8 @@ function siteOf(host: string): string {
 /**
  * A Plexbie that moved names its new address ("home" in GET /api/mobile; the old one keeps
  * working for a while as an alias). The phone follows, still signed in, but only to https
- * on the same site (plexbie.com to home.plexbie.com), checked before its sign-in is sent
- * anywhere, and only once the new address accepts it. A move to another site isn't
+ * on the same site (plexbie.example.com to home.example.com), checked before its sign-in is
+ * sent anywhere, and only once the new address accepts it. A move to another site isn't
  * followed: the person signs in there themselves.
  */
 async function movedTo(server: string, token: string): Promise<string | null> {
@@ -252,7 +262,8 @@ function useSessionState() {
     /** Reads the saved sign-in, in place of `from` unless something else came first. */
     const restore = async (from: State) => {
       const still = () => live && current.current === from && !signingIn.current;
-      const last = await SecureStore.getItemAsync(KEY_LAST_SERVER, LAST_STORE).catch(() => null);
+      const kept = await SecureStore.getItemAsync(KEY_LAST_SERVER, LAST_STORE).catch(() => null);
+      const last = kept && !onProjectSite(kept) ? kept : null;
       let saved: string | null;
       try {
         saved = await SecureStore.getItemAsync(KEY, STORE);
@@ -270,7 +281,8 @@ function useSessionState() {
       let s = null as { server?: string; token?: string; expiresAt?: number } | null;
       let garbled = false;
       try { s = saved ? JSON.parse(saved) as typeof s : null; } catch { garbled = true; }
-      if (s?.server && s.token && (!s.expiresAt || s.expiresAt * 1000 > Date.now())) {
+      const projectSite = !!s?.server && onProjectSite(s.server);
+      if (s?.server && s.token && !projectSite && (!s.expiresAt || s.expiresAt * 1000 > Date.now())) {
         setState({ phase: "signedIn", server: s.server, token: s.token, sample: false });
         const home = await movedTo(s.server, s.token);
         if (home && current.current.phase === "signedIn" && current.current.token === s.token) {
@@ -282,11 +294,14 @@ function useSessionState() {
           void queryClient.invalidateQueries();
         }
       } else {
-        // Ended while the app was closed, or unreadable: nothing of that sign-in stays on the
-        // phone (what can't be removed now is tried again next launch).
+        // Ended while the app was closed, unreadable, or kept at the project's own site (never
+        // sent there again, not even to end it): nothing of that sign-in stays on the phone
+        // (what can't be removed now is tried again next launch).
         if (saved) await Promise.all([SecureStore.deleteItemAsync(KEY, STORE), forgetCache(), forgetPush()]).catch(() => undefined);
         if (!still()) return;
-        const notice = garbled ? "Your sign-in couldn't be read. Sign in again." : saved ? "Your sign-in has ended. Sign in again." : undefined;
+        const notice = garbled ? "Your sign-in couldn't be read. Sign in again."
+          : projectSite ? "plexbie.com is the Plexbie project’s site. Sign in again with your own Plexbie’s address."
+          : saved ? "Your sign-in has ended. Sign in again." : undefined;
         setState({ phase: "signedOut", server: last ?? DEFAULT_SERVER, notice });
       }
     };

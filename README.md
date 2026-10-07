@@ -20,8 +20,11 @@ works like Plexbie's setup: members type their domain and the app fills in
 `plexbie.<their domain>`, or they choose **Use a different address** for any other (a
 Tailscale name, one they already use). The address must be https: release builds take plain
 http only for the phone itself (`localhost`, `127.0.0.1`), so on Tailscale use its https name
-(`….ts.net`, with Tailscale HTTPS on), not a `100.x` address. Every screen is native; the
-website is not inside it.
+(`….ts.net`, with Tailscale HTTPS on), not a `100.x` address. `plexbie.com` itself (or
+`www.plexbie.com`) is the Plexbie project's site, never a household's, so the app refuses it as
+an address (a sign-in an older version kept there is removed on launch, and the member signs
+in again with their own address); names under it, like `home.plexbie.com`, work like any
+other. Every screen is native; the website is not inside it.
 
 **What it does:** sign in with Discord or Plex (PKCE, through the server's own page; the token
 lives in the Keychain/Keystore), requests with live progress, Home, Library, the

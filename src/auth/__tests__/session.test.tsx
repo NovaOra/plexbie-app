@@ -189,6 +189,13 @@ test("a server that doesn't offer that sign-in is caught before the browser open
   expect(openSheet).not.toHaveBeenCalled();
 });
 
+test("the Plexbie project's own site is refused before anything is asked of it", async () => {
+  sheetAnswers((state) => ({ code: "c", state }));
+  expect((await signInFails("plexbie.com")).message).toBe("plexbie.com is the Plexbie project’s site. Type your own Plexbie’s address.");
+  expect(fetchMock).not.toHaveBeenCalled();
+  expect(openSheet).not.toHaveBeenCalled();
+});
+
 test("a server without app sign-in says it needs a newer Plexbie", async () => {
   fetchMock.mockImplementation(async () => new Response(JSON.stringify({ error: "Not found" }), { status: 404 }));
   sheetAnswers((state) => ({ code: "c", state }));
@@ -291,6 +298,7 @@ describe("opening the app signed in", () => {
     ["another site that ends the same way", SERVER, "https://notplexbie.example"],
     ["plain http", SERVER, "http://100.101.102.103:7979"],
     ["plain http on the same host", "http://127.0.0.1:7979", "http://127.0.0.1:7980"],
+    ["the Plexbie project's own site", "https://home.plexbie.com", "https://plexbie.com"],
   ])("a move to %s isn't followed, and the sign-in never goes there", async (_case, from, home) => {
     saved(from);
     movedBot(home);
@@ -419,6 +427,19 @@ describe("opening the app signed in", () => {
     const { result } = await renderHook(() => useSession(), { wrapper });
     await waitFor(() => expect(result.current.state).toEqual({ phase: "signedOut", server: SERVER, notice: "Your sign-in has ended. Sign in again." }));
     expect(items.has("plexbie.signin")).toBe(false);
+    expect(seen).toEqual([]);
+  });
+
+  test("a sign-in an older version kept at the project's own site is removed, and never sent there", async () => {
+    saved("https://plexbie.com");
+    movedBot(MOVED);
+    jest.mocked(forgetPush).mockClear();
+    const { result } = await renderHook(() => useSession(), { wrapper });
+    await waitFor(() => expect(result.current.state).toEqual({
+      phase: "signedOut", server: "", notice: "plexbie.com is the Plexbie project’s site. Sign in again with your own Plexbie’s address.",
+    }));
+    expect(items.has("plexbie.signin")).toBe(false);
+    expect(forgetPush).toHaveBeenCalled();
     expect(seen).toEqual([]);
   });
 });
@@ -612,6 +633,15 @@ describe("normalizeServer", () => {
     for (const lan of ["http://192.168.1.20:7979", "http://10.0.0.15", "http://100.128.0.1", "http://100.63.255.255", "http://plexbie.example"]) {
       expect(() => normalizeServer(lan)).toThrow(/https:\/\//);
     }
+  });
+
+  test("the Plexbie project's own site is never a household's server", () => {
+    for (const site of ["plexbie.com", "PLEXBIE.COM", "www.plexbie.com", "https://plexbie.com/", "https://www.plexbie.com/requests", "plexbie.com.", "http://plexbie.com"]) {
+      expect(() => normalizeServer(site)).toThrow("plexbie.com is the Plexbie project’s site. Type your own Plexbie’s address.");
+    }
+    // Households' own addresses, under that name or any other, are theirs.
+    expect(normalizeServer("home.plexbie.com")).toBe("https://home.plexbie.com");
+    expect(normalizeServer("plexbie.example.com")).toBe("https://plexbie.example.com");
   });
 
   test("an empty or non-web address is refused", () => {
