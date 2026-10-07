@@ -48,7 +48,8 @@ the status bar. The bot sends silent updates (`core/live_progress.py` there) and
 them in its own module, `modules/plexbie-live`, even when it's closed. Nothing shows before a
 request is downloading, and a stuck one is taken down, as are all of them when alerts are turned
 off or someone signs out. Tapping it opens the request, with Home
-behind it (Back goes there, even when the tap started the app). It's on the You screen, with a preview;
+behind it (Back goes there, even when the tap started the app); signed out, it opens once the
+sign-in is done. It's on the You screen, with a preview;
 if notifications are off for Plexbie, the preview says so and opens the phone's settings, and
 the message goes once they're allowed and the app is back.
 
@@ -140,7 +141,7 @@ npm run ios                  # prebuild, pod install, build, open the Simulator
 
 - `npm start`: Metro for an installed dev build (`expo start --dev-client`).
 - `npm run typecheck`, `npm run lint`, `npm run doctor`.
-- `npm test`: the unit tests (Jest with jest-expo, no device needed): sign-in (PKCE, the state check, refusals), signing out (and telling the server later when it can't be reached), turning alerts off, the alert rows on You (one answer shared by all of them, checked again on return), server addresses, where alerts open, and the checks on the bot's answers (sample answers in `src/api/__fixtures__/`, typed with the bot's own API types).
+- `npm test`: the unit tests (Jest with jest-expo, no device needed): sign-in (PKCE, the state check, refusals), signing out (and telling the server later when it can't be reached), turning alerts off, the alert rows on You (one answer shared by all of them, checked again on return), server addresses, where alerts and the app's own links open, and the checks on the bot's answers (sample answers in `src/api/__fixtures__/`, typed with the bot's own API types).
 - CI (`.github/workflows/ci.yml`, on every push to `main` and every pull request): `npm run typecheck`, `npm test`
   and `npm run types:check` against the bot's `main`, checked out beside the app. A fork whose bot repo lives
   elsewhere sets the Actions variable `PLEXBIE_BOT_REPO` (`owner/name`).
@@ -205,7 +206,7 @@ They need a free Expo account (`npx eas-cli login`). They're optional; everythin
 
 ## Architecture (short)
 
-- **Routes** (`src/app`): Expo Router, thin route files. A sign-in gate (`Stack.Protected`) and the platform's own tab bar (`NativeTabs`).
+- **Routes** (`src/app`): Expo Router, thin route files. A sign-in gate (`Stack.Protected`) and the platform's own tab bar (`NativeTabs`). A `com.plexbie.app://` link to a screen behind the gate, opened while signed out, is kept and opened once after the sign-in that follows (looking around the sample instead drops it; only links `routeForLink` in `src/features/push/push.ts` accepts: a request, a title, a tab); a link to a screen the app doesn't have goes to Home, or to sign-in.
 - **Data** (`src/api`):
   - A typed client over `/api`: Bearer token, `X-Plexbie: 1`, 15 s timeout, retries for reads only.
   - Two admin writes wait longer on Android: an import from Manage → Health waits 150 s, a cleanup scan 5 minutes. On iPhone the system stops waiting after about a minute, so a longer import or scan there usually ends as "No answer yet".

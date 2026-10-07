@@ -145,3 +145,25 @@ export function routeFor(url: unknown): Href {
   if (u.startsWith("/schedule") || u.startsWith("/requests")) return "/requests";
   return "/home";
 }
+
+const KINDS = new Set(["movie", "tv", "audiobook", "ebook"]);
+
+/** One of the app's own links (com.plexbie.app:///request/214, from a live-progress
+ *  notification), opened while signed out, as the screen to open after the sign-in. null when
+ *  there's nothing more than Home to open: sign-in and invite links, and anything unknown or
+ *  malformed. */
+export function routeForLink(url: unknown): Href | null {
+  if (typeof url !== "string") return null;
+  // Everything after "scheme://" is the path, as the router reads it ("…://request/214" too).
+  const rest = url.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "");
+  if (rest === url) return null;
+  const [path, query] = rest.split(/[?#]/, 2);
+  const p = `/${path}`.replace(/\/+/g, "/").replace(/(.)\/$/, "$1");
+  const request = p.match(/^\/request\/([1-9]\d{0,8})$/);
+  if (request) return { pathname: "/request/[slot]", params: { slot: request[1] } };
+  const title = p.match(/^\/title\/([a-z]+)\/([\w.:-]{1,128})$/);
+  if (title && KINDS.has(title[1])) return { pathname: "/title/[kind]/[id]", params: { kind: title[1], id: title[2] } };
+  if (p === "/search" || p === "/library") return p;
+  const to = /^\/(manage|requests|schedule)$/.test(p) ? routeFor(query ? `${p}?${query}` : p) : null;
+  return to === "/home" ? null : to;
+}

@@ -2,8 +2,9 @@ import { Archivo_400Regular, Archivo_500Medium, Archivo_600SemiBold, Archivo_700
 import NetInfo from "@react-native-community/netinfo";
 import { focusManager, onlineManager } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import * as Linking from "expo-linking";
 import * as Notifications from "expo-notifications";
-import { router, Stack, usePathname } from "expo-router";
+import { type Href, router, Stack, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
@@ -14,7 +15,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { persistOptions } from "../api/persist";
 import { queryClient } from "../api/query";
 import { SessionProvider, useSession } from "../auth/session";
-import { refreshPush, routeFor } from "../features/push/push";
+import { refreshPush, routeFor, routeForLink } from "../features/push/push";
 import { ConfirmProvider } from "../ui/Confirm";
 import { LaunchOverlay } from "../ui/LaunchOverlay";
 import { ToastProvider } from "../ui/Toast";
@@ -56,6 +57,35 @@ function AlertTaps({ live }: { live: boolean }) {
   return null;
 }
 
+/** A link opened while signed out (a live-progress notification's request) is kept, and opened
+ *  once after the sign-in that follows, from Home. Only links routeForLink accepts are kept; the sign-in's own
+ *  answer and invite links never replace one. Rendered with the Stack, like AlertTaps. */
+function LinkAfterSignIn({ signedIn, live }: { signedIn: boolean; live: boolean }) {
+  const pathname = usePathname();
+  const held = useRef<Href | null>(null);
+  const signedInNow = useRef(signedIn);
+  useEffect(() => {
+    signedInNow.current = signedIn;
+    // Looking around the sample instead drops it: a much later sign-in doesn't open it out of nowhere.
+    if (signedIn && !live) held.current = null;
+  }, [signedIn, live]);
+  useEffect(() => {
+    // Signed in, the router opens the link itself.
+    const keep = (url: string | null) => { if (!signedInNow.current) held.current = routeForLink(url) ?? held.current; };
+    keep(Linking.getLinkingURL());
+    const links = Linking.addEventListener("url", ({ url }) => keep(url));
+    return () => links.remove();
+  }, []);
+  useEffect(() => {
+    // Still on the way in (the start, sign-in or invite screen): wait for Home.
+    if (!live || !held.current || ["/", "/sign-in", "/auth", "/invite"].includes(pathname)) return;
+    const to = held.current;
+    held.current = null;
+    router.navigate(to);
+  }, [live, pathname]);
+  return null;
+}
+
 function Routes() {
   const { state, client } = useSession();
   const live = state.phase === "signedIn" && !state.sample;
@@ -93,6 +123,7 @@ function Routes() {
       <Stack.Screen name="invite" options={{ animation: "default" }} />
     </Stack>
     <AlertTaps live={live} />
+    <LinkAfterSignIn signedIn={signedIn} live={live} />
     <LaunchOverlay ready />
     </>
   );
