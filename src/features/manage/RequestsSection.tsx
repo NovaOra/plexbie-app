@@ -45,20 +45,26 @@ export function RequestsSection() {
     mutationFn: ({ r, approve }: { r: AppAdminRequest; approve: boolean }) => client.decide(r.id, approve),
     onMutate: async ({ r, approve }) => {
       await qc.cancelQueries({ queryKey: key });
-      const before = qc.getQueryData<AppAdminRequests>(key);
+      const at = qc.getQueryData<AppAdminRequests>(key)?.pending.findIndex((p) => p.id === r.id) ?? -1;
       qc.setQueryData<AppAdminRequests>(key, (d) => d && {
         ...d,
         pending: d.pending.filter((p) => p.id !== r.id),
         recent: [{ ...r, status: approve ? "approved" : "declined", resolvedBy: "you", resolvedAt: new Date().toISOString() }, ...d.recent],
       });
-      return { before };
+      return { at };
     },
     onSuccess: (out, { r, approve }) => {
       haptic.success();
       toast({ text: approve ? `Approved ${r.title}` : `Declined ${r.title}`, detail: out.message || undefined });
     },
     onError: (e, { r }, ctx) => {
-      if (ctx?.before) qc.setQueryData(key, ctx.before);
+      // Only this card comes back, where it was: another decision made meanwhile stays made.
+      qc.setQueryData<AppAdminRequests>(key, (d) => {
+        if (!d) return d;
+        const pending = d.pending.filter((p) => p.id !== r.id);
+        pending.splice(ctx && ctx.at >= 0 ? Math.min(ctx.at, pending.length) : pending.length, 0, r);
+        return { ...d, pending, recent: d.recent.filter((p) => p.id !== r.id) };
+      });
       haptic.error();
       toast({ tone: "error", text: `${r.title} wasn’t decided`, detail: e.message });
     },

@@ -1,6 +1,7 @@
 // Manage → Cleanup: what media cleanup does (off, practice, live), its timing, which
-// libraries it skips and where it posts, and the titles on the clock. Going live, and a
-// scan while live, ask first: live really deletes files. Keep forever has Undo.
+// libraries it skips and where it posts, and the titles on the clock. Going live, turning
+// cleanup on while it's set to live, and a scan while live ask first: live really deletes
+// files. Keep forever has Undo.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
@@ -65,23 +66,59 @@ function Settings({ d }: { d: AppAdminCleanup }) {
   const [warn, setWarn] = useState(s.warnDaysBefore);
   const [scanning, setScanning] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const pending = useRef<Partial<AppCleanupSettings> | undefined>(undefined);
+  // Saves can overlap. Per setting: the latest save that sent it, and the value to put back if
+  // that save fails (what the server last took, or had before any of them).
+  const saves = useRef(0);
+  const owner = useRef(new Map<keyof AppCleanupSettings, { n: number; back: unknown }>());
   useEffect(() => { setDays(s.inactivityDays); setWarn(s.warnDaysBefore); }, [s.inactivityDays, s.warnDaysBefore]);
-  useEffect(() => () => clearTimeout(timer.current), []);
 
   const save = async (change: Partial<AppCleanupSettings>) => {
-    const before = qc.getQueryData<AppAdminCleanup>(key);
+    const n = ++saves.current;
+    const fields = Object.keys(change) as (keyof AppCleanupSettings)[];
+    const now = qc.getQueryData<AppAdminCleanup>(key)?.settings;
+    for (const k of fields) owner.current.set(k, { n, back: owner.current.has(k) ? owner.current.get(k)!.back : now?.[k] });
     qc.setQueryData<AppAdminCleanup>(key, (x) => x && { ...x, settings: { ...x.settings, ...change } });
     const out = await act(null, () => client.cleanupSettings(change), { done: (o) => ({ text: "Cleanup settings saved", detail: o.message || undefined }) });
-    if (!out && before) qc.setQueryData(key, before);
+    // A failure puts back only the settings no later save has sent since; a save that went
+    // through becomes what a later one falls back to.
+    const restore: Partial<AppCleanupSettings> = {};
+    for (const k of fields) {
+      const o = owner.current.get(k);
+      if (!o) continue;
+      if (o.n === n) {
+        owner.current.delete(k);
+        if (!out && o.back !== undefined) Object.assign(restore, { [k]: o.back });
+      } else if (out) o.back = change[k];
+    }
+    if (Object.keys(restore).length) qc.setQueryData<AppAdminCleanup>(key, (x) => x && { ...x, settings: { ...x.settings, ...restore } });
     setTimeout(() => void qc.invalidateQueries({ queryKey: key }), 600);
   };
-  // Numbers wait until the tapping stops, then save once.
+  // Numbers wait until the tapping stops, then save once; leaving the section saves at once.
+  const flushNumbers = () => {
+    clearTimeout(timer.current);
+    const change = pending.current;
+    pending.current = undefined;
+    if (change) void save(change);
+  };
+  const flushRef = useRef(flushNumbers);
+  useEffect(() => { flushRef.current = flushNumbers; });
+  useEffect(() => () => flushRef.current(), []);
   const saveNumbers = (nextDays: number, nextWarn: number) => {
     setDays(nextDays);
     setWarn(nextWarn);
     clearTimeout(timer.current);
-    timer.current = setTimeout(() => void save({ inactivityDays: nextDays, warnDaysBefore: Math.min(nextWarn, nextDays - 1) }), 900);
+    pending.current = { inactivityDays: nextDays, warnDaysBefore: Math.min(nextWarn, nextDays - 1) };
+    timer.current = setTimeout(flushNumbers, 900);
   };
+  const setEnabled = (on: boolean) => (on && !s.practice
+    ? confirm("Go live?", "Cleanup is set to live: it will really delete titles from the server when their time runs out.", [
+      { text: "Not now", style: "cancel" },
+      { text: "Turn on in practice", onPress: () => void save({ enabled: true, practice: true }) },
+      { text: "Turn on, live", style: "destructive", onPress: () => void save({ enabled: true }) },
+    ])
+    // Sends the mode on screen too, so a practice save that failed meanwhile can't make this go live.
+    : void save(on ? { enabled: true, practice: true } : { enabled: false }));
   const goLive = () => confirm("Go live?", "Cleanup will really delete titles from the server when their time runs out.", [
     { text: "Stay in practice", style: "cancel" },
     { text: "Go live", style: "destructive", onPress: () => void save({ practice: false }) },
@@ -113,7 +150,7 @@ function Settings({ d }: { d: AppAdminCleanup }) {
         {s.excludedLibraries.length ? ` Skips ${s.excludedLibraries.join(", ")}.` : ""}
       </Text>
 
-      <SwitchRow label="Cleanup, checks every day for titles nobody watches" value={s.enabled} onValueChange={(on) => void save({ enabled: on })} style={styles.switchRow}>
+      <SwitchRow label="Cleanup, checks every day for titles nobody watches" value={s.enabled} onValueChange={setEnabled} style={styles.switchRow}>
         <Text variant="label">Cleanup</Text>
         <Text variant="meta">Check every day for titles nobody watches.</Text>
       </SwitchRow>
@@ -185,7 +222,17 @@ function Rows({ d, view }: { d: AppAdminCleanup; view: View3 }) {
     const out = await act(null, () => client.exempt(row.ratingKey, on), {
       done: () => (quiet ? null : { text: on ? `${row.title} is kept forever.` : `${row.title} is back on the clock.`, action: { label: "Undo", onPress: () => void keep(row, !on, true) } }),
     });
-    if (!out && before) qc.setQueryData(key, before);
+    // A failure puts back only this title, where it was: other changes may have landed since.
+    if (!out && before) {
+      const back = <T extends { ratingKey: string }>(now: T[], was: T[]) => {
+        const rest = now.filter((r) => r.ratingKey !== row.ratingKey);
+        const at = was.findIndex((r) => r.ratingKey === row.ratingKey);
+        return at < 0 ? rest : [...rest.slice(0, at), was[at], ...rest.slice(at)];
+      };
+      qc.setQueryData<AppAdminCleanup>(key, (x) => x && {
+        ...x, warning: back(x.warning, before.warning), upcoming: back(x.upcoming, before.upcoming), exempt: back(x.exempt, before.exempt),
+      });
+    }
     setTimeout(() => void qc.invalidateQueries({ queryKey: key }), 900);
   };
   const ring = (days: number) => (
