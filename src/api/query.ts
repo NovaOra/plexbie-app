@@ -14,7 +14,9 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     // The API client already retries reads on a dropped connection or a 5xx.
     queries: { retry: false, staleTime: 15_000, gcTime: 24 * 3600_000 },
-    mutations: { retry: false },
+    // With no connection a write fails at once ("Couldn't reach the server.") and its change
+    // is undone, rather than waiting to go out minutes or hours later, or never.
+    mutations: { retry: false, networkMode: "always" },
   },
   queryCache: new QueryCache({ onError: check }),
   mutationCache: new MutationCache({ onError: check }),

@@ -198,6 +198,8 @@ They need a free Expo account (`npx eas-cli login`). They're optional; everythin
   - A typed client over `/api`: Bearer token, `X-Plexbie: 1`, 15 s timeout, retries for reads only.
   - Zod checks every response.
   - TanStack Query owns server state; NetInfo and AppState make it offline- and foreground-aware.
+  - With no connection, a write (asking for a title, approving or declining) fails at once with "Couldn't reach the server." and is undone; it never waits to go out later.
+  - A few lists (your requests, server status, new arrivals, the household's activity, popular titles) are kept for a day in one file in the app's caches folder, so a start with no signal still shows something. It's never in a phone or iCloud backup, and signing out deletes it.
 - **Auth** (`src/auth`):
   - Sign-in runs on the bot, in the system browser sheet, with PKCE. The app receives a one-time code and swaps it for a Plexbie session token.
   - The token lives in the Keychain or Keystore (this device only, never backed up) and is never logged or put in a URL.
