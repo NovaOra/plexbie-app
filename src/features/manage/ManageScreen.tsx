@@ -1,7 +1,7 @@
 // Manage, for admins: everything the website's Manage page does. A section dropdown (like
 // the Request and Library pages' pickers) that says what's waiting, then that section.
 import { useQueryClient } from "@tanstack/react-query";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { KeyboardAvoidingView, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { KEYBOARD_BEHAVIOR, useScrollToEnd } from "../../ui/keyboard";
@@ -36,9 +36,13 @@ export function ManageScreen() {
   const params = useLocalSearchParams<{ tab?: string; who?: string }>();
   const [tab, setTab] = useState<Tab>("requests");
   const [who, setWho] = useState<string | undefined>(undefined);
+  /** Another section: an alert's conversation is done with, so Messages opens on everyone. */
+  const pick = (t: Tab) => { setTab(t); setWho(undefined); };
   useEffect(() => {
-    if (params.tab && TAB_IDS.includes(params.tab as Tab)) setTab(params.tab as Tab);
+    if (params.tab && TAB_IDS.includes(params.tab as Tab)) { setTab(params.tab as Tab); setWho(undefined); }
     if (params.who) setWho(params.who);
+    // Used up: the next alert with the same address changes them again, and opens its section.
+    if (params.tab || params.who) router.setParams({ tab: undefined, who: undefined });
   }, [params.tab, params.who]);
   const end = useScrollToEnd();
   const newMessages = useMessagePeople().data?.filter((p) => p.unread > 0).length ?? 0;
@@ -78,16 +82,16 @@ export function ManageScreen() {
         <Text variant="body">Deciding here is the same as the buttons in Discord.</Text>
         <View style={styles.picker}>
           <PickerPill title="Section" label={sectionLabel(tab)} value={tab}
-            options={tabs.map(([value]) => ({ value, label: sectionLabel(value) }))} onChange={(v) => setTab(v as Tab)} />
+            options={tabs.map(([value]) => ({ value, label: sectionLabel(value) }))} onChange={(v) => pick(v as Tab)} />
           {/* What's waiting elsewhere, so it isn't hidden behind the dropdown. */}
           {tabs.filter(([id, , n]) => id !== tab && n > 0).map(([id, label, n]) => (
-            <Text key={id} variant="meta" style={styles.waiting} onPress={() => setTab(id)} accessibilityRole="button"
+            <Text key={id} variant="meta" style={styles.waiting} onPress={() => pick(id)} accessibilityRole="button"
               accessibilityLabel={`${label}, ${n} ${word(id)}. Opens it.`}>{label} · {n} {word(id)}</Text>
           ))}
         </View>
         <View style={styles.section}>
           {tab === "tickets" ? <TicketsSection /> : tab === "requests" ? <RequestsSection /> : tab === "all" ? <AllRequestsSection /> : tab === "joins" ? <JoinsSection /> : tab === "people" ? <PeopleSection />
-            : tab === "invites" ? <InvitesSection /> : tab === "cleanup" ? <CleanupSection /> : tab === "messages" ? <MessagesSection key={who ?? "all"} who={who} onComposerFocus={end.onFocus} />
+            : tab === "invites" ? <InvitesSection /> : tab === "cleanup" ? <CleanupSection /> : tab === "messages" ? <MessagesSection key={who ?? "all"} who={who} onClose={() => setWho(undefined)} onComposerFocus={end.onFocus} />
             : tab === "health" ? <HealthSection /> : <DiscordSection />}
         </View>
       </ScrollView>

@@ -2,8 +2,9 @@
 // email) and whether it arrived, and what they sent Plexbie (a DM, "Something wrong?",
 // answers on their ticket). Tap someone for the conversation, newest at the bottom.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { StyleSheet, TextInput, View } from "react-native";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
+import { BackHandler, StyleSheet, TextInput, View } from "react-native";
 import type { AppMessagePerson } from "../../api/schemas";
 import { useApi } from "../../auth/session";
 import { useFocusHere } from "../../ui/announce";
@@ -33,14 +34,15 @@ export function useMessagePeople(enabled = true) {
   return useQuery({ queryKey: useAdminKey()("messages"), queryFn: ({ signal }) => client.adminMessages(signal), refetchInterval: 60_000, enabled });
 }
 
-/** `who`: open on that conversation (an alert about a DM was tapped). `onComposerFocus`
- *  scrolls Manage to its end, where the reply box is, once the keyboard is up. */
-export function MessagesSection({ who, onComposerFocus }: { who?: string; onComposerFocus?: () => void }) {
+/** `who`: open on that conversation (an alert about a DM was tapped); `onClose` hears when
+ *  it's closed, so it isn't opened again. `onComposerFocus` scrolls Manage to its end,
+ *  where the reply box is, once the keyboard is up. */
+export function MessagesSection({ who, onClose, onComposerFocus }: { who?: string; onClose?: () => void; onComposerFocus?: () => void }) {
   const people = useMessagePeople();
   const [openId, setOpen] = useState<string | null>(who ?? null);
   const [query, setQuery] = useState("");
   const open = people.data?.find((p) => p.id === openId) ?? null;
-  if (open) return <Conversation person={open} onBack={() => setOpen(null)} onComposerFocus={onComposerFocus} />;
+  if (open) return <Conversation person={open} onBack={() => { setOpen(null); onClose?.(); }} onComposerFocus={onComposerFocus} />;
   const rows = people.data;
   if (!rows) return people.error ? <Text variant="body">{people.error.message}</Text> : <View style={[card.box, { height: 220 }]} />;
   const q = query.trim().toLowerCase();
@@ -88,12 +90,17 @@ function Conversation({ person, onBack, onComposerFocus }: { person: AppMessageP
   const me = useMe().data?.user.name ?? "you";
   const [text, setText] = useState("");
   const reload = () => void qc.invalidateQueries({ queryKey: key });
+  // Android Back closes the conversation, as "‹ Everyone" does, rather than leaving Manage.
+  useFocusEffect(useCallback(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => { onBack(); return true; });
+    return () => sub.remove();
+  }, [onBack]));
   const send = async () => {
     if (!text.trim()) return;
     const out = await act("send", () => client.messageReply(person.id, text.trim()), {
       failText: "Not sent", done: (o) => ({ text: "Sent as Plexbie", detail: o.message || undefined }) });
-    if (!out) return;
-    setText("");
+    // Sent or not, reload: one the bot refused is logged as not delivered. The text stays to retry.
+    if (out) setText("");
     reload();
   };
   const done = async (yes: boolean) => {
@@ -132,17 +139,20 @@ function Conversation({ person, onBack, onComposerFocus }: { person: AppMessageP
         return (
           <View key={m.id} style={{ gap: space.s }}>
             {showDay ? <Text variant="eyebrow" style={styles.day}>{day}</Text> : null}
-            <View style={[styles.bubble, incoming && styles.incoming, !m.delivered && styles.failed]} accessible
-              accessibilityLabel={`${incoming ? person.name : "Plexbie"}: ${m.title ? `${m.title}. ` : ""}${m.text}. ${via}`}>
-              <View style={styles.top}>
-                <Text variant="label" style={incoming ? styles.ink : styles.plexbie}>{incoming ? person.name : "Plexbie"}</Text>
-                <Text variant="meta">{new Date(m.at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</Text>
+            <View style={[styles.bubble, incoming && styles.incoming, !m.delivered && styles.failed]}>
+              {/* One stop for a screen reader; the button beside it, so VoiceOver can reach it. */}
+              <View style={styles.said} accessible
+                accessibilityLabel={`${incoming ? person.name : "Plexbie"}: ${m.title ? `${m.title}. ` : ""}${m.text}. ${via}${m.by ? `. Sent by ${m.by}` : ""}${incoming && m.ticket ? ". On their ticket" : ""}`}>
+                <View style={styles.top}>
+                  <Text variant="label" style={incoming ? styles.ink : styles.plexbie}>{incoming ? person.name : "Plexbie"}</Text>
+                  <Text variant="meta">{new Date(m.at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</Text>
+                </View>
+                {m.title ? <Text variant="label">{m.title}</Text> : null}
+                <Text variant="body" style={styles.ink}>{m.text}</Text>
+                <Pill label={via} tone={m.delivered ? "plain" : "bad"} />
+                {m.by ? <Text variant="meta">Sent by {m.by}</Text> : null}
+                {incoming && m.ticket ? <Text variant="meta">On their ticket</Text> : null}
               </View>
-              {m.title ? <Text variant="label">{m.title}</Text> : null}
-              <Text variant="body" style={styles.ink}>{m.text}</Text>
-              <Pill label={via} tone={m.delivered ? "plain" : "bad"} />
-              {m.by ? <Text variant="meta">Sent by {m.by}</Text> : null}
-              {incoming && m.ticket ? <Text variant="meta">On their ticket</Text> : null}
               {incoming && !m.ticket && person.ticket && m.context === "Discord DM" ? (
                 <Button kind="secondary" label={`Add to their ticket on ${person.ticket.title}`} busy={busy === m.id} busyLabel="Adding…"
                   onPress={() => void toTicket(m.id)} style={{ alignSelf: "flex-start" }} />
@@ -176,6 +186,7 @@ const styles = StyleSheet.create({
   head: { flexDirection: "row", alignItems: "center", gap: space.m },
   day: { alignSelf: "center", marginTop: space.s },
   bubble: { gap: space.xs, padding: space.m, borderRadius: radius.m, backgroundColor: color.panel },
+  said: { gap: space.xs },
   failed: { borderWidth: 1, borderColor: color.tally },
   incoming: { marginLeft: space.xl, backgroundColor: "rgba(255, 209, 228, 0.1)", borderWidth: 1, borderColor: "rgba(255, 209, 228, 0.25)" },
   them: { color: color.screen, fontFamily: font.semibold },
