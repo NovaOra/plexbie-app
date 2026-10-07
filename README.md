@@ -86,11 +86,15 @@ number) keeps counting up from the earlier private builds, so phones update in p
 1. `scripts/bump.sh`: the next version, the versionCode and the iPhone build number.
 2. Write what's new in `docs/releases/<version>.md`, and commit.
 3. `scripts/release.sh`:
+   - runs the type-check, the tests and the API-types check first (the bot's checkout beside this one, as
+     `../plexbie`, or `PLEXBIE_REPO`; it fetches the bot's `main` there and stops if that checkout's API types
+     differ from it), and builds nothing if one fails;
    - builds the Android APK and signs it with the release key in `~/.plexbie` (it checks the certificate);
    - builds the unsigned iPhone `.ipa`;
    - scans both with [VirusTotal](https://www.virustotal.com) (`scripts/virustotal.sh`, with a free account's key as
-     `VIRUSTOTAL_API_KEY` in `~/.plexbie/release.env`). If any engine flags either file it stops before publishing;
-     otherwise the release notes link both reports. Without a key it publishes unscanned and says so;
+     `VIRUSTOTAL_API_KEY` in `~/.plexbie/release.env`). If any engine flags either file, or VirusTotal comes back
+     with no engine verdicts for one, it stops before publishing; otherwise the release notes link both reports.
+     Without a key it publishes unscanned and says so;
    - tags the release, then puts the APK, the IPA and `latest.json` on the GitHub release;
    - copies them into the maintainer's Plexbie (`PLEXBIE_HOST` in `~/.plexbie/release.env`).
 
@@ -137,6 +141,9 @@ npm run ios                  # prebuild, pod install, build, open the Simulator
 - `npm start`: Metro for an installed dev build (`expo start --dev-client`).
 - `npm run typecheck`, `npm run lint`, `npm run doctor`.
 - `npm test`: the unit tests (Jest with jest-expo, no device needed): sign-in (PKCE, the state check, refusals), signing out (and telling the server later when it can't be reached), turning alerts off, the alert rows on You (one answer shared by all of them, checked again on return), server addresses, where alerts open, and the checks on the bot's answers (sample answers in `src/api/__fixtures__/`, typed with the bot's own API types).
+- CI (`.github/workflows/ci.yml`, on every push to `main` and every pull request): `npm run typecheck`, `npm test`
+  and `npm run types:check` against the bot's `main`, checked out beside the app. A fork whose bot repo lives
+  elsewhere sets the Actions variable `PLEXBIE_BOT_REPO` (`owner/name`).
 - `npm run types:sync`: copy the bot's API types again after they change (set `PLEXBIE_REPO` if the bot's checkout isn't `../plexbie`).
 - `node scripts/brand-assets.mjs`: rebuild the icons from the logo.
 

@@ -1,0 +1,48 @@
+# The type-check, the unit tests and the API-types check on every push to main and every
+# pull request. No device, no secrets and no signing: scripts/release.sh builds releases.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: typecheck, tests, API types
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      # The app and the bot side by side, as scripts/sync-types.mjs expects (../plexbie).
+      # The app can't sit at the top: tsconfig and Jest would pick up the bot's files too.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: app
+
+      # The bot's web/src/api/types.ts is the source of truth for /api. A fork whose bot
+      # lives elsewhere sets the PLEXBIE_BOT_REPO variable (owner/name).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ vars.PLEXBIE_BOT_REPO || 'NovaOra/plexbie' }}
+          path: plexbie
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - run: npm ci --no-audit --no-fund
+
+      - run: npm run typecheck
+
+      # Jest with jest-expo: native modules are stubbed, no emulator needed.
+      - run: npm test
+
+      - run: npm run types:check

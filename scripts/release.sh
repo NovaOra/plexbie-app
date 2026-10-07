@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 # Build, sign and publish one release, Android and iPhone, the same way every time:
+#   0. the type-check, the tests and the API-types check first (as CI runs them; the
+#      bot's checkout is ../plexbie, or PLEXBIE_REPO, and its API types must match the
+#      bot's main after a fetch), so nothing is built if one fails,
 #   1. a release APK for arm64 phones (expo prebuild + gradle),
 #   2. signed with the release key in ~/.plexbie (never the debug key, or phones
 #      can't update in place), checked against the known certificate,
 #   3. an iPhone .ipa, built unsigned: SideStore/AltStore sign it on each phone with
 #      that member's own Apple ID (there's no Apple developer account here),
 #   4. both scanned by VirusTotal (scripts/virustotal.sh; stops if any engine flags
-#      either, and the release notes link both reports),
+#      either, or no engine gave a verdict, and the release notes link both reports),
 #   5. a GitHub release (tag vX.Y.Z) with docs/releases/X.Y.Z.md as its notes,
 #   6. handed to the Plexbie bot (config/app/ in its container): members get the
 #      "new version" card in the app and a download on the website, app users one
@@ -68,6 +71,18 @@ if [[ -n "$last" ]] && (( ! revise )); then
 fi
 echo "Plexbie $version (versionCode $code)"
 
+# The same checks as CI, before anything is built.
+npm run -s typecheck
+npm test -s -- --silent
+# The API types against the bot's main as it is now (as CI checks them), not whatever branch,
+# old pull or uncommitted edit the bot's checkout happens to have.
+bot="${PLEXBIE_REPO:-../plexbie}"
+remote=$(git -C "$bot" config branch.main.remote 2>/dev/null || echo origin)
+git -C "$bot" fetch -q "$remote" main || { echo "Couldn't fetch the bot's main into $bot." >&2; exit 1; }
+git -C "$bot" diff --quiet FETCH_HEAD -- web/src/api/types.ts \
+  || { echo "The API types in $bot aren't the bot's main: check out main there and pull." >&2; exit 1; }
+npm run -s types:check
+
 npx expo prebuild --platform android --no-install >/dev/null
 (cd android && ./gradlew app:assembleRelease -x lint -x test -q \
   --init-script ../scripts/no-lint-vital.gradle -PreactNativeArchitectures=arm64-v8a)
@@ -112,6 +127,11 @@ if [[ -n "${VIRUSTOTAL_API_KEY:-}" ]]; then
   ipa_scan=$(scripts/virustotal.sh "$ipa")
   read -r apk_flag apk_engines apk_report <<<"$apk_scan"
   read -r ipa_flag ipa_engines ipa_report <<<"$ipa_scan"
+  # An analysis with no engine verdicts isn't a clean scan (VIRUSTOTAL_ACCEPT doesn't cover it).
+  if ! [[ "$apk_engines" =~ ^[1-9][0-9]*$ && "$ipa_engines" =~ ^[1-9][0-9]*$ ]]; then
+    echo "Not published: VirusTotal gave no engine verdicts (engines: APK ${apk_engines:-none}, IPA ${ipa_engines:-none})." >&2
+    echo "Look at ${apk_report:-$apk_flag} and ${ipa_report:-$ipa_flag}, then run it again." >&2; exit 1
+  fi
   echo "VirusTotal: APK $apk_flag/$apk_engines flagged, IPA $ipa_flag/$ipa_engines flagged"
   if (( apk_flag + ipa_flag > 0 )) && [[ "${VIRUSTOTAL_ACCEPT:-}" != 1 ]]; then
     echo "Not published: look at $apk_report and $ipa_report first." >&2; exit 1
