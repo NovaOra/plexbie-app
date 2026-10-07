@@ -1,16 +1,17 @@
 // Manage opened from an alert (/manage?tab=…&who=…): each alert opens its section, even when
 // the last one said the same, and a DM alert's conversation opens once, not on every
-// return to Messages. Services down and titles leaving show beside the picker, as links
-// big enough to tap. A new invite link waits there too, and is still on Invites after
-// another section. Someone who isn't an admin (an old alert, a link) is told it's for
+// return to Messages. The sections are behind a menu button at the top, beside the title: it
+// lists every section with what's waiting in it, and a dot on it says something is waiting
+// in another one (a service down, titles leaving, a new invite link, which is still on
+// Invites after another section). Someone who isn't an admin (an old alert, a link) is told it's for
 // admins, and none of its sections is asked for. Until it's known who's signed in, offline
 // says so, and a failed ask can be tried again.
 import { beforeEach, expect, jest, test } from "@jest/globals";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react-native";
-import { StyleSheet, Text as MockText } from "react-native";
+import { fireEvent, render, screen, within } from "@testing-library/react-native";
+import { ScrollView, StyleSheet, Text as MockText } from "react-native";
 import { router } from "expo-router";
-import { TOUCH, space } from "../../../ui/theme";
+import { color, TOUCH } from "../../../ui/theme";
 import { ManageScreen } from "../ManageScreen";
 
 // The route's params, as the router holds them: an alert replaces them, setParams merges.
@@ -37,20 +38,13 @@ jest.mock("../../../auth/session", () => ({
   useSession: () => ({ state: { phase: "signedIn", server: "https://plexbie.example", token: "t", sample: false } }),
   useServer: () => "https://plexbie.example",
 }));
-jest.mock("../../../ui/Glass", () => ({ Ambient: () => null, TAB_BAR_CLEARANCE: 0 }));
+jest.mock("../../../ui/Glass", () => ({ Ambient: () => null, GlassFill: () => null, glass: { surface: {} }, TAB_BAR_CLEARANCE: 0 }));
 jest.mock("../../../ui/StatusBarScrim", () => ({ StatusBarScrim: () => null }));
-// The section dropdown as a row of buttons.
-jest.mock("../../../ui/PickerSheet", () => {
-  const { Text: T } = jest.requireActual<typeof import("react-native")>("react-native");
-  return {
-    PickerPill: ({ options, onChange }: { options: { value: string }[]; onChange: (v: string) => void }) =>
-      options.map((o) => <T key={o.value} accessibilityRole="button" onPress={() => onChange(o.value)}>{`Pick ${o.value}`}</T>),
-  };
-});
 // Each section as its name; Messages also says whose conversation it opens on.
 function mockSection(name: string) { return () => <MockText>{`${name} section`}</MockText>; }
 jest.mock("../TicketsSection", () => ({ TicketsSection: mockSection("Tickets"), useTickets: (on?: boolean) => { mockAsked.tickets = on; return { data: undefined }; } }));
-jest.mock("../RequestsSection", () => ({ RequestsSection: mockSection("Requests"), useRequestsCount: (on?: boolean) => { mockAsked.requests = on; return { waiting: 0 }; } }));
+let mockWaiting = 0;
+jest.mock("../RequestsSection", () => ({ RequestsSection: mockSection("Requests"), useRequestsCount: (on?: boolean) => { mockAsked.requests = on; return { waiting: mockWaiting }; } }));
 jest.mock("../AllRequestsSection", () => ({ AllRequestsSection: mockSection("All requests"), useAllRequests: (on?: boolean) => { mockAsked.all = on; return { data: undefined }; } }));
 jest.mock("../JoinsSection", () => ({ JoinsSection: mockSection("Joins"), useJoins: (on?: boolean) => { mockAsked.joins = on; return { data: [] }; } }));
 jest.mock("../PeopleSection", () => ({ PeopleSection: mockSection("People") }));
@@ -81,12 +75,20 @@ jest.mock("../MessagesSection", () => ({
 
 const qc = new QueryClient();
 const page = () => <QueryClientProvider client={qc}><ManageScreen /></QueryClientProvider>;
-const pick = (tab: string) => fireEvent.press(screen.getByRole("button", { name: `Pick ${tab}` }));
+const menu = () => screen.getByRole("button", { name: /^Sections/ });
+/** A section's row in the open menu: its name, and what's waiting in it. */
+const row = (label: string) => screen.getByRole("radio", { name: new RegExp(`^(● )?${label}( · |$)`) });
+/** Opens the menu and chooses a section. */
+const pick = async (label: string) => {
+  await fireEvent.press(menu());
+  await fireEvent.press(row(label));
+};
 
 beforeEach(() => {
   mockParams = {};
   mockLeaving = [];
   mockHealth = [];
+  mockWaiting = 0;
   mockMe = { data: { admin: true, member: true } };
   mockAsked = {};
   jest.mocked(router.setParams).mockClear();
@@ -98,7 +100,7 @@ test("an alert's section opens again after another was picked", async () => {
   const { rerender } = await render(page());
   expect(screen.getByText("Requests section")).toBeTruthy();
   expect(router.setParams).toHaveBeenCalledWith({ tab: undefined, who: undefined });
-  await pick("people");
+  await pick("People");
   expect(screen.getByText("People section")).toBeTruthy();
   // The same kind of alert again: the router gets the same address.
   mockParams = { tab: "requests" };
@@ -110,8 +112,8 @@ test("a DM alert's conversation isn't opened again by coming back to Messages", 
   mockParams = { tab: "messages", who: "d1" };
   await render(page());
   expect(screen.getByText("Messages section, open on d1")).toBeTruthy();
-  await pick("people");
-  await pick("messages");
+  await pick("People");
+  await pick("Messages");
   expect(screen.getByText("Messages section, open on everyone")).toBeTruthy();
 });
 
@@ -125,34 +127,92 @@ test("closing the conversation forgets it, and a new alert about it opens it aga
   expect(screen.getByText("Messages section, open on d1")).toBeTruthy();
 });
 
-test("services down and titles leaving show beside the picker, and open their section", async () => {
+test("the sections are behind a menu button beside the title, with what's waiting in each", async () => {
+  mockWaiting = 3;
+  await render(page());
+  const button = menu();
+  // A full touch to hit, like every other control.
+  expect(StyleSheet.flatten(button.props.style).width).toBeGreaterThanOrEqual(TOUCH);
+  // On the title's line, at its end.
+  let line = button.parent;
+  while (line && StyleSheet.flatten(line.props.style)?.flexDirection !== "row") line = line.parent;
+  expect(line).toContainElement(screen.getByRole("header", { name: "Manage" }));
+  // The section shown, and what's waiting in it, under the title.
+  expect(screen.getByText("Requests · 3 waiting")).toBeTruthy();
+  await fireEvent.press(button);
+  // Every section, in the website's order, the one shown marked.
+  expect(screen.getAllByRole("radio").map((r) => within(r).getAllByText(/./).at(-1)!.props.children)).toEqual(
+    ["Tickets", "Requests · 3 waiting", "All requests", "Join requests", "Invites", "People", "Cleanup", "Discord", "Messages", "Health"]);
+  expect(screen.getByRole("radio", { checked: true })).toHaveTextContent(/Requests · 3 waiting/);
+});
+
+test("choosing a section in the menu shows it, closes the menu, and goes back to the top", async () => {
+  const top = jest.spyOn(ScrollView.prototype, "scrollTo");
+  await render(page());
+  await pick("Health");
+  expect(screen.getByText("Health section")).toBeTruthy();
+  expect(screen.getByText("Health")).toBeTruthy();
+  expect(screen.queryByRole("radio")).toBeNull();
+  expect(top).toHaveBeenCalledWith(expect.objectContaining({ y: 0 }));
+  top.mockRestore();
+});
+
+test("choosing the section already shown goes back to its top, and keeps its conversation", async () => {
+  mockParams = { tab: "messages", who: "d1" };
+  await render(page());
+  const top = jest.spyOn(ScrollView.prototype, "scrollTo");
+  await pick("Messages");
+  expect(screen.queryByRole("radio")).toBeNull();
+  expect(top).toHaveBeenCalledWith(expect.objectContaining({ y: 0 }));
+  expect(screen.getByText("Messages section, open on d1")).toBeTruthy();
+  top.mockRestore();
+});
+
+test("an alert opening another section shows it from the top", async () => {
+  const { rerender } = await render(page());
+  const top = jest.spyOn(ScrollView.prototype, "scrollTo");
+  mockParams = { tab: "health" };
+  await rerender(page());
+  expect(screen.getByText("Health section")).toBeTruthy();
+  expect(top).toHaveBeenCalledWith(expect.objectContaining({ y: 0 }));
+  top.mockRestore();
+});
+
+test("services down and titles leaving put a dot on the menu, and stand out in it", async () => {
   mockLeaving = [{ ratingKey: "1" }, { ratingKey: "2" }];
   mockHealth = [{ name: "Plex", ok: true }, { name: "Sonarr", ok: false }];
   await render(page());
-  const down = screen.getByRole("button", { name: "Health, 1 down. Opens it." });
-  const leaving = screen.getByRole("button", { name: "Cleanup, 2 leaving. Opens it." });
-  expect(down).toHaveTextContent("Health · 1 down");
-  expect(leaving).toHaveTextContent("Cleanup · 2 leaving");
-  // The app's touch size, like every other control.
-  for (const link of [down, leaving]) expect(StyleSheet.flatten(link.props.style).minHeight).toBeGreaterThanOrEqual(TOUCH);
-  // Wrapped rows meet: the links' own height is the space between them.
-  let row = down.parent;
-  while (row && StyleSheet.flatten(row.props.style)?.flexWrap !== "wrap") row = row.parent;
-  const { columnGap, rowGap, gap } = StyleSheet.flatten(row!.props.style);
-  expect(columnGap).toBe(space.m);
-  expect(rowGap ?? 0).toBe(0);
-  expect(gap ?? 0).toBe(0);
+  expect(menu()).toHaveAccessibleName("Sections, 2 need you");
+  expect(screen.getByTestId("sections-dot")).toBeTruthy();
+  // No row of links in the middle of the page any more.
+  expect(screen.queryByText("Health · 1 down")).toBeNull();
+  expect(screen.queryByRole("button", { name: /Opens it/ })).toBeNull();
+  await fireEvent.press(menu());
+  const down = row("Health");
+  expect(down).toHaveAccessibleName("Health · 1 down");
+  expect(row("Cleanup")).toHaveAccessibleName("Cleanup · 2 leaving");
+  expect(screen.getByText("Health · 1 down")).toHaveStyle({ color: color.screen });
+  expect(screen.getByText("People")).not.toHaveStyle({ color: color.screen });
   await fireEvent.press(down);
   expect(screen.getByText("Health section")).toBeTruthy();
 });
 
-test("a new invite link waits beside the picker and is still on Invites after another section", async () => {
+test("with nothing waiting elsewhere there's no dot", async () => {
+  mockWaiting = 2;
   await render(page());
-  await pick("invites");
+  expect(menu()).toHaveAccessibleName("Sections");
+  expect(screen.queryByTestId("sections-dot")).toBeNull();
+});
+
+test("a new invite link puts a dot on the menu and is still on Invites after another section", async () => {
+  await render(page());
+  await pick("Invites");
   await fireEvent.press(screen.getByRole("button", { name: "Make a link" }));
-  await pick("people");
-  expect(screen.getByRole("button", { name: "Invites, 1 waiting. Opens it." })).toBeTruthy();
-  await pick("invites");
+  await pick("People");
+  expect(menu()).toHaveAccessibleName("Sections, 1 needs you");
+  await fireEvent.press(menu());
+  expect(row("Invites")).toHaveAccessibleName("Invites · 1 waiting");
+  await fireEvent.press(row("Invites"));
   expect(screen.getByText("Invites section, 1 new")).toBeTruthy();
 });
 
@@ -169,7 +229,7 @@ test("a member who isn't an admin is told it's for admins, and nothing is asked 
   await render(page());
   expect(screen.getByText("This page is for admins.")).toBeTruthy();
   expect(screen.queryByText(/section/)).toBeNull();
-  expect(screen.queryByRole("button", { name: "Pick requests" })).toBeNull();
+  expect(screen.queryByRole("button", { name: /^Sections/ })).toBeNull();
   for (const c of COUNTS) expect([c, mockAsked[c]]).toEqual([c, false]);
   await fireEvent.press(screen.getByRole("button", { name: "Go to Home" }));
   expect(router.navigate).toHaveBeenCalledWith("/home");

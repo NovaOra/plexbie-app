@@ -1,7 +1,8 @@
 // A small dropdown, Plexbie's way: a pill that says what's chosen ("Every language ▾"),
 // which opens a sheet of options from the bottom. One choice (Type, Genre) closes on a
 // tap; several (Language) are ticked, then Done. Back or a tap outside closes it.
-import { useState } from "react";
+// Something else can open the same sheet instead of the pill (Manage's menu button).
+import { useState, type ReactNode } from "react";
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import Animated, { FadeIn, FadeOut, Keyframe } from "react-native-reanimated";
 import { initialWindowMetrics, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -12,7 +13,8 @@ import { color, EASE_OUT, font, radius, space, TOUCH } from "./theme";
 import { GlassFill, glass } from "./Glass";
 import { useLargeText } from "./useColumns";
 
-export interface PickerOption { value: string; label: string }
+/** `hot`: something is waiting in it, so it stands out in the screen's pink. */
+export interface PickerOption { value: string; label: string; hot?: boolean }
 
 /** Room for Android's navigation bar: inside a full-screen pop-up the safe-area inset can
  *  come back as 0, and the last option sat under the bar. iOS reports its home indicator. */
@@ -26,7 +28,7 @@ const rise = new Keyframe({
   100: { opacity: 1, transform: [{ translateY: 0 }], easing: EASE_OUT },
 }).duration(220);
 
-export function PickerPill({ title, label, options, value, multiple, onChange }: {
+export function PickerPill({ title, label, options, value, multiple, onChange, trigger }: {
   /** What it picks ("Language"), the sheet's title and the pill's spoken name. */
   title: string;
   /** What the pill says now ("Every language", "English, Japanese"). */
@@ -36,6 +38,8 @@ export function PickerPill({ title, label, options, value, multiple, onChange }:
   value: string | string[];
   multiple?: boolean;
   onChange: (next: string | string[]) => void;
+  /** Shown instead of the pill; it's handed what opens the sheet. */
+  trigger?: (show: () => void) => ReactNode;
 }) {
   const insets = useSafeAreaInsets();
   // Inside a tab, iOS counts the tab bar in the inset; the sheet covers the bar, so only the
@@ -47,7 +51,8 @@ export function PickerPill({ title, label, options, value, multiple, onChange }:
   const chosen = (v: string) => (multiple ? draft.includes(v) : value === v);
   const show = () => { setDraft(Array.isArray(value) ? value : [value]); setOpen(true); };
   const pick = (v: string) => {
-    if (!multiple) { setOpen(false); if (v !== value) onChange(v); return; }
+    // A menu (trigger) hears of the one already chosen too: choosing it may still do something.
+    if (!multiple) { setOpen(false); if (v !== value || trigger) onChange(v); return; }
     // "" is "all of them" (Every language): it clears the rest, and the rest clear it.
     setDraft((d) => (v === "" ? [] : d.includes(v) ? d.filter((x) => x !== v) : [...d.filter((x) => x !== ""), v]));
   };
@@ -55,12 +60,12 @@ export function PickerPill({ title, label, options, value, multiple, onChange }:
 
   return (
     <>
-      <PressableScale haptic="none" onPress={show} accessibilityRole="button" accessibilityLabel={`${title}: ${label}`}
+      {trigger ? trigger(show) : <PressableScale haptic="none" onPress={show} accessibilityRole="button" accessibilityLabel={`${title}: ${label}`}
         accessibilityHint="Opens the choices" style={[styles.pill, glass.surface]}>
         <GlassFill radius={20} interactive />
         <Text variant="label" style={styles.pillText} numberOfLines={large ? undefined : 1}>{label}</Text>
         <Text style={styles.caret} accessible={false}>▾</Text>
-      </PressableScale>
+      </PressableScale>}
       <Modal visible={open} transparent statusBarTranslucent navigationBarTranslucent animationType="none" onRequestClose={() => setOpen(false)}>
         <View style={styles.layer}>
           <Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(120)} style={StyleSheet.absoluteFill}>
@@ -79,7 +84,7 @@ export function PickerPill({ title, label, options, value, multiple, onChange }:
                     <View style={[multiple ? styles.box : styles.dot, on && styles.markOn]}>
                       {on ? <Text style={styles.tick} accessible={false}>{multiple ? "✓" : "●"}</Text> : null}
                     </View>
-                    <Text variant="label" style={styles.optionText}>{o.label}</Text>
+                    <Text variant="label" style={[styles.optionText, o.hot && styles.optionHot]}>{o.label}</Text>
                   </PressableScale>
                 );
               })}
@@ -117,6 +122,7 @@ const styles = StyleSheet.create({
   option: { flexDirection: "row", alignItems: "center", gap: space.m, minHeight: TOUCH, paddingHorizontal: space.m, borderRadius: radius.m },
   optionOn: { backgroundColor: Platform.OS === "ios" ? "rgba(255, 255, 255, 0.08)" : color.panelRaised },
   optionText: { color: color.ink, fontFamily: font.medium, fontSize: 16 },
+  optionHot: { color: color.screen },
   box: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: color.slate, alignItems: "center", justifyContent: "center" },
   dot: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: color.slate, alignItems: "center", justifyContent: "center" },
   markOn: { borderColor: color.screen, backgroundColor: color.screen },
