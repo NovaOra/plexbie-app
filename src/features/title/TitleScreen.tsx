@@ -45,7 +45,8 @@ export function TitleScreen() {
     enabled: !!kind && !!id,
   });
 
-  if (!kind || !id || title.error) {
+  // A failed background refetch keeps the loaded page (and the season pick) on screen.
+  if (!kind || !id || (title.error && !title.data)) {
     return (
       <View style={[styles.page, { paddingBottom: insets.bottom }]}>
         <BackHeader />
