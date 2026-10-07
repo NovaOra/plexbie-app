@@ -6,7 +6,7 @@
 // writes never retry on their own, because a repeated approve or request is not harmless.
 import { z } from "zod";
 import {
-  AckSchema, AdminCleanupSchema, AdminHelpListSchema, ConversationSchema, DiscordOverviewSchema, HealthSchema, MessagePeopleSchema, AdminInvitesSchema, AdminJoinsSchema, AdminPeopleSchema, AdminRequestsSchema, LinkCandidatesSchema, NewInviteSchema, PlexInvitesSchema, ArrivalsSchema, CommunitySchema, HelpAnswerSchema, StatusSchema, MediaRequestSchema, MediaRequestsSchema, MobileInfoSchema, NothingSchema, LibrarySchema, PopularSchema, SessionSchema, TitleDetailSchema, TitlesSchema, TokenSchema, WatchPartySchema, AppReleaseSchema, DownloadLinkSchema, DiscoverSchema, ShelfPageSchema, SearchAllSchema, PrefsSchema, AdminAllRequestsSchema, AdminRequestDetailSchema, AdminTicketsSchema, AdminTicketDetailSchema, BlockedListSchema, BlockedPreviewSchema, ArrLibrarySchema, ArrEpisodesSchema,
+  AckSchema, AdminCleanupSchema, AdminHelpListSchema, InviteCheckSchema, ConversationSchema, DiscordOverviewSchema, HealthSchema, MessagePeopleSchema, AdminInvitesSchema, AdminJoinsSchema, AdminPeopleSchema, AdminRequestsSchema, LinkCandidatesSchema, NewInviteSchema, PlexInvitesSchema, ArrivalsSchema, CommunitySchema, HelpAnswerSchema, StatusSchema, MediaRequestSchema, MediaRequestsSchema, MobileInfoSchema, NothingSchema, LibrarySchema, PopularSchema, SessionSchema, TitleDetailSchema, TitlesSchema, TokenSchema, WatchPartySchema, AppReleaseSchema, DownloadLinkSchema, DiscoverSchema, ShelfPageSchema, SearchAllSchema, PrefsSchema, AdminAllRequestsSchema, AdminRequestDetailSchema, AdminTicketsSchema, AdminTicketDetailSchema, BlockedListSchema, BlockedPreviewSchema, ArrLibrarySchema, ArrEpisodesSchema,
 } from "./schemas";
 import type { AppCleanupSettings } from "./schemas";
 import type { BlockedChoice, BookFormat, HelpReason, MediaKind } from "./types";
@@ -242,7 +242,9 @@ export const pub = {
   mobileInfo: (server: string) => request({ server, token: null }, "/api/mobile", MobileInfoSchema),
   exchange: (server: string, code: string, verifier: string) =>
     request({ server, token: null }, "/auth/mobile/token", TokenSchema, json({ code, verifier })),
-  /** What an invite link's code is: who it's from, and whether it still works. */
+  /** What an invite link's code is: who it's from, and whether it still works. The code goes in the body, never the URL. */
+  inviteCheck: (server: string, code: string) =>
+    request({ server, token: null }, "/api/invite/check", InviteCheckSchema, json({ token: code })),
 };
 
 export type Api = ReturnType<typeof api>;

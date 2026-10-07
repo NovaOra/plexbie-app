@@ -1,7 +1,9 @@
 // Signed in, but not on the Plex server yet. The same rules as the website's Join page:
 // a Discord sign-in in the household server asks with an email (like /join-plex); a Plex
-// sign-in joins by invite link only; someone outside the Discord server is told why.
+// sign-in joins by invite link only (used on the Invite screen); someone outside the
+// Discord server is told why.
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { router } from "expo-router";
 import { useState } from "react";
 import { KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { KEYBOARD_BEHAVIOR } from "../../ui/keyboard";
@@ -38,7 +40,7 @@ export function JoinScreen({ me }: { me: AppSession }) {
     ? "Plexbie can’t reach Plex right now to check whether you already have access. Give it a minute and check again."
     : viaPlex
       ? `You’re signed in as ${me.plexName ?? "your Plex account"}, which isn’t shared on this server. Joining without Discord is by `
-        + "invite only: ask whoever runs the server for an invite link, open it, and sign in with this account."
+        + "invite only: ask whoever runs the server for an invite link, then use it here and sign in with Plex."
       : me.inGuild === false
         ? "This Discord account isn’t in the household’s Discord server, so Plexbie can’t ask for you from here. Join the "
           + "Discord server first, or ask whoever runs it for an invite link."
@@ -70,7 +72,8 @@ export function JoinScreen({ me }: { me: AppSession }) {
             {blocked ? (
               <>
                 <Text variant="body">{blocked}</Text>
-                {me.accessUnknown ? <Button kind="secondary" label="Check again" onPress={() => void qc.invalidateQueries({ queryKey: ["session"] })} style={styles.signOut} /> : null}
+                {me.accessUnknown ? <Button kind="secondary" label="Check again" onPress={() => void qc.invalidateQueries({ queryKey: ["session"] })} style={styles.signOut} />
+                  : <Button label="I have an invite link" onPress={() => router.push("/invite")} style={styles.signOut} />}
               </>
             ) : (
               <>

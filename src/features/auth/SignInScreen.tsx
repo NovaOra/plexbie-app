@@ -1,8 +1,9 @@
 import * as haptic from "../../ui/haptics";
 import { Image } from "expo-image";
+import { router } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View } from "react-native";
-import { KEYBOARD_BEHAVIOR } from "../../ui/keyboard";
+import { KEYBOARD_BEHAVIOR, useScrollToField } from "../../ui/keyboard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DEFAULT_SERVER, SignInError, normalizeServer, useSession, type Via } from "../../auth/session";
 import { PressableScale } from "../../ui/Pressable";
@@ -11,6 +12,7 @@ import { useAnnounce } from "../../ui/announce";
 import { Text } from "../../ui/Text";
 import { TOUCH, color, font, radius, space } from "../../ui/theme";
 import { Ambient } from "../../ui/Glass";
+import { InviteLinkField } from "./InviteScreen";
 
 const LOGO = require("../../../assets/brand/plexbie-512.png");
 
@@ -32,6 +34,9 @@ export function SignInScreen() {
   const [busy, setBusy] = useState<Via | null>(null);
   const [problem, setProblem] = useState<string | null>(state.phase === "signedOut" ? state.notice ?? null : null);
   useAnnounce(problem);
+  // An invite link carries its own Plexbie's address, so it needs nothing typed above.
+  const [inviting, setInviting] = useState(false);
+  const field = useScrollToField();
 
   const go = async (via: Via) => {
     setProblem(null);
@@ -57,6 +62,7 @@ export function SignInScreen() {
     <KeyboardAvoidingView style={styles.page} behavior={KEYBOARD_BEHAVIOR}>
       <Ambient />
       <ScrollView
+        ref={field.scroll}
         contentContainerStyle={[styles.content, { paddingTop: insets.top + space.xxl, paddingBottom: insets.bottom + space.xl }]}
         keyboardShouldPersistTaps="handled"
       >
@@ -143,6 +149,18 @@ export function SignInScreen() {
           You sign in on your Plexbie’s own page. The app never sees your Discord or Plex password.
         </Text>
 
+        {inviting ? (
+          <View onLayout={field.onLayout} style={styles.invite}>
+            <Text variant="eyebrow">Your invite link</Text>
+            <InviteLinkField autoFocus onFocus={field.onFocus}
+              onInvite={({ server: s, code }) => router.push({ pathname: "/invite", params: { server: s, code } })} />
+          </View>
+        ) : (
+          <PressableScale onPress={() => setInviting(true)} disabled={!!busy} haptic="none" style={styles.quiet}>
+            <Text variant="label" style={styles.change}>Have an invite link?</Text>
+          </PressableScale>
+        )}
+
         <PressableScale onPress={lookAround} disabled={!!busy} haptic="none" style={styles.quiet} accessibilityLabel="Look around with sample data">
           <Text variant="label" style={styles.quietText}>Look around with sample data</Text>
         </PressableScale>
@@ -182,5 +200,6 @@ const styles = StyleSheet.create({
   secondaryText: { color: color.screen, fontSize: 17 },
   small: { textAlign: "center", marginTop: space.xs },
   quiet: { alignItems: "center", justifyContent: "center", marginTop: space.l },
+  invite: { gap: space.xs, marginTop: space.l },
   quietText: { color: color.slateInk, textDecorationLine: "underline" },
 });

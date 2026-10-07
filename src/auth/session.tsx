@@ -8,7 +8,8 @@
 //   2. the bot sends the sheet to the app's address, com.plexbie.app:/auth, with
 //      ?code=…&state=… (one use, about a minute). It works the same for every Plexbie, on
 //      any address: no website links open the app. With invite=<code>, the Plex sign-in also
-//      accepts that invite and the answer says how it went (invite=ok|already|email|invalid|failed).
+//      accepts that invite and the answer says how it went
+//      (invite=ok|already|email|unconfirmed|invalid|failed; features/auth/InviteScreen.tsx).
 //   3. POST {server}/auth/mobile/token {code, verifier} → {token, expiresAt}
 //
 // The token is the only secret the app holds. It lives in the Keychain / Keystore
@@ -77,7 +78,8 @@ type State =
 export type Via = "discord" | "plex";
 
 export class SignInError extends Error {
-  constructor(message: string, readonly quiet = false) { super(message); this.name = "SignInError"; }
+  /** `invite`: how the invite went, when the server already used it before this sign-in failed. */
+  constructor(message: string, readonly quiet = false, readonly invite?: string) { super(message); this.name = "SignInError"; }
 }
 
 const octet = "(25[0-5]|2[0-4]\\d|1?\\d?\\d)";
@@ -219,14 +221,23 @@ function useSessionState() {
       if (!url) throw new SignInError("Sign-in was closed.", true);
       const back = Linking.parse(url).queryParams ?? {};
       if (back.state !== state) throw new SignInError("That sign-in didn't come back to this app. Try again.");
-      if (typeof back.error === "string") throw new SignInError(back.error === "denied" ? "Sign-in was turned down." : "Sign-in didn't work. Try again.");
-      if (typeof back.code !== "string") throw new SignInError("Sign-in didn't work. Try again.");
-      const { token, expiresAt } = await pub.exchange(server, back.code, verifier);
+      // The invite is used during the Plex sign-in, before the app's own sign-in finishes: its
+      // answer comes back even when that doesn't finish, and travels with the error.
+      const invite = typeof back.invite === "string" ? back.invite : undefined;
+      if (typeof back.error === "string") throw new SignInError(back.error === "denied" ? "Sign-in was turned down." : "Sign-in didn't work. Try again.", false, invite);
+      if (typeof back.code !== "string") throw new SignInError("Sign-in didn't work. Try again.", false, invite);
+      let token: string, expiresAt: number;
+      try {
+        ({ token, expiresAt } = await pub.exchange(server, back.code, verifier));
+      } catch (e) {
+        if (invite !== undefined && e instanceof Error) throw new SignInError(e.message, false, invite);
+        throw e;
+      }
       await forgetEverything();
       await SecureStore.setItemAsync(KEY, JSON.stringify({ server, token, expiresAt }), STORE);
       await SecureStore.setItemAsync(KEY_LAST_SERVER, server, STORE);
       setState({ phase: "signedIn", server, token, sample: false });
-      return typeof back.invite === "string" ? { invite: back.invite } : {};
+      return invite !== undefined ? { invite } : {};
     } finally {
       signingIn.current = false;
     }

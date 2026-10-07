@@ -72,6 +72,8 @@ function Routes() {
         <Stack.Screen name="sign-in" />
       </Stack.Protected>
       <Stack.Screen name="auth" />
+      {/* Signed in or out: it stays through the sign-in that uses the invite, to say how it went. */}
+      <Stack.Screen name="invite" options={{ animation: "default" }} />
     </Stack>
     <LaunchOverlay ready />
     </>

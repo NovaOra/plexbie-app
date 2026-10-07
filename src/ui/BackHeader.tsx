@@ -1,5 +1,5 @@
 // The top of a pushed screen: a back button (the system back gesture works too).
-import { router } from "expo-router";
+import { router, type Href } from "expo-router";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PressableScale } from "./Pressable";
@@ -7,13 +7,14 @@ import { Text } from "./Text";
 import { color, space } from "./theme";
 import { GlassFill, glass } from "./Glass";
 
-export function BackHeader({ overlay }: { overlay?: boolean }) {
+/** `fallback`: where Back goes when nothing is under this screen (it was opened from a link). */
+export function BackHeader({ overlay, fallback = "/requests" }: { overlay?: boolean; fallback?: Href }) {
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.bar, overlay && styles.overlay, { paddingTop: insets.top + space.s }]} pointerEvents="box-none">
       <PressableScale
         haptic="none"
-        onPress={() => (router.canGoBack() ? router.back() : router.replace("/requests"))}
+        onPress={() => (router.canGoBack() ? router.back() : router.replace(fallback))}
         accessibilityLabel="Back"
         style={[styles.back, glass.surface]}
       >

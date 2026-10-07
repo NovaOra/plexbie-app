@@ -25,6 +25,15 @@ lives in the Keychain/Keystore), requests with live progress, Home, Library, the
 Request page with Seerr discovery, Manage for admins, invites, alerts (Android), and its own
 update notices. iPhone gets iOS 26 Liquid Glass.
 
+**Invite links:** someone with an invite link and no Discord can use it in the app: **Have an
+invite link?** on the sign-in screen (or **I have an invite link** after a sign-in that isn't
+on the server yet) takes the pasted link, shows who it's from and until when it works, and
+signs in with Plex, which accepts it, as the website's invite page does. Web invite links
+still open the website (a household's own domain can't be tied to the app), but the app also
+opens its own link, `com.plexbie.app://invite?server=<the Plexbie's address>&code=<the code>`.
+It needs a Plexbie that answers `POST /api/invite/check`; an older one is told to use the
+browser.
+
 **Live progress (Android):** while one of your requests downloads, it stays in the notification
 shade with a bar that fills up until it's on Plex; on Android 16 it's a Live Update, a chip in
 the status bar. The bot sends silent updates (`core/live_progress.py` there) and the app draws

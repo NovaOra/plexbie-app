@@ -365,6 +365,16 @@ export const NewInviteSchema = z.looseObject({
 });
 export type AppNewInvite = z.infer<typeof NewInviteSchema>;
 
+/** What an invite link's code shows before signing in (POST /api/invite/check). Not valid: used, cancelled or expired. */
+export const InviteCheckSchema = z.looseObject({
+  valid: z.boolean(),
+  label: z.string().nullable().optional().catch(null),
+  inviter: z.string().nullable().optional().catch(null),
+  emailLocked: z.boolean().catch(false),
+  expiresAt: z.string().nullable().optional().catch(null),
+});
+export type AppInviteCheck = z.infer<typeof InviteCheckSchema>;
+
 /** An invite on plex.tv nobody has accepted yet (GET /api/admin/plexinvites). */
 const PlexInviteSchema = z.looseObject({ email: z.string(), name: z.string().catch(""), sentAt: z.string().catch(""), who: z.string().nullable().catch(null) });
 export type AppPlexInvite = z.infer<typeof PlexInviteSchema>;
