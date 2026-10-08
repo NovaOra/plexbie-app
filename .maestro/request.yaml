@@ -1,0 +1,15 @@
+# Ask for a show: pick a season, send it, find it in My requests.
+appId: com.plexbie.app
+---
+- runFlow: subflows/sample.yaml
+- tapOn: "Request"
+- tapOn: "Zombies of the Stratosphere, 1952.*"
+- assertVisible: "Which seasons\\?"
+- assertVisible: "Pick seasons to request"
+- tapOn: "Season 1, 12 episodes"
+- tapOn: "Request season 1"
+- assertVisible: "Request sent"
+- assertVisible: "Request No\\. \\d+ is in"
+- tapOn: "Follow it in My requests"
+- assertVisible: "My requests"
+- assertVisible: "Zombies of the Stratosphere, request .*"

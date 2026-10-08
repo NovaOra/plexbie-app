@@ -1,0 +1,9 @@
+# A fresh install, signed in to the sample household, on Home.
+appId: com.plexbie.app
+---
+- launchApp:
+    clearState: true
+- tapOn: "Look around with sample data"
+- extendedWaitUntil:
+    visible: "Just arrived"
+    timeout: 20000

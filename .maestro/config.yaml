@@ -1,0 +1,3 @@
+# Every flow at the top of .maestro/; subflows/ only run when a flow calls them.
+flows:
+  - "*"

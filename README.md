@@ -155,6 +155,11 @@ npm run ios                  # prebuild, pod install, build, open the Simulator
 - CI (`.github/workflows/ci.yml`, on every push to `main` and every pull request): `npm run typecheck`, `npm test`
   and `npm run types:check` against the bot's `main`, checked out beside the app. A fork whose bot repo lives
   elsewhere sets the Actions variable `PLEXBIE_BOT_REPO` (`owner/name`).
+- `scripts/device-tests.sh android|ios`: the [Maestro](https://maestro.dev) flows in `.maestro/` on an emulator or
+  the iOS Simulator, against a release build in sample mode (no server needed): sign-in, every tab, a title page,
+  search, sending a request, and approving one. Android uses whatever device adb sees (or `ANDROID_DEVICE=host:port`);
+  iOS uses the newest iPhone simulator (or `IOS_SIMULATOR`). `.github/workflows/device-tests.yml` runs both on `main`
+  on runners of your own (labels `android-kvm` and `macos`) once the Actions variable `DEVICE_TESTS` is `true`.
 - `npm run types:sync`: copy the bot's API types again after they change (set `PLEXBIE_REPO` if the bot's checkout isn't `../plexbie`).
 - `node scripts/brand-assets.mjs`: rebuild the icons from the logo.
 

@@ -1,0 +1,11 @@
+# First launch: the sign-in screen, with both sign-ins and the sample.
+appId: com.plexbie.app
+tags: [smoke]
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Sign in with Discord"
+    timeout: 20000
+- assertVisible: "Sign in with Plex"
+- assertVisible: "Look around with sample data"

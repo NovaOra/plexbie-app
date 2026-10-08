@@ -1,0 +1,80 @@
+# The Maestro flows in .maestro/ on a real Android emulator and a real iOS Simulator, through
+# scripts/device-tests.sh, whenever the app changes on main. They need runners of your own:
+#   android-kvm  a Linux runner with the Android SDK and Maestro that reaches an emulator
+#                over adb at ANDROID_DEVICE (a repository variable, host:port),
+#   macos        a Mac with Xcode, CocoaPods, Node and Maestro (a host runner).
+# Off unless the repository variable DEVICE_TESTS is "true", so forks and GitHub skip it.
+# A Mac that's asleep just leaves the iOS job queued until it wakes; a newer push replaces it.
+name: device tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "assets/**"
+      - "modules/**"
+      - "plugins/**"
+      - "app.json"
+      - "package.json"
+      - "package-lock.json"
+      - ".maestro/**"
+      - "scripts/device-tests.sh"
+      - ".github/workflows/device-tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: device-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    name: Android emulator
+    if: vars.DEVICE_TESTS == 'true'
+    runs-on: android-kvm
+    timeout-minutes: 60
+    env:
+      ANDROID_DEVICE: ${{ vars.ANDROID_DEVICE }}
+      GRADLE_OPTS: -Dorg.gradle.daemon=false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.npm
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: android-${{ hashFiles('package-lock.json') }}
+          restore-keys: android-
+
+      - run: npm ci --no-audit --no-fund
+
+      - run: scripts/device-tests.sh android
+
+      - if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: android-results
+          path: build/device-tests/android
+
+  ios:
+    name: iOS Simulator
+    if: vars.DEVICE_TESTS == 'true'
+    runs-on: macos
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - run: npm ci --no-audit --no-fund
+
+      - run: scripts/device-tests.sh ios
+
+      - if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ios-results
+          path: build/device-tests/ios

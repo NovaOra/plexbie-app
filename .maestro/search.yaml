@@ -1,0 +1,10 @@
+# Search finds a title by name.
+appId: com.plexbie.app
+---
+- runFlow: subflows/sample.yaml
+- tapOn: "Request"
+- tapOn: "Search films, shows and books"
+- inputText: "spring"
+- hideKeyboard
+- assertVisible: "Films \\(1\\)"
+- assertVisible: "Spring, 2019.*"

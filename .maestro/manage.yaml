@@ -1,0 +1,11 @@
+# An admin approves a request from Manage, and it leaves the waiting list.
+appId: com.plexbie.app
+---
+- runFlow: subflows/sample.yaml
+- tapOn: "Manage.*"
+- assertVisible: "Waiting for a decision.*3"
+- tapOn: "Approve Zombies of the Stratosphere for Sam"
+- extendedWaitUntil:
+    notVisible: "Approve Zombies of the Stratosphere for Sam"
+    timeout: 10000
+- assertVisible: "Waiting for a decision.*2"

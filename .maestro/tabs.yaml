@@ -1,0 +1,19 @@
+# Every tab opens and shows the sample household's things.
+appId: com.plexbie.app
+tags: [smoke]
+---
+- runFlow: subflows/sample.yaml
+- assertVisible: "Sintel, added .*"
+- tapOn: "Request"
+- assertVisible: "Search films, shows and books"
+- assertVisible: "Trending films"
+- tapOn: "Requests"
+- assertVisible: "My requests"
+- assertVisible: "Pepper & Carrot, request .*"
+- tapOn: "Library"
+- assertVisible: "Everything already on Plex.*"
+- assertVisible: "Sintel, 2010.*"
+- tapOn: "Manage.*"
+- assertVisible: "Waiting for a decision.*"
+- tapOn: "Home"
+- assertVisible: "Just arrived"

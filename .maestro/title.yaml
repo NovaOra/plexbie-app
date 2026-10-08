@@ -1,0 +1,11 @@
+# A title that's already on Plex: its page, and back.
+appId: com.plexbie.app
+---
+- runFlow: subflows/sample.yaml
+- tapOn: "Library"
+- tapOn: "Sintel, 2010.*"
+- assertVisible: "A young woman crosses a cold world.*"
+- assertVisible: "Already on Plex"
+- assertVisible: "More like this"
+- tapOn: "Back"
+- assertVisible: "Everything already on Plex.*"
