@@ -6,6 +6,7 @@ appId: com.plexbie.app
 - tapOn: "Sintel, 2010.*"
 - assertVisible: "A young woman crosses a cold world.*"
 - assertVisible: "Already on Plex"
-- assertVisible: "More like this"
+- scrollUntilVisible:
+    element: "More like this"
 - tapOn: "Back"
 - assertVisible: "Everything already on Plex.*"
