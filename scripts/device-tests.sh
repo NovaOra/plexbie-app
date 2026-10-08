@@ -15,6 +15,9 @@ cd "$(dirname "$0")/.."
 
 platform="${1:-}"; shift || true
 [[ "$platform" == android || "$platform" == ios ]] || { echo "Usage: $0 android|ios [maestro options]" >&2; exit 2; }
+# Maestro (and Gradle) need a JDK: on a Mac, Android Studio's unless JAVA_HOME says otherwise.
+jbr="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+[[ -z "${JAVA_HOME:-}" && -d "$jbr" ]] && export JAVA_HOME="$jbr"
 command -v maestro >/dev/null || { echo "Maestro isn't installed: https://docs.maestro.dev/getting-started/installing-maestro" >&2; exit 1; }
 out="build/device-tests/$platform"
 rm -rf "$out" && mkdir -p "$out"
@@ -58,9 +61,10 @@ if [[ "$platform" == android ]]; then
 else
   npx expo prebuild --platform ios --no-install >/dev/null
   (cd ios && LANG=en_US.UTF-8 pod install >/dev/null)
+  # Only this Mac's own architecture: a Release build for the Simulator builds every one otherwise.
   (cd ios && xcodebuild -workspace Plexbie.xcworkspace -scheme Plexbie -configuration Release -sdk iphonesimulator \
     -destination 'generic/platform=iOS Simulator' -derivedDataPath build/simulator -quiet \
-    CODE_SIGNING_ALLOWED=NO)
+    ARCHS="$(uname -m)" ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO)
   app=ios/build/simulator/Build/Products/Release-iphonesimulator/Plexbie.app
   # The simulator: IOS_SIMULATOR (a name or a udid), or the newest iPhone available.
   device="$(xcrun simctl list -j devices available | IOS_SIMULATOR="${IOS_SIMULATOR:-}" node -e '
