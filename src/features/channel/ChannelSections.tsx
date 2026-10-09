@@ -17,7 +17,7 @@ export function Board({ community, failed, retry }: { community?: AppCommunity; 
   const board = community?.leaderboard ?? [];
   return (
     <View style={styles.stack}>
-      <Text variant="meta">All-time watch time, watch parties included. The top three are never removed for inactivity.</Text>
+      <Text variant="meta">All-time watch time, watch parties included. The top three, not counting the server’s owner, are never removed for inactivity.</Text>
       {failed && !community ? (
         <>
           <Text variant="body">Couldn’t load the board just now.</Text>
