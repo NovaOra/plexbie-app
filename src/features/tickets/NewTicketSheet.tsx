@@ -1,7 +1,8 @@
 // "What's wrong with Sintel?", or a general ticket: pick a reason, add a note, and the admins
 // hear about it at once (POST /api/tickets), with what Plexbie can see of the file and of how
 // the member last played it. A native sheet, like the help sheet on a request; once the
-// ticket is in, it opens in the sheet's place.
+// ticket is in, it closes, and the ticket is on the title's page and Home's list. (Replacing
+// the sheet with the ticket screen left iOS with a screen Back couldn't pop.)
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
@@ -116,9 +117,9 @@ export function NewTicketSheet() {
     if (!reason) return;
     if (reason === "other" && !note.trim()) { setProblem("Say a little about what’s wrong."); return; }
     setProblem("");
-    // Only while the sheet is still there: one swiped away opens nothing in its place.
+    // Only while the sheet is still there: one swiped away closes nothing else.
     open.mutate(about ? { kind: about.kind, id: about.id, reason, note: note.trim() } : { reason, note: note.trim() }, {
-      onSuccess: (out) => { sent(); router.replace({ pathname: "/ticket/[id]", params: { id: out.help.id } }); },
+      onSuccess: () => { sent(); router.back(); },
       onError: (e) => { haptic.error(); setProblem(refusal(e)); },
     });
   };

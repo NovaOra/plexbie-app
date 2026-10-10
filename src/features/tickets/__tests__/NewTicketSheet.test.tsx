@@ -11,11 +11,10 @@ import type { AppMyTicket } from "../../../api/schemas";
 import { NewTicketSheet } from "../NewTicketSheet";
 
 let mockParams: Record<string, string> = {};
-const mockReplace = jest.fn();
 const mockBack = jest.fn();
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => mockParams,
-  router: { replace: (...to: unknown[]) => mockReplace(...to), back: () => mockBack() },
+  router: { back: () => mockBack() },
 }));
 const mockOpen = jest.fn<(body: NewTicket) => Promise<unknown>>();
 jest.mock("../../../auth/session", () => ({
@@ -52,7 +51,7 @@ const show = () => render(<QueryClientProvider client={qc}><NewTicketSheet /></Q
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 0)); });
 const reasons = () => screen.getAllByRole("radio").map((r) => r.props.accessibilityLabel as string);
 
-test("a film: its reasons with a line under each, and once it's in, the member's list has it and it opens", async () => {
+test("a film: its reasons with a line under each, and once it's in, the member's list has it and the sheet closes", async () => {
   const sent = myTickets[0] as AppMyTicket;
   mockOpen.mockResolvedValue(answer(sent));
   await show();
@@ -72,10 +71,10 @@ test("a film: its reasons with a line under each, and once it's in, the member's
   expect(mockHaptic).toHaveBeenCalledWith("reward");
   expect(qc.getQueryData<AppMyTicket[]>(["myTickets", "https://plexbie.example"])?.map((t) => t.id)).toEqual([sent.id]);
   expect(mockToast).toHaveBeenCalledWith({ text: "Sent to the admins", detail: "Sent. An admin will take a look and get back to you." });
-  expect(mockReplace).toHaveBeenCalledWith({ pathname: "/ticket/[id]", params: { id: sent.id } });
+  expect(mockBack).toHaveBeenCalledTimes(1);
 });
 
-test("a sheet swiped away while it's sending opens nothing in its place, and the ticket is still on the list", async () => {
+test("a sheet swiped away while it's sending closes nothing else, and the ticket is still on the list", async () => {
   const sent = myTickets[0] as AppMyTicket;
   let answerNow!: (out: unknown) => void;
   mockOpen.mockReturnValue(new Promise((ok) => { answerNow = ok; }));
@@ -84,7 +83,7 @@ test("a sheet swiped away while it's sending opens nothing in its place, and the
   await fireEvent.press(screen.getByRole("button", { name: "Send to the admins" }));
   await view.unmount();
   await act(async () => { answerNow(answer(sent)); await new Promise((r) => setTimeout(r, 0)); });
-  expect(mockReplace).not.toHaveBeenCalled();
+  expect(mockBack).not.toHaveBeenCalled();
   expect(qc.getQueryData<AppMyTicket[]>(["myTickets", "https://plexbie.example"])?.map((t) => t.id)).toEqual([sent.id]);
   expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ text: "Sent to the admins" }));
 });
@@ -106,7 +105,7 @@ test("a general ticket has its own two reasons, and names no title", async () =>
   await fireEvent.press(screen.getByRole("button", { name: "Send to the admins" }));
   await settle();
   expect(mockOpen).toHaveBeenCalledWith({ reason: "access", note: "" });
-  expect(mockReplace).toHaveBeenCalledWith({ pathname: "/ticket/[id]", params: { id: sent.id } });
+  expect(mockBack).toHaveBeenCalledTimes(1);
 });
 
 test("Something else needs a note, and nothing is sent without one", async () => {
@@ -126,7 +125,7 @@ test("a refusal shows the bot's own words, with the error buzz, and the sheet st
   await settle();
   expect(screen.getByRole("alert").props.children).toBe("You already have a ticket open on this. Add to it there.");
   expect(mockHaptic).toHaveBeenCalledWith("error");
-  expect(mockReplace).not.toHaveBeenCalled();
+  expect(mockBack).not.toHaveBeenCalled();
 });
 
 test("an older Plexbie (404, or 405 from its catch-all) says it can't take tickets yet", async () => {

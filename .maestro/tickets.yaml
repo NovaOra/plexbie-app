@@ -13,18 +13,21 @@ appId: com.plexbie.app
     element: "Something wrong\\? Open a ticket"
 - tapOn: "Something wrong\\? Open a ticket"
 - assertVisible: "What.s wrong with Charge\\?"
+# A tap while a sheet or a screen is still sliding in is dropped.
 - waitForAnimationToEnd
 - tapOn: "Picture looks wrong.*"
 - scrollUntilVisible:
     element: "Send to the admins"
 - tapOn: "Send to the admins"
-- assertVisible: "Your ticket on Charge"
-- assertVisible: "Add to your ticket"
-# A tap while the ticket screen is still sliding in is dropped.
-- waitForAnimationToEnd
-- tapOn: "Back"
+# The sheet closes, and the film's page has the ticket.
 - scrollUntilVisible:
     element: "Your ticket: picture looks wrong"
+- waitForAnimationToEnd
+- tapOn: "Your ticket: picture looks wrong"
+- assertVisible: "Your ticket on Charge"
+- assertVisible: "Add to your ticket"
+- waitForAnimationToEnd
+- tapOn: "Back"
 # Back to the Library tab: a title's page has no tab bar.
 - waitForAnimationToEnd
 - tapOn: "Back"
@@ -39,11 +42,12 @@ appId: com.plexbie.app
 - scrollUntilVisible:
     element: "Send to the admins"
 - tapOn: "Send to the admins"
-- assertVisible: "Your ticket"
-- assertVisible: "The admins have it.*"
-- waitForAnimationToEnd
-- tapOn: "Back"
+# The sheet closes, and Home's list has both.
 - scrollUntilVisible:
     element: "General.*"
     centerElement: true
 - assertVisible: "Charge \\(2022\\).*"
+- waitForAnimationToEnd
+- tapOn: "General.*"
+- assertVisible: "Your ticket"
+- assertVisible: "The admins have it.*"
