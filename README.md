@@ -39,6 +39,16 @@ opens its own link, `com.plexbie.app://invite?server=<the Plexbie's address>&cod
 It needs a Plexbie that answers `POST /api/invite/check`; an older one is told to use the
 browser.
 
+**Tickets:** a film or show on Plex that isn't one of your requests has **Something wrong? Open a
+ticket** on its page: pick what's wrong (it won't play, the picture or the sound is off, it's
+the wrong film or episode, episodes are missing, or something else), add a line, and the admins
+get it straight away, with what Plexbie can see of the file and of how you last played it.
+**Need help?** on Home opens a general ticket, for anything that isn't about one title, and lists
+your tickets (open ones, and those solved in the last 30 days); each opens to its conversation,
+with a box to add to it while it's open, and an alert about one opens it too. A request's own
+ticket stays on the request. It needs a Plexbie that answers `GET /api/tickets` (1.0.7); with an
+older one, title pages keep "say so in Discord" and Home has no **Need help?**.
+
 **Keeping a title forever:** Manage → Cleanup keeps any title on the clock with one switch,
 and its **Keep a title forever** search finds any film or show on Plex by title, as
 `/cleanup exempt add` does in Discord, leaving out the libraries cleanup skips. The search
