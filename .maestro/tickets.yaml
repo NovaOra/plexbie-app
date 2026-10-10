@@ -1,0 +1,49 @@
+# Something wrong with a film on Plex, and a ticket that isn't about one title: open each,
+# and find it again where the member looks for it.
+appId: com.plexbie.app
+---
+- runFlow: subflows/sample.yaml
+- tapOn: "Library"
+- scrollUntilVisible:
+    element: "Charge, 2022.*"
+    centerElement: true
+- tapOn: "Charge, 2022.*"
+- assertVisible: "Already on Plex"
+- scrollUntilVisible:
+    element: "Something wrong\\? Open a ticket"
+- tapOn: "Something wrong\\? Open a ticket"
+- assertVisible: "What.s wrong with Charge\\?"
+- waitForAnimationToEnd
+- tapOn: "Picture looks wrong.*"
+- scrollUntilVisible:
+    element: "Send to the admins"
+- tapOn: "Send to the admins"
+- assertVisible: "Your ticket on Charge"
+- assertVisible: "Add to your ticket"
+# A tap while the ticket screen is still sliding in is dropped.
+- waitForAnimationToEnd
+- tapOn: "Back"
+- scrollUntilVisible:
+    element: "Your ticket: picture looks wrong"
+# Back to the Library tab: a title's page has no tab bar.
+- waitForAnimationToEnd
+- tapOn: "Back"
+- tapOn: "Home"
+- scrollUntilVisible:
+    element: "Open a ticket"
+    centerElement: true
+- tapOn: "Open a ticket"
+- assertVisible: "What do you need help with\\?"
+- waitForAnimationToEnd
+- tapOn: "Can.t get in, or nothing plays.*"
+- scrollUntilVisible:
+    element: "Send to the admins"
+- tapOn: "Send to the admins"
+- assertVisible: "Your ticket"
+- assertVisible: "The admins have it.*"
+- waitForAnimationToEnd
+- tapOn: "Back"
+- scrollUntilVisible:
+    element: "General.*"
+    centerElement: true
+- assertVisible: "Charge \\(2022\\).*"
