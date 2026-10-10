@@ -1,11 +1,12 @@
 // One ticket, worked on in one place (Manage → Tickets): who has it, where its request
-// is, the fixes, the whole conversation, and a box to add a note only admins see or a
-// reply the member gets (a Discord DM or an alert, which they can answer). Then wait on
-// them, solve it with a last word, or reopen it.
+// is (or the film or show it's about), what Plexbie saw when it was opened, the fixes, the
+// whole conversation, and a box to add a note only admins see or a reply the member gets
+// (a Discord DM or an alert, which they can answer). Then wait on them, solve it with a
+// last word, or reopen it.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { StyleSheet, TextInput, View } from "react-native";
+import { Linking, StyleSheet, TextInput, View } from "react-native";
 import type { HelpSearch } from "../../api/client";
 import type { Ack } from "../../api/schemas";
 import { useApi } from "../../auth/session";
@@ -20,8 +21,8 @@ import { color, multilineInput, radius, replyRim, space } from "../../ui/theme";
 import { useDraftGuard } from "../../ui/useDraftGuard";
 import { useMe } from "../me/useMe";
 import { StageBox } from "../request/StageBox";
-import { formatSlot, seasonsLabel, since } from "../requests/stage";
-import { Thread, TicketPill, ticketState } from "../tickets/Thread";
+import { seasonsLabel, since } from "../requests/stage";
+import { Thread, TicketPill, ticketKind, ticketState, ticketTitle } from "../tickets/Thread";
 import { SEARCH_DONE, SearchFixes, StuckBox, card } from "./bits";
 import { BlockedImport } from "./BlockedImport";
 import { useAct, useAdminKey } from "./useAdmin";
@@ -64,6 +65,11 @@ export function AdminTicketScreen() {
   const open = t.status === "open";
   const mine = !!me && t.owner === me;
   const video = t.kind === "tv" || t.kind === "movie";
+  // A title ticket is searched for by its own TMDB id; a general one has nothing to search for.
+  const searchable = video && (t.subject === "title" ? !!t.tmdb : t.subject !== "general");
+  const page = t.subject === "title" && video && t.tmdb ? t.tmdb : null;
+  const plexUrl = t.subject === "title" && t.plexUrl?.startsWith("https://") ? t.plexUrl : null;
+  const saw = (t.statusThen ?? "").split("\n").map((line) => line.trim()).filter(Boolean);
   const seasons = seasonsLabel(t.seasons);
   const them = t.who.split(" ")[0] || t.who;       // "Wait on Jordan" fits a half-width button
   const send = async () => {
@@ -79,8 +85,8 @@ export function AdminTicketScreen() {
   return (
     <DetailPage scroll={field.scroll}>
         <View style={styles.headText}>
-          <Text variant="eyebrow">No. {formatSlot(t.slot)} · {t.reason}</Text>
-          <Text ref={heading} style={detailStyles.name} accessibilityRole="header">{t.title}{seasons ? ` · ${seasons}` : ""}</Text>
+          <Text variant="eyebrow">{ticketKind(t)} · {t.reason}</Text>
+          <Text ref={heading} style={detailStyles.name} accessibilityRole="header">{ticketTitle(t)}{seasons ? ` · ${seasons}` : ""}</Text>
           <Text variant="meta">{t.openedBy ? `Opened by ${t.openedBy}` : `Asked by ${t.who}`} {since(t.createdAt)}</Text>
         </View>
 
@@ -109,9 +115,26 @@ export function AdminTicketScreen() {
           </>
         ) : null}
 
+        {page || plexUrl ? (
+          <View style={card.actions}>
+            {page ? <Button kind="secondary" label="Open its page" style={card.grow}
+              onPress={() => router.push({ pathname: "/title/[kind]/[id]", params: { kind: t.kind, id: page } })} /> : null}
+            {plexUrl ? <Button kind="secondary" label="Open in Plex" style={card.grow} onPress={() => void Linking.openURL(plexUrl)} /> : null}
+          </View>
+        ) : null}
+
+        {saw.length ? (
+          <View style={[detailStyles.box, glass.surface]} accessibilityRole="summary" accessible
+            accessibilityLabel={`When it was opened, Plexbie saw: ${saw.join(". ")}`}>
+            <GlassFill radius={radius.m} />
+            <Text variant="eyebrow">When it was opened, Plexbie saw</Text>
+            {saw.map((line, i) => <Text key={i} variant="body" style={detailStyles.ink}>{line}</Text>)}
+          </View>
+        ) : null}
+
         {t.blocked && open ? <BlockedImport target={t.blocked} onDone={() => void qc.invalidateQueries({ queryKey: detailKey })} /> : null}
 
-        {video && open ? <SearchFixes kind={t.kind} busy={busy} onSearch={search} byName={t.offer === "name"} /> : null}
+        {searchable && open ? <SearchFixes kind={t.kind} busy={busy} onSearch={search} byName={t.offer === "name"} /> : null}
 
         <Thread entries={t.thread} who={t.who} admin />
 

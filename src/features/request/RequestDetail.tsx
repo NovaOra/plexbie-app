@@ -100,6 +100,8 @@ function YourTicket({ request: r, ticket, onFocus }: { request: AppRequest; tick
       // Shown straight away; the next poll confirms it.
       qc.setQueryData<AppRequest[]>(["requests", server], (rows) => rows?.map((x) =>
         (x.slot === r.slot && x.help ? { ...x, help: { ...x.help, waiting: false, thread: [...(x.help.thread ?? []), mine] } } : x)));
+      // It's on the member's list of tickets on Home too.
+      void qc.invalidateQueries({ queryKey: ["myTickets"] });
       setText("");
       toast({ text: "Sent to the admins", detail: out.message || undefined });
     } catch (e) {

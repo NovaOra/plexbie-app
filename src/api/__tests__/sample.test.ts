@@ -1,7 +1,7 @@
 // The sample household: each visit starts from the same invented household, whatever the
 // last one changed; a blocked download that's imported leaves the waiting list and closes
 // its ticket; every title it shows opens its own page; nobody's address is a real one; and
-// every screen tells the same story about the same requests, people and services.
+// every screen tells the same story about the same requests, people, services and tickets.
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import { resetSample, sampleApi, samplePlexTitles } from "../sample";
 import type { MediaKind } from "../types";
@@ -10,6 +10,13 @@ import type { MediaKind } from "../types";
 async function answer<T>(call: Promise<T>): Promise<T> {
   await jest.advanceTimersByTimeAsync(5_000);
   return call;
+}
+
+/** What the sample says when it refuses: caught before the pause, so it's never unhandled. */
+async function refusal(call: Promise<unknown>): Promise<string> {
+  const said = call.then(() => "it went through", (e: unknown) => (e instanceof Error ? e.message : String(e)));
+  await jest.advanceTimersByTimeAsync(5_000);
+  return said;
 }
 
 beforeEach(() => {
@@ -122,7 +129,8 @@ test("each request number is one title on every screen, a new request included",
     ...(await answer(sampleApi.myRequests())).map((r): [number, string] => [r.slot, r.title.title]),
     ...[...admin.pending, ...admin.recent].map((r): [number, string] => [r.slot, r.title]),
     ...(await answer(sampleApi.adminAll("", undefined, true))).rows.map((r): [number, string] => [r.slot, r.title.title]),
-    ...(await answer(sampleApi.adminTickets())).rows.map((t): [number, string] => [t.slot, t.title]),
+    // A ticket about a film, or a general one, has no number.
+    ...(await answer(sampleApi.adminTickets())).rows.filter((t) => t.slot).map((t): [number, string] => [t.slot, t.title]),
   ];
   const titles = new Map<number, string>();
   for (const [slot, title] of seen) {
@@ -225,4 +233,56 @@ test("a service Health says is down isn't one a request is waiting on", async ()
     ...(await answer(sampleApi.adminAll("", undefined, true))).rows,
   ].map((r) => r.progress?.detail ?? "");
   for (const service of down) for (const detail of details) expect(detail).not.toContain(service);
+});
+
+test("the member's own tickets: theirs only, waiting on them first, and one each about a request, a film and nothing in particular", async () => {
+  const mine = await answer(sampleApi.myTickets());
+  expect(mine.map((t) => [t.subject, t.title, t.status, t.waiting])).toEqual([
+    ["request", "Pepper & Carrot", "open", true],
+    ["title", "Cosmos Laundromat", "open", true],
+    ["general", null, "resolved", false],
+  ]);
+  expect(mine[0]).toMatchObject({ slot: 214, requestKey: "5001" });
+  expect(mine[1]).toMatchObject({ tmdb: "545611", year: "2015", slot: null, requestKey: null });
+  // What they see of each: never the admins' notes to each other.
+  for (const t of mine) expect(t.thread.map((e) => e.kind)).not.toContain("note");
+  // And Manage has every one of them, saying what each is about.
+  const rows = (await answer(sampleApi.adminTickets())).rows;
+  for (const t of mine) expect(rows.find((r) => r.id === t.id)?.subject).toBe(t.subject);
+});
+
+test("a title page says whether it's on Plex and, on a film the member has a ticket on, which", async () => {
+  const cosmos = await answer(sampleApi.title("movie", "545611"));
+  expect(cosmos.onPlex).toBe(true);
+  expect(cosmos.yourTicket).toMatchObject({ id: "h5", subject: "title", waiting: true });
+  expect((await answer(sampleApi.title("movie", "693134"))).onPlex).toBe(false);          // Tears of Steel, only requested
+  expect((await answer(sampleApi.title("movie", "1184918"))).yourTicket).toBeNull();
+  expect((await answer(sampleApi.title("ebook", "OL-dracula"))).onPlex).toBeUndefined();   // books have no such tickets
+});
+
+test("a new ticket on a film is on the member's list, its page and Manage; a second, or one on what isn't on Plex, is refused", async () => {
+  const out = await answer(sampleApi.openTicket({ kind: "movie", id: "1184918", reason: "playback", note: "It stops after a minute" }));
+  expect(out.ticket).toMatchObject({ subject: "title", title: "Sintel", tmdb: "1184918", reason: "Won’t play on Plex", status: "open" });
+  expect((await answer(sampleApi.myTickets())).map((t) => t.id)).toContain(out.help.id);
+  expect((await answer(sampleApi.title("movie", "1184918"))).yourTicket?.id).toBe(out.help.id);
+  const detail = await answer(sampleApi.adminTicket(out.help.id));
+  expect(detail).toMatchObject({ subject: "title", tmdb: "1184918", year: "2010", slot: 0, requestKey: null });
+  expect(detail.statusThen).toBeTruthy();
+
+  expect(await refusal(sampleApi.openTicket({ kind: "movie", id: "1184918", reason: "audio", note: "" }))).toBe("You already have a ticket open on this. Add to it there.");
+  expect(await refusal(sampleApi.openTicket({ kind: "movie", id: "693134", reason: "playback", note: "" }))).toBe("That isn’t on Plex. Request it, or open a general ticket.");
+  expect(await refusal(sampleApi.openTicket({ reason: "other", note: " " }))).toBe("Say a little about what’s wrong.");
+});
+
+test("three general tickets open at most", async () => {
+  for (let n = 0; n < 3; n++) await answer(sampleApi.openTicket({ reason: "access", note: `Try ${n}` }));
+  expect(await refusal(sampleApi.openTicket({ reason: "access", note: "Once more" }))).toBe("You have 3 general tickets open already. Add to one of those.");
+});
+
+test("adding to a ticket: the admins see it and it stops waiting; a solved one, or someone else's, can't be", async () => {
+  await answer(sampleApi.replyTicket("h5", "It looks fine on my phone."));
+  expect((await answer(sampleApi.adminTicket("h5"))).thread.at(-1)).toMatchObject({ kind: "member", text: "It looks fine on my phone." });
+  expect((await answer(sampleApi.myTickets())).find((t) => t.id === "h5")?.waiting).toBe(false);
+  expect(await refusal(sampleApi.replyTicket("h6", "Again"))).toBe("This ticket is closed. Open a new one if it’s still wrong.");
+  expect(await refusal(sampleApi.replyTicket("h2", "Not mine"))).toBe("No such ticket.");
 });

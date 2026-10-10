@@ -3,8 +3,8 @@
 // dropped instead of failing the whole screen.
 import { expect, test } from "@jest/globals";
 import {
-  ArrivalsSchema, CommunitySchema, DiscoverSchema, MediaRequestsSchema, MobileInfoSchema, SessionSchema, SignedOutOthersSchema, StatusSchema,
-  TitleDetailSchema, TitlesSchema, TokenSchema,
+  AdminTicketDetailSchema, AdminTicketsSchema, ArrivalsSchema, CommunitySchema, DiscoverSchema, MediaRequestsSchema, MessagePeopleSchema,
+  MobileInfoSchema, MyTicketsSchema, NewTicketSchema, SessionSchema, SignedOutOthersSchema, StatusSchema, TitleDetailSchema, TitlesSchema, TokenSchema,
 } from "../schemas";
 import * as fx from "../__fixtures__/bot";
 
@@ -34,7 +34,9 @@ test("a session from an older bot gets safe defaults", () => {
 
 test("a member's requests parse as sent, ticket thread included", () => {
   const parsed = MediaRequestsSchema.parse(wire(fx.myRequests));
-  expect(parsed).toEqual(wire(fx.myRequests));
+  // A request's ticket says nothing of what it's about: it's on the request.
+  const sent = wire(fx.myRequests) as { help?: object }[];
+  expect(parsed).toEqual(sent.map((r) => (r.help ? { ...r, help: { ...r.help, subject: "request" } } : r)));
   expect(parsed[0].help?.thread?.map((e) => e.kind)).toEqual(["member", "reply"]);
 });
 
@@ -103,4 +105,64 @@ test("sign out every other session: the count of app sign-ins it ended comes thr
   const sent = { ok: true, ended: 2, message: "Signed out every other website sign-in and 2 app sign-ins." };
   expect(SignedOutOthersSchema.parse(wire(sent))).toEqual(sent);
   expect(SignedOutOthersSchema.safeParse({ ok: true, message: "Done." }).success).toBe(false);
+});
+
+test("the member's own tickets parse as sent: about a film, on a request, and general", () => {
+  const parsed = MyTicketsSchema.parse(wire(fx.myTickets));
+  expect(parsed).toEqual(wire(fx.myTickets));
+  expect(parsed.map((t) => t.subject)).toEqual(["title", "request", "general"]);
+});
+
+test("a ticket with odd values reads safely, an unknown subject as a request's, and a broken row is left out", () => {
+  const [odd, ...rest] = MyTicketsSchema.parse([
+    { id: "0a1b2c3d4e5f", subject: "account", title: 5, slot: "seven", waiting: "yes", status: 1, thread: "none", createdAt: null },
+    { subject: "title", title: "No id" }, "junk", null,
+  ]);
+  expect(rest).toEqual([]);
+  expect(odd).toMatchObject({ subject: "request", title: null, slot: null, waiting: false, status: "open", reason: "", thread: [], createdAt: "", updatedAt: "" });
+});
+
+test("a title page: an older bot says nothing of tickets, 1.0.7 says whether it's on Plex and the member's open ticket", () => {
+  const older = TitleDetailSchema.parse(wire(fx.bunny));
+  expect(older.onPlex).toBeUndefined();
+  expect(older.yourTicket ?? null).toBeNull();
+  const newer = TitleDetailSchema.parse(wire({ ...fx.bunny, onPlex: true, yourTicket: { id: "0a1b2c3d4e5f", reason: "Won't play on Plex", subject: "title", status: "open", waiting: true, thread: [] } }));
+  expect(newer.onPlex).toBe(true);
+  expect(newer.yourTicket).toMatchObject({ id: "0a1b2c3d4e5f", subject: "title", waiting: true });
+  // Odd values: no ticket button (as on an older bot), and no ticket.
+  const odd = TitleDetailSchema.parse({ ...fx.bunny, onPlex: "yes", yourTicket: "h1" });
+  expect(odd.onPlex).toBeUndefined();
+  expect(odd.yourTicket).toBeNull();
+});
+
+test("Manage's tickets: an older bot's are on a request; 1.0.7 says what each is about", () => {
+  const older = { id: "abc123abc123", requestKey: "7", slot: 7, title: "Pepper & Carrot", kind: "tv", seasons: [2], who: "pat", reason: "Stuck downloading",
+    status: "open", waiting: false, createdAt: "2026-10-05T09:00:00Z", updatedAt: "2026-10-05T09:00:00Z", count: 1 };
+  const general = { ...older, id: "123456abcdef", subject: "general", requestKey: null, slot: 0, title: "", kind: "", seasons: null };
+  const { rows } = AdminTicketsSchema.parse(wire({ rows: [older, fx.titleTicket, general], counts: { action: 3, waiting: 0, solved: 0 } }));
+  expect(rows.map((t) => [t.subject, t.requestKey, t.slot, t.title, t.tmdb ?? null])).toEqual([
+    ["request", "7", 7, "Pepper & Carrot", null], ["title", null, 0, "Sintel", "900104"], ["general", null, 0, "", null],
+  ]);
+  const detail = AdminTicketDetailSchema.parse(wire(fx.titleTicket));
+  expect(detail.plexUrl).toBe(fx.titleTicket.plexUrl);
+  expect(detail.statusThen?.split("\n")).toHaveLength(2);
+  expect(AdminTicketDetailSchema.parse(wire({ ...fx.titleTicket, plexUrl: 4 })).plexUrl).toBeNull();
+});
+
+test("a new ticket's answer: the help id always, the ticket as the list has it when it's there", () => {
+  const sent = { ok: true, message: "Sent. An admin will take a look and get back to you.", help: { id: "0a1b2c3d4e5f", reason: "Picture looks wrong" }, ticket: fx.myTickets[0] };
+  expect(NewTicketSchema.parse(wire(sent))).toEqual(wire(sent));
+  expect(NewTicketSchema.parse({ ...sent, ticket: "odd" }).ticket).toBeNull();
+  expect(NewTicketSchema.safeParse({ ok: true, message: "Sent." }).success).toBe(false);
+});
+
+test("a person's open ticket on Messages: an older bot's is on a request", () => {
+  const person = { id: "d1", name: "pat", count: 1, received: 1, failed: 0, via: ["discord"],
+    last: { at: "2026-10-05T09:00:00Z", text: "Hi", channel: "discord", delivered: true, direction: "in" } };
+  const [older, newer] = MessagePeopleSchema.parse([
+    { ...person, ticket: { id: "abc123abc123", title: "Pepper & Carrot", slot: 7 } },
+    { ...person, id: "d2", ticket: { id: "123456abcdef", title: "", slot: 0, subject: "general" } },
+  ]);
+  expect(older.ticket?.subject).toBe("request");
+  expect(newer.ticket?.subject).toBe("general");
 });

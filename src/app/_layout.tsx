@@ -34,6 +34,12 @@ AppState.addEventListener("change", (s) => { if (Platform.OS !== "web") focusMan
 // beneath it, so Back goes there instead of closing the app.
 export const unstable_settings = { anchor: "(app)" };
 
+/** "Something wrong?" on a request, and a new ticket: a sheet over the screen it came from. */
+const SHEET = {
+  presentation: "formSheet" as const, sheetAllowedDetents: [0.75, 1], sheetGrabberVisible: true, sheetCornerRadius: 20,
+  contentStyle: { backgroundColor: color.panel }, animation: "default" as const,
+};
+
 /** Tapping an alert (app open, in the background, or started by the tap) opens its screen, once.
  *  Rendered with the Stack: navigating before it mounts throws and loses the tap. Its own
  *  component, so following the route doesn't re-render the whole Stack. */
@@ -107,13 +113,12 @@ function Routes() {
         <Stack.Screen name="request/[slot]" options={{ animation: "default" }} />
         <Stack.Screen name="manage-request/[key]" options={{ animation: "default" }} />
         <Stack.Screen name="manage-ticket/[id]" options={{ animation: "default" }} />
+        <Stack.Screen name="ticket/[id]" options={{ animation: "default" }} />
         <Stack.Screen name="you" options={{ animation: "default" }} />
         <Stack.Screen name="channel" options={{ animation: "default" }} />
-        {/* A real sheet (UISheetPresentationController / Material bottom sheet), not one drawn in JS. */}
-        <Stack.Screen name="help/[slot]" options={{
-          presentation: "formSheet", sheetAllowedDetents: [0.75, 1], sheetGrabberVisible: true, sheetCornerRadius: 20,
-          contentStyle: { backgroundColor: color.panel }, animation: "default",
-        }} />
+        {/* Real sheets (UISheetPresentationController / Material bottom sheet), not ones drawn in JS. */}
+        <Stack.Screen name="help/[slot]" options={SHEET} />
+        <Stack.Screen name="ticket/new" options={SHEET} />
       </Stack.Protected>
       <Stack.Protected guard={!signedIn}>
         <Stack.Screen name="sign-in" />

@@ -1,6 +1,6 @@
 // Home: the household's channel. What's on (live), what just arrived, where your requests
-// are, the all-time board with streaks, and your own figures. The website's Home and
-// Channel together: Android's tab bar has no room for a sixth tab.
+// are, help when something's wrong, the all-time board with streaks, and your own figures.
+// The website's Home and Channel together: Android's tab bar has no room for a sixth tab.
 import { useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useCallback, useState } from "react";
@@ -21,6 +21,7 @@ import { RequestCard } from "../requests/RequestCard";
 import { since } from "../requests/stage";
 import { useRequests } from "../requests/useRequests";
 import { useMe } from "../me/useMe";
+import { NeedHelp } from "./NeedHelp";
 import { OnAirList } from "./OnAirList";
 import { useArrivals, useCommunity, useStatus } from "./useHome";
 import { Ambient, GlassFill, glass, TAB_BAR_CLEARANCE } from "../../ui/Glass";
@@ -37,7 +38,7 @@ export function HomeScreen() {
   const [pulling, setPulling] = useState(false);
   const onRefresh = useCallback(async () => {
     setPulling(true);
-    try { await qc.refetchQueries({ predicate: (q) => ["status", "arrivals", "community", "requests", "watchparty"].includes(String(q.queryKey[0])) }); }
+    try { await qc.refetchQueries({ predicate: (q) => ["status", "arrivals", "community", "requests", "myTickets", "watchparty"].includes(String(q.queryKey[0])) }); }
     finally { setPulling(false); }
   }, [qc]);
 
@@ -72,6 +73,7 @@ export function HomeScreen() {
         <UpdateCard style={styles.pad} />
         <Arrivals arrivals={arrivals.data} failed={!!arrivals.error} retry={() => void arrivals.refetch()} />
         <YourRequests />
+        <NeedHelp />
         {/* The channel, folded into Home: who's watching (live), the board and your figures. */}
         <OnAir community={community.data} failed={!!community.error} retry={() => void community.refetch()} />
         <View style={styles.pad}>

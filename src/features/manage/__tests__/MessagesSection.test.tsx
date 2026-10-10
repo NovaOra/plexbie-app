@@ -1,8 +1,8 @@
 // Manage → Messages, one conversation: "Add to their ticket" is its own stop for a screen
-// reader, a send the bot refused still shows what it logged, and Android Back (or the
-// on-screen one) goes back to everyone and tells Manage the conversation is closed. The
-// search stays while it filters, after the list gets shorter. A first load that fails says
-// so, with Try again. One message is read as "1 message".
+// reader (and names a general ticket as one), a send the bot refused still shows what it
+// logged, and Android Back (or the on-screen one) goes back to everyone and tells Manage the
+// conversation is closed. The search stays while it filters, after the list gets shorter. A
+// first load that fails says so, with Try again. One message is read as "1 message".
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
@@ -68,6 +68,12 @@ test("“Add to their ticket” isn’t inside the message’s own screen-reader
   // VoiceOver reads an accessible view as one element and never reaches what's inside it.
   for (let up = add.parent; up; up = up.parent) expect(up.props.accessible).not.toBe(true);
   expect(screen.getByLabelText("Sam Rivers: It stops halfway through. Sent on Discord")).toBeTruthy();
+});
+
+test("their general ticket is named as one, not by a title it hasn't got", async () => {
+  mockClient.adminMessages.mockResolvedValue([{ ...sam, ticket: { id: "123456abcdef", title: "", slot: 0, subject: "general" } }] as AppMessagePerson[]);
+  await show();
+  expect(await screen.findByLabelText("Add to their general ticket")).toBeTruthy();
 });
 
 test("the message's screen-reader stop says who sent it and that it's on their ticket", async () => {

@@ -14,7 +14,7 @@ import { queryClient } from "../../api/query";
 import { SAMPLE_SERVER, sampleApi } from "../../api/sample";
 import { discordSession, mobileInfo, token } from "../../api/__fixtures__/bot";
 import { forgetPush, savedPush } from "../../features/push/push";
-import { helpDrafts } from "../../features/request/helpDrafts";
+import { helpDrafts, ticketDrafts } from "../../features/request/helpDrafts";
 import { normalizeServer, SessionProvider, SignInError, useServer, useSession } from "../session";
 
 // The Keychain / Keystore, in memory. Keys in __locked can't be read or written (a locked iPhone);
@@ -531,10 +531,12 @@ describe("signing out", () => {
 
   beforeEach(() => { seen = []; jest.mocked(forgetPush).mockClear(); });
 
-  test("a help note not sent goes with the sign-in: the next person doesn't see it", async () => {
+  test("a help note or a ticket's note not sent goes with the sign-in: the next person doesn't see it", async () => {
     helpDrafts.set(`${SERVER} 7`, { reason: "stuck", note: "It’s been at 0% since this morning" });
+    ticketDrafts.set(`${SERVER} movie/900104`, { reason: "picture", note: "Grey on the TV" });
     await signOutWith(200);
     expect(helpDrafts.size).toBe(0);
+    expect(ticketDrafts.size).toBe(0);
   });
 
   test("pictures go with the sign-in, from memory and from disk", async () => {

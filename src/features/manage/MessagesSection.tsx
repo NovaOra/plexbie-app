@@ -157,7 +157,7 @@ function Conversation({ person, onBack, onComposerFocus }: { person: AppMessageP
                 {incoming && m.ticket ? <Text variant="meta">On their ticket</Text> : null}
               </View>
               {incoming && !m.ticket && person.ticket && m.context === "Discord DM" ? (
-                <Button kind="secondary" label={`Add to their ticket on ${person.ticket.title}`} busy={isBusy(m.id)} busyLabel="Adding…"
+                <Button kind="secondary" label={`Add to their ${person.ticket.subject === "general" ? "general ticket" : `ticket on ${person.ticket.title}`}`} busy={isBusy(m.id)} busyLabel="Adding…"
                   onPress={() => void toTicket(m.id)} style={{ alignSelf: "flex-start" }} />
               ) : null}
             </View>

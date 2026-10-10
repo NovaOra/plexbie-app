@@ -8,11 +8,14 @@
 import { z } from "zod";
 import {
   AckSchema, AdminCleanupSchema, CleanupMatchesSchema, InviteCheckSchema, ConversationSchema, DiscordOverviewSchema, HealthSchema, MessagePeopleSchema, AdminInvitesSchema, AdminJoinsSchema, AdminPeopleSchema, AdminRequestsSchema, LinkCandidatesSchema, NewInviteSchema, PlexInvitesSchema, ArrivalsSchema, CommunitySchema, HelpAnswerSchema, StatusSchema, MediaRequestSchema, MediaRequestsSchema, MobileInfoSchema, NothingSchema, LibrarySchema, PopularSchema, SessionSchema, TitleDetailSchema, TitlesSchema, TokenSchema, WatchPartySchema, AppReleaseSchema, DownloadLinkSchema, DiscoverSchema, ShelfPageSchema, SearchAllSchema, PrefsSchema, AdminAllRequestsSchema, AdminRequestDetailSchema, AdminTicketsSchema, AdminTicketDetailSchema, BlockedListSchema, BlockedPreviewSchema, ArrLibrarySchema, ArrEpisodesSchema, SignedOutOthersSchema,
+  MyTicketsSchema, NewTicketSchema,
 } from "./schemas";
 import type { AppCleanupSettings } from "./schemas";
-import type { BlockedChoice, BookFormat, HelpReason, MediaKind } from "./types";
+import type { BlockedChoice, BookFormat, HelpReason, MediaKind, TicketReason } from "./types";
 
 export interface NewRequest { kind: MediaKind; id: string; seasons?: number[] | "all" | "latest"; format?: BookFormat }
+/** A ticket that isn't on a request: about a film or show on Plex (`kind` and its TMDB `id`), or general (neither). */
+export interface NewTicket { kind?: "movie" | "tv"; id?: string; reason: TicketReason; note: string }
 export type HelpSearch = "again" | "episodes" | "name";
 
 export class ApiError extends Error {
@@ -187,6 +190,17 @@ export function api(conn: Connection) {
     /** The member answering their ticket. */
     answerTicket: (requestId: string, text: string) =>
       request(conn, `/api/requests/${encodeURIComponent(requestId)}/help/reply`, AckSchema, json({ text })),
+    /** The member's own tickets, about anything: open ones, then those solved in the last 30 days.
+     *  A 404 is a bot from before members had tickets of their own (older than 1.0.7). */
+    myTickets: (signal?: AbortSignal) => request(conn, "/api/tickets", MyTicketsSchema, {}, signal),
+    /** Opens a ticket about a film or show on Plex, or a general one. Never retried: a second
+     *  general ticket would be a real one. */
+    openTicket: (body: NewTicket) =>
+      request(conn, "/api/tickets", NewTicketSchema, json(body.kind && body.id
+        ? { kind: body.kind, id: body.id, reason: body.reason, note: body.note } : { reason: body.reason, note: body.note })),
+    /** The member adds to one of their open tickets, whatever it's about (a request's too). */
+    replyTicket: (id: string, text: string) =>
+      request(conn, `/api/tickets/${encodeURIComponent(id)}/reply`, AckSchema, json({ text })),
     requestSearch: (key: string, how: HelpSearch) =>
       request(conn, `/api/admin/request/${encodeURIComponent(key)}/search/${how}`, AckSchema, json({})),
     decide: (id: string, approve: boolean) =>

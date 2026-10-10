@@ -2,7 +2,7 @@
 // their schema, and retries only where a repeat is harmless.
 import { beforeEach, expect, jest, test } from "@jest/globals";
 import { ApiError, api, pub } from "../client";
-import { myRequests, token } from "../__fixtures__/bot";
+import { myRequests, myTickets, token } from "../__fixtures__/bot";
 
 const SERVER = "https://plexbie.example";
 const fetchMock = jest.fn<(url: string, init?: RequestInit) => Promise<Response>>();
@@ -124,5 +124,46 @@ test("signing out every other session posts once, says how many app sign-ins end
   fetchMock.mockReset();
   fetchMock.mockResolvedValue(answer(503, { error: "Plexbie can't check sign-ins right now. Try again in a moment." }));
   await expect(client.signOutOthers()).rejects.toThrow("Plexbie can't check sign-ins right now. Try again in a moment.");
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+
+test("the member's tickets: the list, a new one about a film or general, and adding to one, each asked once", async () => {
+  const client = api({ server: SERVER, token: token.token });
+  fetchMock.mockResolvedValue(answer(200, myTickets));
+  expect((await client.myTickets()).map((t) => t.id)).toEqual(myTickets.map((t) => t.id));
+  expect(fetchMock.mock.calls[0][0]).toBe(`${SERVER}/api/tickets`);
+
+  const opened = { ok: true, message: "Sent. An admin will take a look and get back to you.", help: { id: "0a1b2c3d4e5f", reason: "Picture looks wrong" }, ticket: myTickets[0] };
+  fetchMock.mockReset();
+  fetchMock.mockImplementation(async () => answer(201, opened));
+  await expect(client.openTicket({ kind: "movie", id: "900104", reason: "picture", note: "Grey on the TV" })).resolves.toMatchObject({ help: { id: "0a1b2c3d4e5f" } });
+  await client.openTicket({ reason: "access", note: "" });
+  const sent = fetchMock.mock.calls.map(([url, init]) => [url, init?.method, JSON.parse(String(init?.body))]);
+  expect(sent).toEqual([
+    [`${SERVER}/api/tickets`, "POST", { kind: "movie", id: "900104", reason: "picture", note: "Grey on the TV" }],
+    // A general ticket names no title at all.
+    [`${SERVER}/api/tickets`, "POST", { reason: "access", note: "" }],
+  ]);
+
+  fetchMock.mockReset();
+  fetchMock.mockResolvedValue(answer(200, { ok: true, message: "Sent. The admins have it." }));
+  await expect(client.replyTicket("0a1b2c3d4e5f", "Only on the TV.")).resolves.toMatchObject({ message: "Sent. The admins have it." });
+  const [url, init] = fetchMock.mock.calls[0];
+  expect([url, init?.method, JSON.parse(String(init?.body))]).toEqual([`${SERVER}/api/tickets/0a1b2c3d4e5f/reply`, "POST", { text: "Only on the TV." }]);
+
+  // A write isn't tried again behind the member's back: a second general ticket would be a real one.
+  fetchMock.mockReset();
+  fetchMock.mockResolvedValue(answer(503, ""));
+  await expect(client.openTicket({ reason: "other", note: "Help" })).rejects.toMatchObject({ status: 503 });
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+
+test("a refused ticket brings the bot's own sentence, and an older bot's missing list is a 404", async () => {
+  const client = api({ server: SERVER, token: token.token });
+  fetchMock.mockResolvedValue(answer(409, { error: "You already have a ticket open on this. Add to it there." }));
+  await expect(client.openTicket({ kind: "tv", id: "900102", reason: "episodes", note: "" })).rejects.toThrow("You already have a ticket open on this. Add to it there.");
+  fetchMock.mockReset();
+  fetchMock.mockResolvedValue(new Response(null, { status: 404 }));
+  await expect(client.myTickets()).rejects.toMatchObject({ status: 404, kind: "http" });
   expect(fetchMock).toHaveBeenCalledTimes(1);
 });

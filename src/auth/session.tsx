@@ -26,7 +26,7 @@ import { forgetCache } from "../api/persist";
 import { queryClient, whenSignedOut } from "../api/query";
 import { resetSample, SAMPLE_SERVER, sampleApi } from "../api/sample";
 import { forgetPush, savedPush } from "../features/push/push";
-import { helpDrafts } from "../features/request/helpDrafts";
+import { helpDrafts, ticketDrafts } from "../features/request/helpDrafts";
 import { newPkce } from "./pkce";
 
 const KEY = "plexbie.signin";                 // {server, token, expiresAt}, one item so they can't disagree
@@ -139,6 +139,7 @@ async function forgetEverything() {
   await queryClient.cancelQueries();
   queryClient.clear();
   helpDrafts.clear();
+  ticketDrafts.clear();
   await Promise.all([Image.clearMemoryCache(), Image.clearDiskCache(), forgetCache()]);
 }
 

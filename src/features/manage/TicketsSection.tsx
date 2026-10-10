@@ -1,6 +1,6 @@
-// Manage → Tickets: "Something wrong?" from members, and tickets admins open from a
-// request. The ones needing an admin first; a ticket opens on its own screen, where it's
-// talked through, fixed and solved.
+// Manage → Tickets: "Something wrong?" from members (on a request, a film or show, or
+// anything else), and tickets admins open from a request. The ones needing an admin first;
+// a ticket opens on its own screen, where it's talked through, fixed and solved.
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useState } from "react";
@@ -13,9 +13,9 @@ import { PressableScale } from "../../ui/Pressable";
 import { Text } from "../../ui/Text";
 import { QueryGate } from "../../ui/QueryGate";
 import { color, radius, space } from "../../ui/theme";
-import { formatSlot, seasonsLabel, since } from "../requests/stage";
+import { seasonsLabel, since } from "../requests/stage";
 import { useMe } from "../me/useMe";
-import { TicketPill, ticketState } from "../tickets/Thread";
+import { TicketPill, ticketKind, ticketState, ticketTitle } from "../tickets/Thread";
 import { AllClear } from "./bits";
 import { useAdminKey } from "./useAdmin";
 
@@ -47,7 +47,7 @@ export function TicketsSection() {
   ];
   return (
     <View style={styles.section}>
-      <Text variant="body">“Something wrong?” from members, and tickets admins open from a request. Open one to talk it through, fix it and solve it.</Text>
+      <Text variant="body">“Something wrong?” from members, on a request, a film or show, or anything else, and tickets admins open from a request. Open one to talk it through, fix it and solve it.</Text>
       <View style={styles.picker}>
         <PickerPill title="Show" label={options.find((o) => o.value === show)!.label} value={show} options={options} onChange={(v) => setShow(v as Show)} />
       </View>
@@ -65,14 +65,15 @@ function TicketRow({ t }: { t: AppAdminTicketRow }) {
   const state = ticketState(t);
   const seasons = seasonsLabel(t.seasons);
   const asked = t.openedBy ? `opened by ${t.openedBy}` : `asked by ${t.who}`;
+  const title = ticketTitle(t);
   return (
     <PressableScale haptic="none" onPress={() => router.push({ pathname: "/manage-ticket/[id]", params: { id: t.id } })}
-      accessibilityLabel={`${t.title}${seasons ? `, ${seasons}` : ""}. ${t.reason}. ${state.label}. ${t.owner ? `${t.owner} has it` : "Nobody has it yet"}. ${t.last ? `Last: ${t.last.by}: ${t.last.text}` : ""}`}
+      accessibilityLabel={`${title}${seasons ? `, ${seasons}` : ""}. ${t.reason}. ${state.label}. ${t.owner ? `${t.owner} has it` : "Nobody has it yet"}. ${t.last ? `Last: ${t.last.by}: ${t.last.text}` : ""}`}
       accessibilityHint="Opens the ticket">
       <View style={[styles.card, glass.surface, state.tone === "hot" && styles.hot]}>
         <GlassFill radius={radius.m} />
-        <Text variant="eyebrow" numberOfLines={1}>No. {formatSlot(t.slot)} · {asked} · {since(t.updatedAt)}</Text>
-        <Text variant="title" numberOfLines={2}>{t.title}{seasons ? ` · ${seasons}` : ""}</Text>
+        <Text variant="eyebrow" numberOfLines={1}>{ticketKind(t)} · {asked} · {since(t.updatedAt)}</Text>
+        <Text variant="title" numberOfLines={2}>{title}{seasons ? ` · ${seasons}` : ""}</Text>
         <Text variant="meta">{t.reason}</Text>
         {t.last ? <Text variant="meta" numberOfLines={2}><Text variant="meta" style={styles.ink}>{t.last.by}:</Text> {t.last.text}</Text> : null}
         <View style={styles.pills}>

@@ -9,7 +9,7 @@ import { File, Paths } from "expo-file-system";
  * Small lists worth having offline. Not the library (large), titles, anything admin, or
  * the session (it holds email and account ids; it's asked for again on every start).
  */
-const KEEP = new Set(["requests", "status", "arrivals", "community", "popular"]);
+const KEEP = new Set(["requests", "myTickets", "status", "arrivals", "community", "popular"]);
 
 const cacheFile = () => new File(Paths.cache, "plexbie-cache.json");
 
@@ -38,7 +38,7 @@ export const persistOptions = {
   persister,
   maxAge: 24 * 3600_000,
   /** Bump when a cached shape changes, so an old file is ignored rather than misread. */
-  buster: "1",
+  buster: "2",
   dehydrateOptions: {
     shouldDehydrateQuery: (q: Query) => q.state.status === "success" && KEEP.has(String(q.queryKey[0])),
     // A write is sent now or not at all: one restored after a restart has nothing to send it.

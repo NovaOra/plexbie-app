@@ -55,13 +55,12 @@ export function HelpSheet() {
       haptic.success();
       // The card shows "Help asked" straight away; the next poll confirms it.
       qc.setQueryData<AppRequest[]>(["requests", server],
-        (rows) => rows?.map((x) => (x.slot === r!.slot ? { ...x, help: out.help } : x)));
+        (rows) => rows?.map((x) => (x.slot === r!.slot ? { ...x, help: { ...out.help, subject: "request" as const } } : x)));
+      // It's on the member's list of tickets on Home too.
+      void qc.invalidateQueries({ queryKey: ["myTickets"] });
       toast({ text: "Sent to the admins", detail: out.message || undefined });
       drafts.delete(draftKey);
-      sent();
-      router.back();
     },
-    onError: (e) => setProblem(e.message || "That didn’t send. Try again in a minute."),
   });
   // While it's sending, there's nothing to lose; nor when there's no box to have typed in.
   const sent = useDraftGuard(!!r?.id && !!note.trim() && !ask.isPending, () => drafts.delete(draftKey));
@@ -80,7 +79,11 @@ export function HelpSheet() {
     if (!reason) return;
     if (reason === "other" && !note.trim()) { setProblem("Say a little about what’s wrong."); return; }
     setProblem("");
-    ask.mutate();
+    // Only while the sheet is still there: one swiped away while sending closes nothing else.
+    ask.mutate(undefined, {
+      onSuccess: () => { sent(); router.back(); },
+      onError: (e) => setProblem(e.message || "That didn’t send. Try again in a minute."),
+    });
   };
   const seasons = seasonsLabel(r.seasons, { long: true });
 

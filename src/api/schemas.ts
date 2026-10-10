@@ -36,6 +36,34 @@ const SeasonInfoSchema = z.looseObject({
   status: opt(z.string()),     // SeasonStatus today; an unknown one is treated as not requestable
 });
 
+/** One line on a ticket's timeline. "note" is admins only; "reply" went to the member.
+ *  `missed`: a reply that reached nobody (admins only). */
+const TicketEntrySchema = z.looseObject({
+  id: z.string().catch(""), at: z.string().catch(""), by: z.string().catch(""),
+  kind: z.string().catch("note"),   // "member" | "note" | "reply" | "action" | "status" today
+  text: z.string().catch(""),
+  missed: opt(z.boolean()),
+});
+export type AppTicketEntry = z.infer<typeof TicketEntrySchema>;
+const timeline = z.array(z.unknown()).transform((rows) =>
+  rows.flatMap((r) => { const p = TicketEntrySchema.safeParse(r); return p.success ? [p.data] : []; }));
+
+/** What a ticket is about: a request, a film or show on Plex, or nothing in particular.
+ *  Older bots leave it out (every ticket was on a request); one this app doesn't know yet
+ *  is read the same way. */
+const subject = z.enum(["request", "title", "general"]).catch("request");
+
+/** The member's ticket on their request, or on a title: its conversation, without the admins' notes. */
+const MemberTicketSchema = z.looseObject({
+  id: z.string(), reason: z.string(),
+  subject,
+  status: opt(z.string()),
+  /** An admin asked something and waits on the member's answer. */
+  waiting: opt(z.boolean()),
+  thread: opt(timeline),
+});
+export type AppMemberTicket = z.infer<typeof MemberTicketSchema>;
+
 /** A title from search or its own page: what it is, and whether it can still be asked for. */
 export const TitleDetailSchema = TitleSchema.extend({
   backdrop: z.string().nullable().optional().catch(null),
@@ -46,7 +74,11 @@ export const TitleDetailSchema = TitleSchema.extend({
   seasons: opt(z.array(SeasonInfoSchema)),
   availability: z.string().catch("none"),
   plexUrl: z.string().nullable().optional().catch(null),
+  /** On Plex, fully or partly: something wrong with it is a ticket. Older bots leave it out (and take no such tickets). */
+  onPlex: opt(z.boolean()),
   yourRequest: z.looseObject({ slot: z.number(), stage: z.string() }).nullable().optional().catch(null),
+  /** The member's open ticket on it: about the title itself, or on their request for it. */
+  yourTicket: MemberTicketSchema.nullable().optional().catch(null),
   leaving: z.looseObject({ daysLeft: opt(z.number()), warning: opt(z.boolean()), exempt: opt(z.boolean()), practice: opt(z.boolean()) })
     .nullable().optional().catch(null),
 });
@@ -76,28 +108,6 @@ const ProgressSchema = z.looseObject({
   /** "upcoming": when it comes out (ISO date). */
   releaseDate: z.string().nullable().optional().catch(null),
 });
-
-/** One line on a ticket's timeline. "note" is admins only; "reply" went to the member.
- *  `missed`: a reply that reached nobody (admins only). */
-const TicketEntrySchema = z.looseObject({
-  id: z.string().catch(""), at: z.string().catch(""), by: z.string().catch(""),
-  kind: z.string().catch("note"),   // "member" | "note" | "reply" | "action" | "status" today
-  text: z.string().catch(""),
-  missed: opt(z.boolean()),
-});
-export type AppTicketEntry = z.infer<typeof TicketEntrySchema>;
-const timeline = z.array(z.unknown()).transform((rows) =>
-  rows.flatMap((r) => { const p = TicketEntrySchema.safeParse(r); return p.success ? [p.data] : []; }));
-
-/** The member's ticket on their request: its conversation, without the admins' notes. */
-const MemberTicketSchema = z.looseObject({
-  id: z.string(), reason: z.string(),
-  status: opt(z.string()),
-  /** An admin asked something and waits on the member's answer. */
-  waiting: opt(z.boolean()),
-  thread: opt(timeline),
-});
-export type AppMemberTicket = z.infer<typeof MemberTicketSchema>;
 
 export const MediaRequestSchema = z.looseObject({
   id: opt(z.string()),
@@ -161,6 +171,33 @@ export const AckSchema = z.looseObject({ ok: z.boolean().catch(true), message: z
 export type Ack = z.infer<typeof AckSchema>;
 
 export const HelpAnswerSchema = AckSchema.extend({ help: z.looseObject({ id: z.string(), reason: z.string() }) });
+
+/** One of the member's own tickets (GET /api/tickets), whatever it's about. `title` and `kind`
+ *  are null on a general ticket; `tmdb` is a title ticket's TMDB id (null when Plex has no
+ *  match for it); `requestKey` and `slot`, a request ticket's. */
+const MyTicketSchema = z.looseObject({
+  id: z.string(),
+  subject,
+  title: z.string().nullable().catch(null),
+  kind: z.string().nullable().catch(null),
+  tmdb: z.string().nullable().catch(null),
+  year: z.string().nullable().catch(null),
+  requestKey: z.string().nullable().catch(null),
+  slot: z.number().nullable().catch(null),
+  seasons: z.union([z.array(z.number()), z.literal("all"), z.literal("latest")]).nullable().optional().catch(null),
+  reason: z.string().catch(""),
+  status: z.string().catch("open"),       // "open" | "resolved" today
+  waiting: z.boolean().catch(false),
+  createdAt: z.string().catch(""),
+  updatedAt: z.string().catch(""),
+  thread: timeline.catch([]),
+});
+export type AppMyTicket = z.infer<typeof MyTicketSchema>;
+/** Open ones (those waiting on the member first), then those solved in the last 30 days. */
+export const MyTicketsSchema = z.array(z.unknown()).transform((rows) =>
+  rows.flatMap((row) => { const p = MyTicketSchema.safeParse(row); return p.success ? [p.data] : []; }));
+/** POST /api/tickets: the ticket as the member's list has it, beside the help answer's id. */
+export const NewTicketSchema = HelpAnswerSchema.extend({ ticket: MyTicketSchema.nullable().optional().catch(null) });
 
 /** A request card on Manage (GET /api/admin/requests). */
 const AdminRequestSchema = z.looseObject({
@@ -233,9 +270,12 @@ export const AdminRequestDetailSchema = AdminRequestRowSchema.extend({
 });
 export type AppAdminRequestDetail = z.infer<typeof AdminRequestDetailSchema>;
 
-/** A ticket on Manage → Tickets (GET /api/admin/tickets). */
+/** A ticket on Manage → Tickets (GET /api/admin/tickets). Not on a request (a title or
+ *  general ticket): `requestKey` null and `slot` 0; a general ticket's `title` is "". */
 const AdminTicketRowSchema = z.looseObject({
-  id: z.string(), requestKey: z.string().nullable().catch(null), slot: z.number().catch(0), title: z.string().catch(""),
+  id: z.string(), subject, requestKey: z.string().nullable().catch(null), slot: z.number().catch(0), title: z.string().catch(""),
+  /** A title ticket's TMDB id and year. */
+  tmdb: z.string().nullable().optional().catch(null), year: z.string().nullable().optional().catch(null),
   kind: z.string().catch(""), seasons: z.union([z.array(z.number()), z.literal("all"), z.literal("latest")]).nullable().optional().catch(null),
   who: z.string().catch("Someone"), reason: z.string().catch(""), status: z.string().catch("open"), waiting: z.boolean().catch(false),
   owner: z.string().nullable().optional().catch(null), openedBy: z.string().nullable().optional().catch(null),
@@ -258,7 +298,10 @@ const BlockedRefSchema = z.looseObject({ app: z.enum(["sonarr", "radarr"]), down
 export type AppBlockedRef = z.infer<typeof BlockedRefSchema>;
 export const AdminTicketDetailSchema = AdminTicketRowSchema.extend({
   note: z.string().nullable().optional().catch(null),
+  /** What Plexbie saw when it was opened, a line each: a request's stage; a title's file and the member's last play of it. */
   statusThen: z.string().nullable().optional().catch(null),
+  /** A title ticket's page on Plex (app.plex.tv). */
+  plexUrl: z.string().nullable().optional().catch(null),
   thread: timeline.catch([]),
   request: AdminRequestRowSchema.nullable().catch(null),
   blocked: BlockedRefSchema.nullable().optional().catch(null),
@@ -440,8 +483,8 @@ export const MessagePeopleSchema = rowsOf(z.looseObject({
   unread: z.number().catch(0),
   /** Who marked the conversation done, and when (the history stays). */
   done: z.looseObject({ at: z.string().catch(""), by: z.string().nullable().catch(null) }).nullable().optional().catch(null),
-  /** Their open ticket, for "Add to their ticket". */
-  ticket: z.looseObject({ id: z.string(), title: z.string().catch(""), slot: z.number().catch(0) }).nullable().optional().catch(null),
+  /** Their open ticket, for "Add to their ticket" (a general one has no title). */
+  ticket: z.looseObject({ id: z.string(), title: z.string().catch(""), slot: z.number().catch(0), subject }).nullable().optional().catch(null),
 }));
 export type AppMessagePerson = z.infer<typeof MessagePeopleSchema>[number];
 /** One person's messages with Plexbie (GET /api/admin/messages/{who}); "in" ones they sent. */

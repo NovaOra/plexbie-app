@@ -3,10 +3,10 @@
 // website's sample catalog (the bot's web/src/api/sampleTitles.json), all copyright-free:
 // Blender Foundation open movies (CC BY) and public-domain films, shows and books, with
 // their own posters and covers. The people are made up. Nothing here is ever sent anywhere.
-import { ApiError, type Api, type NewRequest } from "./client";
+import { ApiError, type Api, type NewRequest, type NewTicket } from "./client";
 import type {
   AppAdminAllRequests, AppAdminCleanup, AppAdminHelp, AppAdminInvite, AppAdminJoin, AppAdminPerson, AppAdminRequestDetail, AppAdminRequestRow,
-  AppAdminRequests, AppAdminTicketDetail, AppAdminTicketRow, AppMemberTicket, AppPlexInvite, AppRequest, AppSession, AppTicketEntry, AppTitle,
+  AppAdminRequests, AppAdminTicketDetail, AppAdminTicketRow, AppMemberTicket, AppMyTicket, AppPlexInvite, AppRequest, AppSession, AppTicketEntry, AppTitle,
 } from "./schemas";
 
 const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
@@ -25,6 +25,10 @@ const TEARS_OF_STEEL = "https://media.plexbie.com/posters/tears-of-steel-v1.jpg"
 const SINTEL = "https://media.plexbie.com/posters/sintel-v1.jpg";   // Blender Foundation, CC BY 3.0
 const ZOMBIES = "https://media.plexbie.com/posters/zombies-of-the-stratosphere-v1.jpg";   // public domain
 const WAR_OF_THE_WORLDS = "https://media.plexbie.com/posters/war-of-the-worlds-v1.jpg";   // public domain
+
+/** A film or show on Plex, fully or partly, can have a ticket about it (the bot's `onPlex`). Books have none. */
+const plexed = (t: AppTitle): AppTitle => (t.kind === "movie" || t.kind === "tv"
+  ? { ...t, onPlex: t.availability === "available" || !!t.seasons?.some((s) => s.status === "available" || s.status === "partial") } : t);
 
 /** What sample search and title pages know about: the website's sample catalog, with what
  *  this household has of each. The descriptions are our own words. Books have made-up ids. */
@@ -85,7 +89,7 @@ const makeTitles = (): AppTitle[] => [
     genres: ["Horror"], overview: "Strangers barricade themselves inside a farmhouse as the dead begin to walk." },
   { kind: "movie", id: "900004", title: "Carnival of Souls", year: "1962", poster: "https://media.plexbie.com/posters/carnival-of-souls-v1.jpg", availability: "available", runtime: 78,
     genres: ["Horror", "Mystery"], overview: "After surviving a car crash, a church organist is drawn to an abandoned pavilion by a pale stranger." },
-];
+].map(plexed);
 
 /** The short wait a server would take. A call still waiting when its visit ends (resetSample)
  *  lands nowhere: it fails, so the next visit never shows what it did. */
@@ -94,6 +98,9 @@ const pause = (ms: number) => {
   return new Promise<void>((ok, fail) => setTimeout(() => (visit === house ? ok() : fail(new ApiError(0, "That sample visit has ended.", "network"))), ms));
 };
 const days = (n: number) => new Date(Date.now() + n * 864e5).toISOString();
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** A day as Plexbie writes it ("Oct 9"), so many minutes ago. */
+const shortDay = (minutes: number) => { const d = new Date(Date.now() - minutes * 60_000); return `${MONTHS[d.getMonth()]} ${d.getDate()}`; };
 const ok = (message: string) => ({ ok: true, message });
 
 /** The films and shows on the sample Plex server outside the skipped Kids library, for "Keep a title forever". */
@@ -133,6 +140,11 @@ let entries = 0;
 const entry = (kind: string, by: string, text: string, minutes = 0): AppTicketEntry =>
   ({ id: `e${++entries}`, at: ago(minutes), by, kind, text });
 type SampleTicket = { requestKey: string | null; owner: string | null; waiting: boolean; thread: AppTicketEntry[] };
+/** A ticket as the bot keeps it. One that isn't on a request has a subject, and one about a
+ *  title its TMDB id and year; `quiet`, one an admin opened without telling the member. */
+type SampleHelp = AppAdminHelp & {
+  subject?: "request" | "title" | "general"; tmdb?: string | null; year?: string | null; opened_by?: string; quiet?: boolean;
+};
 
 /** Manage → Messages: conversations with Plexbie, both ways. */
 type SampleMsg = { id: string; at: string; direction: string; channel: string; delivered: boolean; title: string | null; text: string;
@@ -153,7 +165,7 @@ function makeSampleState() {
   const titles = makeTitles();
   const requests: AppRequest[] = [
     {
-      id: "5001", slot: 214, stage: "downloading", seasons: [2], requestedAt: ago(60 * 26), updatedAt: ago(14), help: { id: "h1", reason: "Stuck downloading" },
+      id: "5001", slot: 214, stage: "downloading", seasons: [2], requestedAt: ago(60 * 26), updatedAt: ago(14), help: { id: "h1", reason: "Stuck downloading", subject: "request" },
       title: { id: "95396", kind: "tv", title: "Pepper & Carrot", year: "2017", poster: PEPPER_CARROT },
       progress: { percent: 62, detail: "Season pack, 9 episodes, about 4 min left" },
     },
@@ -206,7 +218,7 @@ function makeSampleState() {
     { key: "d301", messageId: "9301", name: "Jordan", via: "discord", email: "jordan@example.com", status: "pending", askedAt: ago(90) },
     { key: "p302", messageId: "9302", name: "Rosa M", via: "plex", email: "", status: "approved", askedAt: ago(60 * 30) },
   ];
-  const help: AppAdminHelp[] = [
+  const help: SampleHelp[] = [
     { id: "h1", slot: 214, title: "Pepper & Carrot", kind: "tv", seasons: [2], who: "Alex Kim", reason: "Stuck downloading",
       note: "It’s been at 62% since this morning.", status_then: "Downloading, 62%", status: "open", created_at: ago(40), actions: [] },
     { id: "h2", slot: 210, title: "Elephants Dream", kind: "movie", seasons: null, who: "Jordan Lee", reason: "Can’t be found", offer: "name",
@@ -214,7 +226,17 @@ function makeSampleState() {
       status_then: "Nothing found", status: "open", created_at: ago(12), actions: [] },
     // A download Sonarr won't import by itself, as Plexbie opens it (the bot's core/blocked_imports).
     { id: "h4", slot: 217, title: "Radar Men from the Moon", kind: "tv", seasons: [1], who: "Jordan Lee", reason: "Downloaded, but won’t import",
-      note: BLOCKED_NOTE, status_then: "Downloaded, import blocked", status: "open", created_at: ago(8), actions: [], opened_by: "Plexbie" } as AppAdminHelp,
+      note: BLOCKED_NOTE, status_then: "Downloaded, import blocked", status: "open", created_at: ago(8), actions: [], opened_by: "Plexbie" },
+    // The member's own that aren't on a request: a film nobody asked for whose picture looks
+    // wrong (an admin asked something back), and a general one solved last week.
+    { id: "h5", slot: 0, title: "Cosmos Laundromat", kind: "movie", seasons: null, who: ME, reason: "Picture looks wrong",
+      note: "It’s grey and washed out on the living-room TV.", subject: "title", tmdb: "545611", year: "2015",
+      status_then: `File: 4K WEB-DL, Dolby Vision + HDR10, 18.3 GB\nLast played ${shortDay(60 * 20)} on Living room TV (Plex for LG), direct play, 4K Dolby Vision`,
+      status: "open", created_at: ago(60 * 20), actions: [] },
+    { id: "h6", slot: 0, title: "", kind: "", seasons: null, who: ME, reason: "Can’t get in, or nothing plays",
+      note: "The TV says I don’t have access any more.", subject: "general",
+      status_then: `Last played Sintel ${shortDay(60 * 24 * 9)} on iPhone (Plex for iOS), direct play, 1080p SDR`,
+      status: "resolved", created_at: ago(60 * 24 * 8), actions: [] },
   ];
   const people: AppAdminPerson[] = [
     { plexName: "sam.p", displayName: "Sam", discordName: "Sam", discordId: "201", linked: true, lastWatched: ago(4),
@@ -240,7 +262,7 @@ function makeSampleState() {
   ];
   const all: AppAdminRequestRow[] = [
     { id: "6002", slot: 210, stage: "searching", title: ELEPHANTS_DREAM, requestedAt: ago(60 * 50), updatedAt: ago(60 * 48),
-      progress: { detail: "Looking for a copy" }, help: { id: "h2", reason: "Can’t be found" }, requester: "Jordan Lee", status: "approved",
+      progress: { detail: "Looking for a copy" }, help: { id: "h2", reason: "Can’t be found", subject: "request" }, requester: "Jordan Lee", status: "approved",
       approvedBy: "Alex Kim", approvedAt: ago(60 * 48), stageSince: ago(60 * 48), stuck: ["Help asked: Can’t be found", "Nothing found for over a day"] },
     ...requests.map((r): AppAdminRequestRow => ({
       ...r, id: r.id ?? `s${r.slot}`, requester: ME,
@@ -248,7 +270,7 @@ function makeSampleState() {
       approvedBy: ["requested", "declined"].includes(r.stage) ? null : admin.recent.find((x) => x.slot === r.slot)?.resolvedBy ?? "Alex Kim",
       approvedAt: ["requested", "declined"].includes(r.stage) ? null : admin.recent.find((x) => x.slot === r.slot)?.resolvedAt ?? r.requestedAt,
       stageSince: r.updatedAt, finishedAt: r.stage === "available" ? r.updatedAt : null,
-      help: r.id === "5001" ? { id: "h1", reason: "Stuck downloading" } : r.help,
+      help: r.id === "5001" ? { id: "h1", reason: "Stuck downloading", subject: "request" } : r.help,
       stuck: r.id === "5001" ? ["Help asked: Stuck downloading", "Download hasn’t moved in 6 hours"] : [],
     })),
     // Everyone else's requests still waiting for a decision, as Manage → Requests has them.
@@ -270,6 +292,19 @@ function makeSampleState() {
     ] },
     h2: { requestKey: "6002", owner: null, waiting: false, thread: [
       entry("member", "Jordan Lee", "Can’t be found. Searching by its IDs found nothing Plexbie could grab for Elephants Dream: 212 releases came back. Search by name instead?", 12),
+    ] },
+    h5: { requestKey: null, owner: "Priya N.", waiting: true, thread: [
+      entry("member", ME, "Picture looks wrong. It’s grey and washed out on the living-room TV.", 60 * 20),
+      entry("status", "Priya N.", "Took it", 60 * 18),
+      entry("note", "Priya N.", "Dolby Vision profile 5, which the LG can’t show, and tone mapping is off on the server.", 60 * 18),
+      entry("reply", "Priya N.", "That one’s Dolby Vision. Does it look right on your phone? If it does, it’s the TV, and I’ll fix it on the server.", 60 * 17),
+      entry("status", "Priya N.", "Waiting on them", 60 * 17),
+    ] },
+    h6: { requestKey: null, owner: "Priya N.", waiting: false, thread: [
+      entry("member", ME, "Can’t get in, or nothing plays. The TV says I don’t have access any more.", 60 * 24 * 8),
+      entry("status", "Priya N.", "Took it", 60 * 24 * 8 - 30),
+      entry("reply", "Priya N.", "Plex had signed you out on the TV. Sign in again with your own account and the household’s library is all there.", 60 * 24 * 7),
+      entry("status", "Priya N.", "Solved", 60 * 24 * 7),
     ] },
   };
   const conversations: Record<string, SampleMsg[]> = {
@@ -326,11 +361,12 @@ const SAMPLE_EPISODES = ["Moon Rocket", "Molten Terror", "Bridge of Death", "Fli
   .map((title, i) => ({ id: 701 + i, label: `S01E${String(i + 1).padStart(2, "0")}`, season: 1, episode: i + 1, title, hasFile: false }));
 const BLOCKED_WHY = "Found matching series via grab history, but release was matched to series by ID. Automatic import is not possible.";
 const ticketOf = (id: string) => (house.tickets[id] ??= { requestKey: null, owner: null, waiting: false, thread: [] });
-function ticketRow(h: AppAdminHelp): AppAdminTicketRow {
+function ticketRow(h: SampleHelp): AppAdminTicketRow {
   const t = ticketOf(h.id);
   const last = t.thread[t.thread.length - 1];
   return {
-    id: h.id, requestKey: t.requestKey, slot: h.slot, title: h.title, kind: h.kind, seasons: h.seasons, who: h.who, reason: h.reason,
+    id: h.id, subject: h.subject ?? "request", requestKey: t.requestKey, slot: h.slot, title: h.title, tmdb: h.tmdb ?? null, year: h.year ?? null,
+    kind: h.kind, seasons: h.seasons, who: h.who, reason: h.reason,
     status: h.status, waiting: h.status === "open" && t.waiting, owner: t.owner, openedBy: (h as { opened_by?: string }).opened_by ?? null, offer: h.offer ?? null,
     createdAt: h.created_at, updatedAt: last?.at ?? h.created_at, last: last ? { by: last.by, kind: last.kind, text: last.text } : null,
     count: t.thread.length,
@@ -341,11 +377,40 @@ function memberTicket(help: { id: string; reason: string }): AppMemberTicket {
   const h = house.help.find((x) => x.id === help.id);
   const t = ticketOf(help.id);
   return {
-    ...help, status: h?.status ?? "open", waiting: h?.status === "open" && t.waiting,
+    id: help.id, reason: help.reason, subject: h?.subject ?? "request", status: h?.status ?? "open", waiting: h?.status === "open" && t.waiting,
     thread: t.thread.filter((e) => ["member", "reply"].includes(e.kind) || (e.kind === "status" && ["Solved", "Reopened"].includes(e.text)))
       .map(({ id, at, by, kind, text }) => ({ id, at, kind, text, by: kind === "member" ? "You" : by })),
   };
 }
+/** One of the member's own tickets, as their list has it. */
+function myRow(h: SampleHelp): AppMyTicket {
+  const t = ticketOf(h.id);
+  const subject = h.subject ?? "request";
+  const seen = memberTicket(h);
+  return {
+    id: h.id, subject, title: h.title || null, kind: h.kind || null, tmdb: h.tmdb ?? null, year: h.year ?? null,
+    requestKey: subject === "request" ? t.requestKey : null, slot: subject === "request" && h.slot ? h.slot : null, seasons: h.seasons ?? null,
+    reason: h.reason, status: h.status, waiting: !!seen.waiting, createdAt: h.created_at,
+    updatedAt: t.thread[t.thread.length - 1]?.at ?? h.created_at, thread: seen.thread ?? [],
+  };
+}
+/** When it was last solved (nothing while it's never been). */
+const solvedAt = (id: string) => [...ticketOf(id).thread].reverse().find((e) => e.kind === "status" && e.text === "Solved")?.at ?? "";
+/** The member's open ticket on a film or show: about it, or on their request for it. */
+function yourTicketOn(t: AppTitle): AppMemberTicket | null {
+  if (t.kind !== "movie" && t.kind !== "tv") return null;
+  const h = house.help.find((x) => x.who === ME && x.status === "open" && (
+    (x.subject === "title" && x.kind === t.kind && x.tmdb === t.id)
+    || ((x.subject ?? "request") === "request" && house.requests.some((r) => !!r.id && r.id === house.tickets[x.id]?.requestKey
+      && r.title.kind === t.kind && r.title.id === t.id))));
+  return h ? memberTicket(h) : null;
+}
+/** What a member picks for a ticket that isn't on a request, as the bot keeps it. */
+const TITLE_WORDS: Record<string, string> = {
+  playback: "Won’t play on Plex", picture: "Picture looks wrong", audio: "Sound or subtitles", wrongfilm: "Wrong film or episode",
+  episodes: "Missing episodes", other: "Something else",
+};
+const GENERAL_WORDS: Record<string, string> = { access: "Can’t get in, or nothing plays", other: "Something else" };
 const say = (id: string, kind: string, text: string, by = ME) => { const e = entry(kind, by, text); ticketOf(id).thread.push(e); return e; };
 /** h2's member can’t be reached (closed DMs, no alerts, no email): an admin’s reply or
  *  “Solved” on it says so, and so does its timeline (the reply it was, `sent`, is marked
@@ -363,7 +428,7 @@ const markHelp = (id: string, open: boolean) => {
   house.all = house.all.map((x) => {
     if (x.id !== house.tickets[id]?.requestKey) return x;
     const rest = x.stuck.filter((s) => !s.startsWith("Help asked"));
-    return open && h ? { ...x, help: { id, reason: h.reason }, stuck: [`Help asked: ${h.reason}`, ...rest] } : { ...x, help: null, stuck: rest };
+    return open && h ? { ...x, help: { id, reason: h.reason, subject: "request" as const }, stuck: [`Help asked: ${h.reason}`, ...rest] } : { ...x, help: null, stuck: rest };
   });
 };
 const helpFor = (id: string) => {
@@ -438,7 +503,7 @@ export const sampleApi: Api = {
     await pause(250);
     const t = house.titles.find((x) => x.kind === kind && x.id === id);
     if (!t) throw new ApiError(404, "Not found.", "http");
-    return t;
+    return { ...t, yourTicket: yourTicketOn(t) };
   },
   request: async (body: NewRequest) => {
     await pause(600);
@@ -459,14 +524,57 @@ export const sampleApi: Api = {
   askHelp: async (requestId, reason) => {
     await pause(500);
     const r = house.requests.find((x) => x.id === requestId);
-    const label = { stuck: "Stuck downloading", notfound: "Can’t be found", quality: "Wrong version or quality", episodes: "Wrong or missing episodes",
-      playback: "Won’t play on Plex", other: "Something else" }[reason] ?? reason;
+    const label = { stuck: "Stuck downloading", notfound: "Can’t be found", notonplex: "Downloaded, but not on Plex", wrongfilm: "Plex says it’s a different film",
+      quality: "Wrong version or quality", episodes: "Wrong or missing episodes", playback: "Won’t play on Plex", other: "Something else" }[reason] ?? reason;
     const help = { id: `h${requestId}`, reason: label };
     house.help = [{ id: help.id, slot: r?.slot ?? 0, title: r?.title.title ?? "", kind: r?.title.kind ?? "movie", seasons: null, who: ME,
       reason: label, note: "", status_then: r?.stage ?? "", status: "open", created_at: new Date().toISOString(), actions: [] }, ...house.help];
     house.tickets[help.id] = { requestKey: requestId, owner: null, waiting: false, thread: [entry("member", ME, label)] };
     if (r) r.help = memberTicket(help);
     return { ok: true, message: "Sent. An admin will take a look and get back to you.", help };
+  },
+  openTicket: async (body: NewTicket) => {
+    await pause(500);
+    const t = body.kind || body.id ? house.titles.find((x) => x.kind === body.kind && x.id === body.id) : undefined;
+    if ((body.kind || body.id) && (!t || (t.kind !== "movie" && t.kind !== "tv"))) {
+      throw new ApiError(400, "Pick a film or show that’s on Plex, or open a general ticket.", "http");
+    }
+    const words = t ? TITLE_WORDS : GENERAL_WORDS;
+    const code = body.reason in words && (body.reason !== "episodes" || t?.kind === "tv") ? body.reason : "other";
+    if (code === "other" && !body.note.trim()) throw new ApiError(400, "Say a little about what’s wrong.", "http");
+    if (t && !t.onPlex) throw new ApiError(409, "That isn’t on Plex. Request it, or open a general ticket.", "http");
+    if (t && yourTicketOn(t)) throw new ApiError(409, "You already have a ticket open on this. Add to it there.", "http");
+    if (!t && house.help.filter((h) => h.who === ME && h.subject === "general" && h.status === "open").length >= 3) {
+      throw new ApiError(409, "You have 3 general tickets open already. Add to one of those.", "http");
+    }
+    const reason = words[code];
+    const note = body.note.trim();
+    const h: SampleHelp = {
+      id: `h${Date.now()}`, slot: 0, title: t?.title ?? "", kind: t?.kind ?? "", seasons: null, who: ME, reason, note,
+      subject: t ? "title" : "general", tmdb: t?.id ?? null, year: t?.year ?? null,
+      status_then: t ? "File: 1080p WEB-DL, SDR, 2.1 GB" : `Last played Sintel ${shortDay(60 * 26)} on iPhone (Plex for iOS), direct play, 1080p SDR`,
+      status: "open", created_at: new Date().toISOString(), actions: [],
+    };
+    house.help = [h, ...house.help];
+    house.tickets[h.id] = { requestKey: null, owner: null, waiting: false, thread: [entry("member", ME, note ? `${reason}. ${note}` : reason)] };
+    return { ok: true, message: "Sent. An admin will take a look and get back to you.", help: { id: h.id, reason }, ticket: myRow(h) };
+  },
+  myTickets: async () => {
+    await pause(300);
+    const since = new Date(Date.now() - 30 * 864e5).toISOString();
+    return house.help.filter((h) => h.who === ME && !h.quiet && (h.status === "open" || solvedAt(h.id) >= since)).map(myRow)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .sort((a, b) => Number(a.status !== "open") - Number(b.status !== "open") || Number(!a.waiting) - Number(!b.waiting));
+  },
+  replyTicket: async (id, text) => {
+    await pause(450);
+    const h = house.help.find((x) => x.id === id && x.who === ME);
+    if (!h) throw new ApiError(404, "No such ticket.", "http");
+    if (h.status !== "open") throw new ApiError(409, "This ticket is closed. Open a new one if it’s still wrong.", "http");
+    if (!text.trim()) throw new ApiError(400, "Write your answer first.", "http");
+    say(h.id, "member", text.trim(), ME);
+    ticketOf(h.id).waiting = false;
+    return ok("Sent. The admins have it.");
   },
   join: async () => { await pause(500); return null; },
   adminRequests: async () => { await pause(350); return house.admin; },
@@ -555,7 +663,7 @@ export const sampleApi: Api = {
     await pause(250);
     const h = helpFor(id);
     const t = ticketOf(id);
-    const detail: AppAdminTicketDetail = { ...ticketRow(h), note: h.note, statusThen: h.status_then, thread: [...t.thread],
+    const detail: AppAdminTicketDetail = { ...ticketRow(h), note: h.note, statusThen: h.status_then, plexUrl: null, thread: [...t.thread],
       request: [...house.all, ...sampleArchive].find((x) => x.id === t.requestKey) ?? null, blocked: id === "h4" && house.blocked ? BLOCKED_REF : null };
     return detail;
   },
@@ -607,10 +715,10 @@ export const sampleApi: Api = {
     const help = { id: `h${Date.now()}`, reason: "Opened by an admin" };
     house.help = [{ id: help.id, slot: r?.slot ?? 0, title: r?.title.title ?? "", kind: r?.title.kind ?? "movie", seasons: null,
       who: r?.requester ?? "Someone", reason: help.reason, note, status_then: r?.stage ?? "", status: "open", created_at: new Date().toISOString(),
-      actions: [], opened_by: ME }, ...house.help];
+      actions: [], opened_by: ME, quiet: !tell }, ...house.help];
     house.tickets[help.id] = { requestKey: key, owner: null, waiting: false, thread: [entry("note", ME, note)] };
     if (tell && message?.trim()) say(help.id, "reply", message.trim());
-    house.all = house.all.map((x) => (x.id === key ? { ...x, help, stuck: [`Help asked: ${help.reason}`, ...x.stuck] } : x));
+    house.all = house.all.map((x) => (x.id === key ? { ...x, help: { ...help, subject: "request" as const }, stuck: [`Help asked: ${help.reason}`, ...x.stuck] } : x));
     return { ok: true, message: `Ticket opened${tell ? `, and ${r?.requester ?? "they"} has been told (Discord DM)` : ""}. It’s on Manage → Tickets.`,
       help, ...(tell ? { told: true } : {}) };
   },
@@ -620,8 +728,14 @@ export const sampleApi: Api = {
     (house.activity[key] ??= []).push({ at: new Date().toISOString(), by: "you", did: said });
     return ok(said);
   },
-  helpSearch: async (_id, how) => {
+  helpSearch: async (id, how) => {
     await pause(600);
+    const h = helpFor(id);
+    if (h.subject === "general") throw new ApiError(409, "This ticket isn’t about one film or show Plexbie can look up, so there’s nothing to search for.", "http");
+    if (h.subject === "title") {
+      return ok({ again: `${h.kind === "tv" ? "Sonarr" : "Radarr"} is searching for ${h.title} again.`, episodes: `Sonarr is searching ${h.title} one episode at a time.`,
+        name: `Plexbie is searching NZBHydra for “${h.title}${h.year ? ` ${h.year}` : ""}”. It reports back here.` }[how]);
+    }
     return ok({ again: "Sonarr is searching for season 2 again.", episodes: "Sonarr is searching season 2 one episode at a time.",
       name: "Plexbie is searching NZBHydra for “Elephants Dream 2006”. It reports back here, and closes this if it finds it." }[how]);
   },
@@ -703,7 +817,7 @@ export const sampleApi: Api = {
       return {
         id, name: SAMPLE_NAMES[id], count: list.filter((m) => m.direction === "out").length, received: list.filter((m) => m.direction === "in").length,
         unread: list.filter((m) => m.direction === "in" && !(done && done.at >= m.at)).length, done,
-        ticket: id === "dsample" ? { id: "h1", title: "Pepper & Carrot", slot: 214 } : null,
+        ticket: id === "dsample" ? { id: "h1", title: "Pepper & Carrot", slot: 214, subject: "request" as const } : null,
         failed: list.filter((m) => !m.delivered).length, via: [...new Set(list.map((m) => m.channel))],
         last: { at: last.at, text: last.title ?? last.text, channel: last.channel, delivered: last.delivered, direction: last.direction },
       };

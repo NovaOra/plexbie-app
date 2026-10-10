@@ -17,6 +17,14 @@ test("a ticket opens that ticket", () => {
   expect(routeFor("/app/manage?ticket=abcdef012345")).toEqual({ pathname: "/manage-ticket/[id]", params: { id: "abcdef012345" } });
 });
 
+test("a member's own ticket (an alert about a title or general one) opens it as theirs", () => {
+  expect(routeFor("/?ticket=0123456789ab")).toEqual({ pathname: "/ticket/[id]", params: { id: "0123456789ab" } });
+  expect(routeFor("/app/?ticket=abcdef012345")).toEqual({ pathname: "/ticket/[id]", params: { id: "abcdef012345" } });
+  expect(routeFor("/app?ticket=abcdef012345")).toEqual({ pathname: "/ticket/[id]", params: { id: "abcdef012345" } });
+  // Not a ticket id, or not Home's: Home, as before.
+  for (const url of ["/?ticket=../../etc", "/?ticket=0123456789AB", "/?ticket=", "/settings?ticket=0123456789ab"]) expect(routeFor(url)).toBe("/home");
+});
+
 test("a conversation opens that conversation", () => {
   expect(routeFor("/manage?tab=messages&who=d123456789")).toEqual({ pathname: "/manage", params: { tab: "messages", who: "d123456789" } });
   expect(routeFor("/manage?tab=messages&who=ppat%40example.com")).toEqual({ pathname: "/manage", params: { tab: "messages", who: "ppat@example.com" } });
@@ -50,6 +58,7 @@ test("the app's own links name their screen", () => {
   expect(routeForLink("com.plexbie.app:///requests")).toBe("/requests");
   expect(routeForLink("com.plexbie.app:///library/")).toBe("/library");
   expect(routeForLink("com.plexbie.app:///manage?tab=tickets&ticket=0123456789ab")).toEqual({ pathname: "/manage-ticket/[id]", params: { id: "0123456789ab" } });
+  expect(routeForLink("com.plexbie.app:///ticket/0123456789ab")).toEqual({ pathname: "/ticket/[id]", params: { id: "0123456789ab" } });
 });
 
 test("sign-in and invite links, Home and anything unknown or malformed keep nothing", () => {
@@ -58,6 +67,7 @@ test("sign-in and invite links, Home and anything unknown or malformed keep noth
     "com.plexbie.app://", "com.plexbie.app:///home", "com.plexbie.app:///sign-in", "com.plexbie.app:///settings",
     "com.plexbie.app:///request/0", "com.plexbie.app:///request/-3", "com.plexbie.app:///request/2x", "com.plexbie.app:///request/214/help",
     "com.plexbie.app:///title/song/1", "com.plexbie.app:///title/movie/..%2F..", "com.plexbie.app:///title/movie",
+    "com.plexbie.app:///ticket/new?kind=movie&id=1", "com.plexbie.app:///ticket/0123456789AB", "com.plexbie.app:///ticket",
     "com.plexbie.app://expo-development-client/?url=http%3A%2F%2F10.0.0.2%3A8081",
     "", undefined, null, 42,
   ]) {

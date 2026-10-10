@@ -5,7 +5,7 @@
 //
 // Titles are Blender open movies, Pepper & Carrot (David Revoy, CC BY 4.0) and a
 // public-domain book; ids and people are made up.
-import type { Arrival, Community, Discover, MediaRequest, ServerStatus, Session, Title } from "../types";
+import type { AdminTicketDetail, Arrival, Community, Discover, MediaRequest, MyTicket, ServerStatus, Session, Title } from "../types";
 
 export const discordSession: Session = {
   user: { id: "123456789012345678", name: "pat", avatar: "https://cdn.discordapp.com/avatars/123456789012345678/a1b2c3.png", via: "discord" },
@@ -106,6 +106,44 @@ export const myRequests: MediaRequest[] = [
     note: "Enjoy!",
   },
 ];
+
+/** GET /api/tickets: the member's own, waiting on them first, then open, then solved. One
+ *  about a film on Plex, one on their request, and a general one. */
+export const myTickets: MyTicket[] = [
+  {
+    id: "0a1b2c3d4e5f", subject: "title", title: "Sintel", kind: "movie", tmdb: "900104", year: "2010", requestKey: null, slot: null, seasons: null,
+    reason: "Picture looks wrong", status: "open", waiting: true, createdAt: "2026-10-08T20:00:00Z", updatedAt: "2026-10-09T08:30:00Z",
+    thread: [
+      { id: "e1", at: "2026-10-08T20:00:00Z", by: "You", kind: "member", text: "Picture looks wrong. It’s grey on the TV." },
+      { id: "e2", at: "2026-10-09T08:30:00Z", by: "Admin", kind: "reply", text: "Does it look right on your phone?" },
+    ],
+  },
+  {
+    id: "abcdef012345", subject: "request", title: "Pepper & Carrot", kind: "tv", tmdb: null, year: null, requestKey: "7", slot: 7, seasons: [2],
+    reason: "Wrong or missing episodes", status: "open", waiting: false, createdAt: "2026-10-04T20:00:00Z", updatedAt: "2026-10-04T21:30:00Z",
+    thread: [{ id: "e3", at: "2026-10-04T20:00:00Z", by: "You", kind: "member", text: "Episode 4 is missing." }],
+  },
+  {
+    id: "123456abcdef", subject: "general", title: null, kind: null, tmdb: null, year: null, requestKey: null, slot: null, seasons: null,
+    reason: "Can't get in, or nothing plays", status: "resolved", waiting: false, createdAt: "2026-10-01T10:00:00Z", updatedAt: "2026-10-02T09:00:00Z",
+    thread: [
+      { id: "e4", at: "2026-10-01T10:00:00Z", by: "You", kind: "member", text: "Can't get in, or nothing plays. The TV says I don’t have access." },
+      { id: "e5", at: "2026-10-02T09:00:00Z", by: "Admin", kind: "reply", text: "Sign in again with your own account." },
+      { id: "e6", at: "2026-10-02T09:00:00Z", by: "Admin", kind: "status", text: "Solved" },
+    ],
+  },
+];
+
+/** GET /api/admin/ticket/<id> on a ticket about a film on Plex (1.0.7). */
+export const titleTicket: AdminTicketDetail = {
+  id: "0a1b2c3d4e5f", subject: "title", requestKey: null, slot: 0, title: "Sintel", tmdb: "900104", year: "2010", kind: "movie", seasons: null,
+  who: "pat", reason: "Picture looks wrong", status: "open", waiting: false, owner: null, openedBy: null, offer: null,
+  createdAt: "2026-10-08T20:00:00Z", updatedAt: "2026-10-08T20:00:00Z", last: null, count: 1,
+  note: "It’s grey on the TV.", plexUrl: "https://app.plex.tv/desktop#!/server/abc/details?key=%2Flibrary%2Fmetadata%2F4",
+  statusThen: "File: 4K WEB-DL, Dolby Vision + HDR10, 3.1 GB\nLast played Oct 8 on SHIELD (Plex for Android (TV)), direct play, 4K HDR",
+  thread: [{ id: "e1", at: "2026-10-08T20:00:00Z", by: "pat", kind: "member", text: "Picture looks wrong. It’s grey on the TV." }],
+  request: null,
+};
 
 export const status: ServerStatus = {
   online: true,

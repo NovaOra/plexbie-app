@@ -1,16 +1,21 @@
 // One ticket on Manage → Tickets: "Take it" and "Let it go" are the same button, and the
 // bot flips whatever the ticket is, so the button waits until it knows whether the ticket
-// is yours. While solving it, a search that's on its way holds "Solve it" back.
+// is yours. While solving it, a search that's on its way holds "Solve it" back. A ticket
+// about a film says "Title", links to its page and to Plex, and shows what Plexbie saw a line
+// at a time; a general one says "General", and has nothing to search for.
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { Linking } from "react-native";
+import { titleTicket } from "../../../api/__fixtures__/bot";
 import type { Ack, AppAdminTicketDetail } from "../../../api/schemas";
 import { AdminTicketScreen } from "../AdminTicketScreen";
 
+const mockPush = jest.fn();
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => ({ id: "abc123abc123" }),
   useFocusEffect: () => undefined,
-  router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), canGoBack: () => true },
+  router: { push: (...to: unknown[]) => mockPush(...to), back: jest.fn(), replace: jest.fn(), canGoBack: () => true },
 }));
 jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock("react-native-worklets", () => jest.requireActual("react-native-worklets/src/mock"));
@@ -48,7 +53,7 @@ jest.mock("../../../auth/session", () => ({
 
 const now = new Date().toISOString();
 const ticket = {
-  id: "abc123abc123", requestKey: null, slot: 3, title: "Big Buck Bunny", kind: "movie", seasons: null, who: "Sam Rivers",
+  id: "abc123abc123", subject: "request", requestKey: "3", slot: 3, title: "Big Buck Bunny", kind: "movie", seasons: null, who: "Sam Rivers",
   reason: "Won’t play", status: "open", waiting: false, owner: "Alex", openedBy: null, offer: null,
   createdAt: now, updatedAt: now, last: null, count: 1, note: null, statusThen: null, thread: [], request: null, blocked: null,
 } as AppAdminTicketDetail;
@@ -71,9 +76,9 @@ afterEach(async () => {
   qc.clear();
 });
 
-const show = async () => {
+const show = async (title = "Big Buck Bunny") => {
   await render(<QueryClientProvider client={qc}><AdminTicketScreen /></QueryClientProvider>);
-  await screen.findByText("Big Buck Bunny");
+  await screen.findByRole("header", { name: title });
 };
 const disabled = (name: string) => !!screen.getByRole("button", { name }).props.accessibilityState?.disabled;
 
@@ -111,4 +116,46 @@ test("while a search is on its way, Solve it waits", async () => {
   await act(async () => { searching.resolve({ ok: true, message: "Searching" } as Ack); });
   await settle();
   expect(disabled("Solve it")).toBe(false);
+});
+
+test("a request's ticket says its number", async () => {
+  await show();
+  expect(screen.getByText("No. 0003 · Won’t play")).toBeTruthy();
+});
+
+test("a ticket about a film: Title, its page, Open in Plex, what Plexbie saw a line at a time, and the searches", async () => {
+  const open = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+  mockClient.adminTicket.mockResolvedValue(titleTicket as AppAdminTicketDetail);
+  await show("Sintel (2010)");
+  expect(screen.getByText("Title · Picture looks wrong")).toBeTruthy();
+  expect(screen.getByText("When it was opened, Plexbie saw")).toBeTruthy();
+  expect(screen.getByText("File: 4K WEB-DL, Dolby Vision + HDR10, 3.1 GB")).toBeTruthy();
+  expect(screen.getByText("Last played Oct 8 on SHIELD (Plex for Android (TV)), direct play, 4K HDR")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Search again" })).toBeTruthy();
+
+  await fireEvent.press(screen.getByRole("button", { name: "Open its page" }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/title/[kind]/[id]", params: { kind: "movie", id: "900104" } });
+  await fireEvent.press(screen.getByRole("button", { name: "Open in Plex" }));
+  expect(open).toHaveBeenCalledWith(titleTicket.plexUrl);
+  open.mockRestore();
+});
+
+test("a ticket about a film Plex has no TMDB id for: nothing to search with, and no page to open", async () => {
+  mockClient.adminTicket.mockResolvedValue({ ...titleTicket, tmdb: null, plexUrl: null } as AppAdminTicketDetail);
+  await show("Sintel (2010)");
+  expect(screen.queryByRole("button", { name: "Search again" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Open its page" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Open in Plex" })).toBeNull();
+});
+
+test("a general ticket: General, and nothing to search for or open", async () => {
+  mockClient.adminTicket.mockResolvedValue({
+    ...titleTicket, subject: "general", title: "", tmdb: null, year: null, kind: "", plexUrl: null, reason: "Can't get in, or nothing plays",
+    statusThen: "Last played Sintel Oct 6 on iPhone (Plex for iOS), direct play, 1080p SDR",
+  } as AppAdminTicketDetail);
+  await show("General ticket");
+  expect(screen.getByText("General · Can't get in, or nothing plays")).toBeTruthy();
+  expect(screen.getByText("Last played Sintel Oct 6 on iPhone (Plex for iOS), direct play, 1080p SDR")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Search again" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Open its page" })).toBeNull();
 });

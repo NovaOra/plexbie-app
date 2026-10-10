@@ -130,15 +130,23 @@ export async function forgetPush(): Promise<string | null> {
 /** The token this phone has alerts on with now, if any. */
 export const savedPush = () => SecureStore.getItemAsync(KEY, STORE);
 
+/** A ticket's id, as the bot makes them. */
+const TICKET = /^[0-9a-f]{12}$/;
+
 /** Where tapping an alert goes: the bot's website paths, mapped to the app's screens. The
  *  household's pages are at the site's root; alerts from older bots say /app/...
- *  "/manage?tab=tickets&ticket=…" opens that ticket; "/manage?tab=messages&who=…" that conversation. */
+ *  "/manage?tab=tickets&ticket=…" opens that ticket; "/manage?tab=messages&who=…" that conversation;
+ *  "/?ticket=…" (a member's own ticket, not on a request) opens it as theirs. */
 export function routeFor(url: unknown): Href {
   const u = (typeof url === "string" ? url : "").replace(/^\/app(?=[/?]|$)/, "") || "/";
+  if (/^\/?(\?|$)/.test(u)) {
+    const ticket = new URLSearchParams(u.split("?")[1] ?? "").get("ticket");
+    if (ticket && TICKET.test(ticket)) return { pathname: "/ticket/[id]", params: { id: ticket } };
+  }
   if (u.startsWith("/manage")) {
     const q = new URLSearchParams(u.split("?")[1] ?? "");
     const ticket = q.get("ticket"), who = q.get("who"), tab = q.get("tab");
-    if (ticket && /^[0-9a-f]{12}$/.test(ticket)) return { pathname: "/manage-ticket/[id]", params: { id: ticket } };
+    if (ticket && TICKET.test(ticket)) return { pathname: "/manage-ticket/[id]", params: { id: ticket } };
     if (tab === "messages" && who && /^[dp][\w .@+-]{1,120}$/.test(who)) return { pathname: "/manage", params: { tab, who } };
     return tab && /^[a-z]{2,20}$/.test(tab) ? { pathname: "/manage", params: { tab } } : "/manage";
   }
@@ -163,6 +171,8 @@ export function routeForLink(url: unknown): Href | null {
   if (request) return { pathname: "/request/[slot]", params: { slot: request[1] } };
   const title = p.match(/^\/title\/([a-z]+)\/([\w.:-]{1,128})$/);
   if (title && KINDS.has(title[1])) return { pathname: "/title/[kind]/[id]", params: { kind: title[1], id: title[2] } };
+  const ticket = p.match(/^\/ticket\/([0-9a-f]{12})$/);
+  if (ticket) return { pathname: "/ticket/[id]", params: { id: ticket[1] } };
   if (p === "/search" || p === "/library") return p;
   const to = /^\/(manage|requests|schedule)$/.test(p) ? routeFor(query ? `${p}?${query}` : p) : null;
   return to === "/home" ? null : to;

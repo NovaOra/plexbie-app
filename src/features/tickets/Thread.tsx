@@ -5,7 +5,7 @@ import { StyleSheet, View } from "react-native";
 import type { AppTicketEntry } from "../../api/schemas";
 import { Text } from "../../ui/Text";
 import { color, font, radius, space } from "../../ui/theme";
-import { since } from "../requests/stage";
+import { formatSlot, since } from "../requests/stage";
 
 const AMBER = "#f2c66d";
 
@@ -13,6 +13,16 @@ const AMBER = "#f2c66d";
 export function ticketState(t: { status: string; waiting?: boolean; who?: string }) {
   if (t.status !== "open") return { label: "Solved", tone: "done" as const };
   return t.waiting ? { label: `Waiting on ${t.who ?? "them"}`, tone: "wait" as const } : { label: "Needs an admin", tone: "hot" as const };
+}
+
+/** What a ticket is about, as its eyebrow on Manage puts it: its request's number, "Title" or "General". */
+export const ticketKind = (t: { subject: string; slot: number }) =>
+  t.subject === "general" ? "General" : t.subject === "title" ? "Title" : `No. ${formatSlot(t.slot)}`;
+
+/** Its heading on Manage: the film or show (a title ticket's with its year), or "General ticket". */
+export function ticketTitle(t: { subject: string; title: string; year?: string | null }) {
+  if (t.subject === "general" || !t.title) return "General ticket";
+  return t.subject === "title" && t.year ? `${t.title} (${t.year})` : t.title;
 }
 
 export function TicketPill({ label, tone }: { label: string; tone: "hot" | "wait" | "done" | "plain" }) {

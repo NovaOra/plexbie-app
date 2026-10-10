@@ -1,8 +1,8 @@
 // Writes with no connection, and the offline cache: a write fails at once instead of waiting
-// to go out later, nothing unsent is kept in the cache, and the cache file lives where the
-// phone never backs it up.
+// to go out later, nothing unsent is kept in the cache, the cache file lives where the phone
+// never backs it up, and the member's own tickets are in it.
 import { afterEach, expect, jest, test } from "@jest/globals";
-import { MutationObserver, QueryClient, dehydrate, onlineManager } from "@tanstack/react-query";
+import { MutationObserver, QueryClient, dehydrate, onlineManager, type Query } from "@tanstack/react-query";
 import { ApiError } from "../client";
 import { queryClient } from "../query";
 
@@ -69,4 +69,12 @@ test("an older copy in documents is deleted on start and on sign-out", async () 
   mockFiles.set("caches/plexbie-cache.json", "{}");
   await forgetCache();
   expect(mockFiles.size).toBe(0);
+});
+
+test("the member's tickets are kept offline with their requests; a title or Manage's tickets aren't", () => {
+  const kept = (key: string) => persistOptions.dehydrateOptions.shouldDehydrateQuery({ queryKey: [key, "https://plexbie.example"], state: { status: "success" } } as unknown as Query);
+  expect(["myTickets", "requests"].map(kept)).toEqual([true, true]);
+  expect(["title", "admin"].map(kept)).toEqual([false, false]);
+  // A cache written before they were kept is a different shape: it's ignored, not misread.
+  expect(persistOptions.buster).not.toBe("1");
 });

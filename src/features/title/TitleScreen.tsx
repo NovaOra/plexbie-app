@@ -1,5 +1,6 @@
 // One title: what it is, whether it's on Plex, and (for members) asking for it, with the
-// seasons or the book format. Mirrors the website's title page, natively.
+// seasons or the book format, or a ticket when something's wrong with what's on Plex.
+// Mirrors the website's title page, natively.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as haptic from "../../ui/haptics";
 import { Image } from "expo-image";
@@ -21,8 +22,10 @@ import { QueryGate } from "../../ui/QueryGate";
 import { Text } from "../../ui/Text";
 import { color, font, radius, space } from "../../ui/theme";
 import { useArt } from "../art";
+import { useMe } from "../me/useMe";
 import { PushOffer } from "../push/PushRow";
 import { KIND_LABEL, formatSlot, home, isBook, stageHelp, stageLabel } from "../requests/stage";
+import { inLine, useMyTickets } from "../tickets/mine";
 import { newestAired, openSeasons, seasonSummary, seasonsToSend, sendLabel, type SeasonPick } from "./seasons";
 import { MoreLikeThis } from "../search/Discover";
 import { Ambient, GlassFill, glass } from "../../ui/Glass";
@@ -127,10 +130,14 @@ function Loaded({ t }: { t: AppTitle }) {
   );
 }
 
-/** What this member can do about it: their own request, a request form, or why not. */
+/** What this member can do about it: their own request, a request form, or why not; and a
+ *  ticket when something's wrong with what's on Plex. */
 function Ask({ t, book }: { t: AppTitle; book: boolean }) {
   const client = useApi();
   const qc = useQueryClient();
+  const me = useMe();
+  // A book on the shelf has no ticket of its own: a general one, where this Plexbie takes them.
+  const tickets = useMyTickets(book && t.availability === "available");
   const tv = t.kind === "tv";
   const missing = tv ? openSeasons(t) : [];
   const [pick, setPick] = useState<SeasonPick>([]);
@@ -153,6 +160,10 @@ function Ask({ t, book }: { t: AppTitle; book: boolean }) {
   useAnnounce(problem);
   if (send.data) return <Sent request={send.data} kind={t.kind} />;
   const yours = t.yourRequest && t.yourRequest.stage !== "available" ? t.yourRequest : null;
+  // A film or show on Plex (as the bot says; an older one doesn't): a ticket, unless their live
+  // request is shown above, whose own ticket is on its page.
+  const ticket = t.onPlex === true && (t.kind === "movie" || t.kind === "tv") && !yours && me.data?.member !== false;
+  const plexUrl = t.plexUrl?.startsWith("https://") ? t.plexUrl : null;
 
   return (
     <View style={styles.ask}>
@@ -189,7 +200,11 @@ function Ask({ t, book }: { t: AppTitle; book: boolean }) {
         </Notice>
       ) : !tv && yours ? null
       : !tv && t.availability === "available" ? (
-        <Notice title={`Already on ${home(t.kind)}`}>If something’s missing, say so in Discord.</Notice>
+        <Notice title={`Already on ${home(t.kind)}`}>
+          {ticket ? (plexUrl ? "Watch on Plex opens it." : `Open ${home(t.kind)} and search for it.`)
+            : book && tickets.data ? `Open ${home(t.kind)} and search for it. If something’s wrong with it, open a ticket under Need help? on Home.`
+            : "If something’s missing, say so in Discord."}
+        </Notice>
       ) : !tv && t.availability === "requested" ? (
         <Notice title="Already requested">It’s waiting in the queue, so there’s nothing more to do.</Notice>
       ) : !tv ? (
@@ -210,7 +225,25 @@ function Ask({ t, book }: { t: AppTitle; book: boolean }) {
           <Button label={`Request ${t.title}`} busy={send.isPending} busyLabel="Sending…" onPress={() => send.mutate()} />
         </View>
       ) : null}
+
+      {ticket ? <TitleTicket t={t} /> : null}
     </View>
+  );
+}
+
+/** "Something wrong? Open a ticket", or the member's open ticket on it. */
+function TitleTicket({ t }: { t: AppTitle }) {
+  const mine = t.yourTicket;
+  if (mine) {
+    return (
+      <Button kind={mine.waiting ? "primary" : "secondary"} style={styles.start}
+        label={mine.waiting ? "An admin asked you something" : `Your ticket: ${inLine(mine.reason)}`}
+        onPress={() => router.push({ pathname: "/ticket/[id]", params: { id: mine.id } })} />
+    );
+  }
+  return (
+    <Button kind="secondary" label="Something wrong? Open a ticket" style={styles.start}
+      onPress={() => router.push({ pathname: "/ticket/new", params: { kind: t.kind, id: t.id, title: t.title } })} />
   );
 }
 
