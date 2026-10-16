@@ -167,3 +167,14 @@ test("a refused ticket brings the bot's own sentence, and an older bot's missing
   await expect(client.myTickets()).rejects.toMatchObject({ status: 404, kind: "http" });
   expect(fetchMock).toHaveBeenCalledTimes(1);
 });
+
+test("taking a ticket or letting it go says which, so a second press changes nothing", async () => {
+  const client = api({ server: SERVER, token: token.token });
+  fetchMock.mockImplementation(async () => answer(200, { ok: true, changed: false, message: "It’s already yours." }));
+  await expect(client.ticketTake("abcdefabcdef", "take")).resolves.toMatchObject({ changed: false });
+  await client.ticketTake("abcdefabcdef", "release");
+  expect(fetchMock.mock.calls.map(([url, init]) => [url, JSON.parse(String(init?.body))])).toEqual([
+    [`${SERVER}/api/admin/ticket/abcdefabcdef/take`, { intent: "take" }],
+    [`${SERVER}/api/admin/ticket/abcdefabcdef/take`, { intent: "release" }],
+  ]);
+});

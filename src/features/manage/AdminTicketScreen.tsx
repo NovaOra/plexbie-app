@@ -95,11 +95,11 @@ export function AdminTicketScreen() {
             <TicketPill label={state.label} tone={state.tone} />
             <TicketPill label={t.owner ? `${t.owner} has it` : "Nobody has it yet"} tone="plain" />
           </View>
-          {/* Taking it and letting it go are the same call, so the button waits until it's
-              known whether the ticket is yours. */}
+          {/* The button says take or let go, so it waits until it's known whether the ticket
+              is yours; it sends which one, so a second press never undoes the first. */}
           {!open ? null : who.data ? (
             <Button kind="secondary" label={mine ? "Let it go" : t.owner ? "Take it over" : "Take it"} busy={busy === "take"} busyLabel="…"
-              disabled={!!busy} onPress={() => void run("take", () => client.ticketTake(id))} />
+              disabled={!!busy} onPress={() => void run("take", () => client.ticketTake(id, mine ? "release" : "take"))} />
           ) : who.error ? (
             <Button kind="secondary" label="Try again" busy={who.isFetching} busyLabel="Checking…" onPress={() => void who.refetch()}
               accessibilityLabel="Couldn’t check whether it’s yours. Try again" />

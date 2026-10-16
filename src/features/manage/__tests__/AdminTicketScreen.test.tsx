@@ -82,9 +82,12 @@ const show = async (title = "Big Buck Bunny") => {
 };
 const disabled = (name: string) => !!screen.getByRole("button", { name }).props.accessibilityState?.disabled;
 
-test("yours: Let it go", async () => {
+test("yours: Let it go, and it says so, so a second press can't take it back", async () => {
+  mockClient.ticketTake.mockResolvedValue({ ok: true, message: "Let go. Anyone can take it." });
   await show();
   expect(disabled("Let it go")).toBe(false);
+  await fireEvent.press(screen.getByRole("button", { name: "Let it go" }));
+  expect(mockClient.ticketTake).toHaveBeenCalledWith(expect.any(String), "release");
 });
 
 test("until it's known who you are, the button can't flip the ticket", async () => {

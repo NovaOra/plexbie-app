@@ -30,6 +30,9 @@ const WAR_OF_THE_WORLDS = "https://media.plexbie.com/posters/war-of-the-worlds-v
 const plexed = (t: AppTitle): AppTitle => (t.kind === "movie" || t.kind === "tv"
   ? { ...t, onPlex: t.availability === "available" || !!t.seasons?.some((s) => s.status === "available" || s.status === "partial") } : t);
 
+/** A title's poster in the sample catalog, if it has one (Manage's rows carry it, as the bot's do). */
+const posterIn = (titles: AppTitle[], name: string | null | undefined) => (name ? titles.find((t) => t.title === name)?.poster ?? null : null);
+
 /** What sample search and title pages know about: the website's sample catalog, with what
  *  this household has of each. The descriptions are our own words. Books have made-up ids. */
 const makeTitles = (): AppTitle[] => [
@@ -210,9 +213,11 @@ function makeSampleState() {
     settings: { enabled: true, practice: true, inactivityDays: 90, warnDaysBefore: 7, excludedLibraries: ["Kids"], channelId: "c1" },
     libraries: ["Films", "TV", "Kids"],
     channels: [{ id: "c1", name: "general" }, { id: "c2", name: "movie-night" }],
-    warning: [{ ratingKey: "r1", title: "Carnival of Souls", type: "movie", daysLeft: 4, reason: "added", lastActivity: ago(60 * 24 * 86) }],
-    upcoming: [{ ratingKey: "r2", title: "The Daily Dweebs", type: "show", daysLeft: 23, reason: "watched", lastActivity: ago(60 * 24 * 67) }],
-    exempt: [{ ratingKey: "r3", title: "Sintel", type: "movie", year: 2010 }],
+    warning: [{ ratingKey: "r1", title: "Carnival of Souls", type: "movie", daysLeft: 4, reason: "added", lastActivity: ago(60 * 24 * 86),
+      poster: posterIn(titles, "Carnival of Souls") }],
+    upcoming: [{ ratingKey: "r2", title: "The Daily Dweebs", type: "show", daysLeft: 23, reason: "watched", lastActivity: ago(60 * 24 * 67),
+      poster: posterIn(titles, "The Daily Dweebs") }],
+    exempt: [{ ratingKey: "r3", title: "Sintel", type: "movie", year: 2010, poster: posterIn(titles, "Sintel") }],
   };
   const joins: AppAdminJoin[] = [
     { key: "d301", messageId: "9301", name: "Jordan", via: "discord", email: "jordan@example.com", status: "pending", askedAt: ago(90) },
@@ -360,14 +365,21 @@ const SAMPLE_EPISODES = ["Moon Rocket", "Molten Terror", "Bridge of Death", "Fli
   "Camouflaged Destruction", "The Enemy Planet", "Battle in the Stratosphere", "Mass Execution", "Planned Pursuit", "Death of the Moon Man"]
   .map((title, i) => ({ id: 701 + i, label: `S01E${String(i + 1).padStart(2, "0")}`, season: 1, episode: i + 1, title, hasFile: false }));
 const BLOCKED_WHY = "Found matching series via grab history, but release was matched to series by ID. Automatic import is not possible.";
+/** The bot's fixed code for each reason a ticket can give. */
+const REASON_CODES: Record<string, string> = {
+  "Stuck downloading": "stuck", "Can’t be found": "notfound", "Downloaded, but not on Plex": "notonplex",
+  "Wrong version or quality": "quality", "Wrong or missing episodes": "episodes", "Won’t play on Plex": "playback",
+  "Downloaded, but won’t import": "blocked", "Picture looks wrong": "picture", "Can’t get in, or nothing plays": "access",
+  "Something else": "other",
+};
 const ticketOf = (id: string) => (house.tickets[id] ??= { requestKey: null, owner: null, waiting: false, thread: [] });
 function ticketRow(h: SampleHelp): AppAdminTicketRow {
   const t = ticketOf(h.id);
   const last = t.thread[t.thread.length - 1];
   return {
     id: h.id, subject: h.subject ?? "request", requestKey: t.requestKey, slot: h.slot, title: h.title, tmdb: h.tmdb ?? null, year: h.year ?? null,
-    kind: h.kind, seasons: h.seasons, who: h.who, reason: h.reason,
-    status: h.status, waiting: h.status === "open" && t.waiting, owner: t.owner, openedBy: (h as { opened_by?: string }).opened_by ?? null, offer: h.offer ?? null,
+    kind: h.kind, seasons: h.seasons, who: h.who, reason: h.reason, reasonCode: REASON_CODES[h.reason] ?? "other",
+    poster: posterIn(house.titles, h.title), status: h.status, waiting: h.status === "open" && t.waiting, owner: t.owner, openedBy: (h as { opened_by?: string }).opened_by ?? null, offer: h.offer ?? null,
     createdAt: h.created_at, updatedAt: last?.at ?? h.created_at, last: last ? { by: last.by, kind: last.kind, text: last.text } : null,
     count: t.thread.length,
   };
@@ -628,7 +640,8 @@ export const sampleApi: Api = {
   },
   adminBlocked: async () => {
     await pause(200);
-    return { rows: house.blocked ? [{ ...BLOCKED_REF, title: "Radar Men from the Moon", year: 1952, messages: [BLOCKED_WHY], episodes: ["S01E01", "S01E02", "S01E03"], ticket: "h4" }] : [] };
+    return { rows: house.blocked ? [{ ...BLOCKED_REF, title: "Radar Men from the Moon", year: 1952, messages: [BLOCKED_WHY], episodes: ["S01E01", "S01E02", "S01E03"], ticket: "h4",
+      poster: posterIn(house.titles, "Radar Men from the Moon") }] : [] };
   },
   blockedPreview: async () => {
     await pause(300);
@@ -691,14 +704,18 @@ export const sampleApi: Api = {
     t.waiting = false;
     return ok("Open.");
   },
-  ticketTake: async (id) => {
+  ticketTake: async (id, intent) => {
     await pause(350);
     helpFor(id);
     const t = ticketOf(id);
-    const mine = t.owner !== ME;
-    t.owner = mine ? ME : null;
-    say(id, "status", mine ? "Took it" : "Let it go");
-    return ok(mine ? "It’s yours. You’ll get an alert when they answer." : "Let go. Anyone can take it.");
+    const mine = t.owner === ME;
+    // As the bot does: asking for what it already is changes nothing.
+    if ((intent === "take" && mine) || (intent === "release" && !mine)) {
+      return { ok: true, changed: false, message: mine ? "It’s already yours." : "It isn’t yours, so there’s nothing to let go." };
+    }
+    t.owner = mine ? null : ME;
+    say(id, "status", mine ? "Let it go" : "Took it");
+    return ok(mine ? "Let go. Anyone can take it." : "It’s yours. You’ll get an alert when they answer.");
   },
   answerTicket: async (requestId, text) => {
     await pause(450);
@@ -776,7 +793,7 @@ export const sampleApi: Api = {
     if (keep && row) {
       house.cleanup.warning = house.cleanup.warning.filter((r) => r.ratingKey !== ratingKey);
       house.cleanup.upcoming = house.cleanup.upcoming.filter((r) => r.ratingKey !== ratingKey);
-      house.cleanup.exempt = [row, ...house.cleanup.exempt.filter((r) => r.ratingKey !== ratingKey)];
+      house.cleanup.exempt = [{ ...row, poster: posterIn(house.titles, row.title) }, ...house.cleanup.exempt.filter((r) => r.ratingKey !== ratingKey)];
     } else if (!keep) house.cleanup.exempt = house.cleanup.exempt.filter((r) => r.ratingKey !== ratingKey);
     return ok(keep ? "Kept forever." : "Back on the clock.");
   },

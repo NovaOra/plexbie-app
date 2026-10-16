@@ -185,8 +185,10 @@ export function api(conn: Connection) {
     /** "resolved" can carry a last word to the member. */
     ticketStatus: (id: string, status: "open" | "waiting" | "resolved", message = "") =>
       request(conn, `/api/admin/ticket/${encodeURIComponent(id)}/status`, AckSchema, json({ status, message })),
-    /** Takes the ticket, or lets it go when it's already yours. */
-    ticketTake: (id: string) => request(conn, `/api/admin/ticket/${encodeURIComponent(id)}/take`, AckSchema, json({})),
+    /** Takes the ticket or lets it go. Asking for what it already is changes nothing
+     *  (`changed: false`); an older bot ignores the intent and toggles. */
+    ticketTake: (id: string, intent: "take" | "release") =>
+      request(conn, `/api/admin/ticket/${encodeURIComponent(id)}/take`, AckSchema, json({ intent })),
     /** The member answering their ticket. */
     answerTicket: (requestId: string, text: string) =>
       request(conn, `/api/requests/${encodeURIComponent(requestId)}/help/reply`, AckSchema, json({ text })),

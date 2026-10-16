@@ -286,3 +286,18 @@ test("adding to a ticket: the admins see it and it stops waiting; a solved one, 
   expect(await refusal(sampleApi.replyTicket("h6", "Again"))).toBe("This ticket is closed. Open a new one if it’s still wrong.");
   expect(await refusal(sampleApi.replyTicket("h2", "Not mine"))).toBe("No such ticket.");
 });
+
+test("Manage's sample rows carry posters and reason codes, and taking a ticket twice changes nothing", async () => {
+  const { rows } = await answer(sampleApi.adminTickets());
+  expect(rows.find((t) => t.id === "h1")).toMatchObject({ reasonCode: "stuck", poster: expect.stringContaining("pepper-carrot") });
+  expect(rows.find((t) => t.id === "h6")).toMatchObject({ reasonCode: "access", poster: null });
+  expect((await answer(sampleApi.adminBlocked())).rows[0].poster).toContain("radar-men");
+  expect((await answer(sampleApi.adminCleanup())).warning[0].poster).toContain("carnival-of-souls");
+
+  expect(await answer(sampleApi.ticketTake("h2", "take"))).not.toHaveProperty("changed");
+  expect(await answer(sampleApi.ticketTake("h2", "take"))).toMatchObject({ changed: false, message: "It’s already yours." });
+  expect((await answer(sampleApi.adminTicket("h2"))).owner).not.toBeNull();
+  await answer(sampleApi.ticketTake("h2", "release"));
+  expect(await answer(sampleApi.ticketTake("h2", "release"))).toMatchObject({ changed: false });
+  expect((await answer(sampleApi.adminTicket("h2"))).owner).toBeNull();
+});
