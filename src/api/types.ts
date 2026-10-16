@@ -204,7 +204,9 @@ export interface AdminPerson {
   candidates?: string[];
 }
 
-export interface AdminCleanupRow { ratingKey: string; title: string; type: string; daysLeft: number; reason: string; lastActivity?: string }
+export interface AdminCleanupRow { ratingKey: string; title: string; type: string; daysLeft: number; reason: string; lastActivity?: string;
+  /** Its poster, when the bot sends one. */
+  poster?: string | null }
 export interface CleanupSettings {
   enabled: boolean; practice: boolean; inactivityDays: number; warnDaysBefore: number; excludedLibraries: string[];
   channelId?: string | null;
@@ -216,7 +218,7 @@ export interface AdminCleanup {
   channels?: { id: string; name: string }[];
   warning: AdminCleanupRow[];
   upcoming: AdminCleanupRow[];
-  exempt: { ratingKey: string; title: string; type?: string | null; year?: number | null }[];
+  exempt: { ratingKey: string; title: string; type?: string | null; year?: number | null; poster?: string | null }[];
 }
 /** A film or show the "Keep a title forever" search found on Plex (never one in a library cleanup skips). */
 export interface CleanupMatch { ratingKey: string; title: string; type: string; year?: number | null; kept: boolean }
@@ -363,7 +365,12 @@ export interface AdminTicketRow {
   /** The film or show ("" on a general ticket), with a title ticket's TMDB id and year. */
   title: string; tmdb?: string | null; year?: string | null;
   kind: string; seasons: number[] | "all" | null;
-  who: string; reason: string; status: "open" | "resolved"; waiting: boolean; owner?: string | null;
+  who: string; reason: string;
+  /** The reason as a fixed code ("access", "blocked", "playback"…), for code to read; `reason` is its words. */
+  reasonCode?: string;
+  /** The film's or show's poster, when the bot sends one (Manage draws a cover otherwise). */
+  poster?: string | null;
+  status: "open" | "resolved"; waiting: boolean; owner?: string | null;
   openedBy?: string | null; offer?: "name" | null; createdAt: string; updatedAt: string;
   last?: { by: string; kind: TicketEntry["kind"]; text: string } | null; count: number;
 }
@@ -392,6 +399,8 @@ export interface BlockedRow extends BlockedRef {
   title: string; year?: number | null; release: string; messages: string[]; episodes: string[];
   /** Its ticket, when it's on a request. */
   ticket?: string | null;
+  /** The show's or film's poster, when the bot sends one. */
+  poster?: string | null;
 }
 /** An episode in Sonarr, to say which one a file is. */
 export interface ArrEpisode { id: number; label: string; season: number; episode: number; title: string; hasFile: boolean }

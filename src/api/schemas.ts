@@ -167,7 +167,8 @@ export const WatchPartySchema = z.looseObject({ seconds: z.number().catch(0), se
 /** An admin action's answer: whether it worked, and a sentence about it. `told`, on a reply
  *  to a ticket's member, "Solved", or a ticket opened to tell them: whether it reached them
  *  (false: it reached nobody, and `message` says so). Absent when nobody was to be told. */
-export const AckSchema = z.looseObject({ ok: z.boolean().catch(true), message: z.string().catch(""), told: opt(z.boolean()) });
+/** `changed: false`: it was already so (a second press on a screen that hadn't caught up). An older bot leaves it out. */
+export const AckSchema = z.looseObject({ ok: z.boolean().catch(true), message: z.string().catch(""), told: opt(z.boolean()), changed: opt(z.boolean()) });
 export type Ack = z.infer<typeof AckSchema>;
 
 export const HelpAnswerSchema = AckSchema.extend({ help: z.looseObject({ id: z.string(), reason: z.string() }) });
@@ -277,7 +278,12 @@ const AdminTicketRowSchema = z.looseObject({
   /** A title ticket's TMDB id and year. */
   tmdb: z.string().nullable().optional().catch(null), year: z.string().nullable().optional().catch(null),
   kind: z.string().catch(""), seasons: z.union([z.array(z.number()), z.literal("all"), z.literal("latest")]).nullable().optional().catch(null),
-  who: z.string().catch("Someone"), reason: z.string().catch(""), status: z.string().catch("open"), waiting: z.boolean().catch(false),
+  who: z.string().catch("Someone"), reason: z.string().catch(""),
+  /** The reason as a fixed code ("access", "blocked", "playback"…); an older bot sends none. */
+  reasonCode: opt(z.string()),
+  /** The film's or show's poster, when the bot sends one. */
+  poster: z.string().nullable().optional().catch(null),
+  status: z.string().catch("open"), waiting: z.boolean().catch(false),
   owner: z.string().nullable().optional().catch(null), openedBy: z.string().nullable().optional().catch(null),
   /** "name": Plexbie's search by ID found nothing; it asks whether to search by name. */
   offer: z.string().nullable().optional().catch(null),
@@ -313,6 +319,7 @@ export const BlockedListSchema = z.looseObject({
     title: z.string().catch("A download"), year: z.number().nullable().optional().catch(null),
     messages: z.array(z.string()).catch([]), episodes: z.array(z.string()).catch([]),
     ticket: z.string().nullable().optional().catch(null),
+    poster: z.string().nullable().optional().catch(null),
   })).catch([]),
 });
 /** A show (Sonarr) or film (Radarr) in the library, and an episode in Sonarr. */
@@ -427,11 +434,12 @@ const CleanupSettingsSchema = z.looseObject({
 export type AppCleanupSettings = z.infer<typeof CleanupSettingsSchema>;
 const CleanupRowSchema = z.looseObject({
   ratingKey: z.string(), title: z.string().catch(""), type: z.string().catch(""), daysLeft: z.number().catch(0),
-  reason: z.string().catch(""), lastActivity: opt(z.string()),
+  reason: z.string().catch(""), lastActivity: opt(z.string()), poster: z.string().nullable().optional().catch(null),
 });
 export type AppCleanupRow = z.infer<typeof CleanupRowSchema>;
 const KeptSchema = z.looseObject({
   ratingKey: z.string(), title: z.string().catch(""), type: z.string().nullable().optional().catch(null), year: z.number().nullable().optional().catch(null),
+  poster: z.string().nullable().optional().catch(null),
 });
 export type AppKept = z.infer<typeof KeptSchema>;
 export const AdminCleanupSchema = z.looseObject({

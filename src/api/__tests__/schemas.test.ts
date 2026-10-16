@@ -3,7 +3,7 @@
 // dropped instead of failing the whole screen.
 import { expect, test } from "@jest/globals";
 import {
-  AdminTicketDetailSchema, AdminTicketsSchema, ArrivalsSchema, CommunitySchema, DiscoverSchema, MediaRequestsSchema, MessagePeopleSchema,
+  AckSchema, AdminCleanupSchema, AdminTicketDetailSchema, BlockedListSchema, AdminTicketsSchema, ArrivalsSchema, CommunitySchema, DiscoverSchema, MediaRequestsSchema, MessagePeopleSchema,
   MobileInfoSchema, MyTicketsSchema, NewTicketSchema, SessionSchema, SignedOutOthersSchema, StatusSchema, TitleDetailSchema, TitlesSchema, TokenSchema,
 } from "../schemas";
 import * as fx from "../__fixtures__/bot";
@@ -165,4 +165,22 @@ test("a person's open ticket on Messages: an older bot's is on a request", () =>
   ]);
   expect(older.ticket?.subject).toBe("request");
   expect(newer.ticket?.subject).toBe("general");
+});
+
+test("Manage from a bot before reason codes and posters: everything still reads, the new fields empty", () => {
+  const [ticket] = AdminTicketsSchema.parse(wire(fx.oldBot.tickets)).rows;
+  expect(ticket).toMatchObject({ id: "abc123abc123", reason: "Stuck downloading" });
+  expect(ticket.reasonCode).toBeUndefined();
+  expect(ticket.poster ?? null).toBeNull();
+  expect(BlockedListSchema.parse(wire(fx.oldBot.blocked)).rows[0].poster ?? null).toBeNull();
+  const cleanup = AdminCleanupSchema.parse(wire(fx.oldBot.cleanup));
+  expect([cleanup.warning[0].poster ?? null, cleanup.exempt[0].poster ?? null]).toEqual([null, null]);
+  expect(AckSchema.parse(wire(fx.oldBot.take)).changed).toBeUndefined();
+});
+
+test("Manage from a newer bot: reason codes, posters and an unchanged take come through; odd values read as missing", () => {
+  const row = { ...fx.oldBot.tickets.rows[0], reasonCode: "stuck", poster: "https://image.tmdb.org/t/p/w342/a.jpg" };
+  expect(AdminTicketsSchema.parse(wire({ ...fx.oldBot.tickets, rows: [row] })).rows[0]).toMatchObject({ reasonCode: "stuck", poster: row.poster });
+  expect(AdminTicketsSchema.parse({ ...fx.oldBot.tickets, rows: [{ ...row, reasonCode: 4, poster: 5 }] }).rows[0]).toMatchObject({ reasonCode: undefined, poster: null });
+  expect(AckSchema.parse({ ok: true, changed: false, message: "It’s already yours." }).changed).toBe(false);
 });

@@ -177,3 +177,16 @@ export const mobileInfo = { version: "1", auth: ["discord", "plex"], push: ["exp
 
 /** POST /auth/mobile/token: "pxa_" and 43 URL-safe characters, and when it ends (seconds). */
 export const token = { token: `pxa_${"Ab3_-".repeat(8)}Ab3`, expiresAt: 1_800_000_000 };
+
+/** Manage's feeds from a bot older than 1.0.8: no reason codes, no posters, and an Ack
+ *  without `changed` (it toggles a ticket whatever the app asks). */
+export const oldBot = {
+  tickets: { rows: [{ id: "abc123abc123", requestKey: "7", slot: 7, title: "Pepper & Carrot", kind: "tv", seasons: [2], who: "pat",
+    reason: "Stuck downloading", status: "open", waiting: false, owner: null, createdAt: "2026-10-05T09:00:00Z", updatedAt: "2026-10-05T09:00:00Z",
+    last: null, count: 1 }], counts: { action: 1, waiting: 0, solved: 0 } },
+  blocked: { rows: [{ app: "sonarr", downloadId: "SABnzbd_nzo_1", title: "Pepper & Carrot", year: 2017, messages: ["Not an upgrade"], episodes: ["S02E01"], ticket: null }] },
+  cleanup: { settings: { enabled: true, practice: true, inactivityDays: 90, warnDaysBefore: 7, excludedLibraries: [] },
+    warning: [{ ratingKey: "1", title: "Sintel", type: "movie", daysLeft: 3, reason: "added" }], upcoming: [],
+    exempt: [{ ratingKey: "2", title: "Big Buck Bunny", type: "movie", year: 2008 }] },
+  take: { ok: true, message: "It’s yours. You’ll get an alert when they answer." },
+};
