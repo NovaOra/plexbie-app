@@ -29,6 +29,7 @@ import { inLine, useMyTickets } from "../tickets/mine";
 import { newestAired, openSeasons, seasonSummary, seasonsToSend, sendLabel, type SeasonPick } from "./seasons";
 import { MoreLikeThis } from "../search/Discover";
 import { Ambient, GlassFill, glass } from "../../ui/Glass";
+import { Placeholder } from "../../ui/Placeholder";
 
 const KINDS: MediaKind[] = ["movie", "tv", "audiobook", "ebook"];
 
@@ -64,10 +65,10 @@ export function TitleScreen() {
         <View style={styles.pad}>
           <QueryGate query={title} errorTitle="Couldn’t load this title." skeleton={
             <View style={styles.head}>
-              <View style={[styles.poster, styles.skeleton]} />
+              <Placeholder round={radius.s} style={styles.poster} />
               <View style={{ flex: 1, gap: space.m }}>
-                <View style={[styles.skeleton, { height: 28, width: "80%" }]} />
-                <View style={[styles.skeleton, { height: 16, width: "55%" }]} />
+                <Placeholder round={radius.s} height={28} width="80%" />
+                <Placeholder round={radius.s} height={16} width="55%" />
               </View>
             </View>
           } />
@@ -356,5 +357,4 @@ const styles = StyleSheet.create({
   tick: { color: color.onScreen, fontFamily: font.bold, fontSize: 15, lineHeight: 18 },
   onPlex: { color: color.screen },
   bad: { color: color.tally },
-  skeleton: { backgroundColor: color.panel, borderRadius: radius.s },
 });

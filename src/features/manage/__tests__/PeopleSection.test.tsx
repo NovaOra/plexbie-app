@@ -16,6 +16,7 @@ jest.mock("react-native-worklets", () => jest.requireActual("react-native-workle
 jest.mock("react-native-reanimated", () => ({
   ...jest.requireActual<object>("react-native-reanimated/mock"),
   cubicBezier: () => "ease-out",
+  useReducedMotion: () => false,
 }));
 jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 // What each tappable row does, by its label, to tap it twice before the first is done.

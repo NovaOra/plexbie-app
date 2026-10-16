@@ -25,6 +25,7 @@ import { NeedHelp } from "./NeedHelp";
 import { OnAirList } from "./OnAirList";
 import { useArrivals, useCommunity, useStatus } from "./useHome";
 import { Ambient, GlassFill, glass, TAB_BAR_CLEARANCE } from "../../ui/Glass";
+import { Placeholder } from "../../ui/Placeholder";
 
 /** A title page exists for films and shows with a TMDB id; Plex-only items and shelf books have none. */
 const openable = (t: AppArrival["title"]) => (t.kind === "movie" || t.kind === "tv") && /^\d+$/.test(t.id);
@@ -153,7 +154,7 @@ function Arrivals({ arrivals, failed, retry }: { arrivals?: AppArrival[]; failed
         keyExtractor={(a) => `${a.title.kind}:${a.title.id}:${a.addedAt}`}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.rail}
-        ListEmptyComponent={<View style={styles.row}>{[0, 1, 2].map((i) => <View key={i} style={[{ width: itemWidth }, styles.skeleton]} />)}</View>}
+        ListEmptyComponent={<View style={styles.row}>{[0, 1, 2].map((i) => <Placeholder key={i} width={itemWidth} height={168} />)}</View>}
         renderItem={({ item: a }) => {
           const go = openable(a.title);
           const body = (
@@ -188,7 +189,7 @@ function YourRequests() {
       <SectionHead title="Your requests" action="All requests" onAction={() => router.navigate("/requests")} />
       <View style={[styles.pad, styles.stack]}>
         {error && !data ? <Text variant="body">Couldn’t load your requests. They’re still there.</Text>
-          : !data ? <View style={[styles.skeleton, { height: 132 }]} />
+          : !data ? <Placeholder height={132} />
           : rows.length ? rows.map((r) => <RequestCard key={r.slot} request={r} onPress={open} />)
           : (
             <>
@@ -232,7 +233,6 @@ const styles = StyleSheet.create({
   rail: { paddingHorizontal: space.l, gap: space.m, flexDirection: "row" },
   row: { flexDirection: "row", gap: space.m },
   railTitle: { marginTop: space.s, fontSize: 14, lineHeight: 18 },
-  skeleton: { backgroundColor: color.panel, borderRadius: radius.m, aspectRatio: undefined, height: 168 },
   stack: { gap: space.m },
   figures: { flexDirection: "row", gap: space.m },
   figure: { flex: 1, padding: space.l, borderRadius: radius.m, backgroundColor: color.panel, gap: 2 },

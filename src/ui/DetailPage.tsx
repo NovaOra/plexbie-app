@@ -13,6 +13,7 @@ import { OfflineNote } from "./QueryGate";
 import { StatusBarScrim } from "./StatusBarScrim";
 import { Text } from "./Text";
 import { color, font, radius, space } from "./theme";
+import { Placeholder } from "./Placeholder";
 
 /** `scroll`: useScrollToField's, so a focused field scrolls into view. */
 export function DetailPage({ scroll, children }: { scroll: Ref<ScrollView>; children: ReactNode }) {
@@ -46,7 +47,7 @@ export function DetailFallback({ error, errorTitle, onRetry, notFound, offline }
             <Text variant="title" accessibilityRole="alert">{error ? errorTitle : notFound}</Text>
             {error ? <Button kind="secondary" label="Try again" onPress={onRetry} style={detailStyles.start} /> : null}
           </>
-        ) : <View style={styles.skeleton} accessibilityLabel="Loading" accessibilityState={{ busy: true }} accessible />}
+        ) : <View accessibilityLabel="Loading" accessibilityState={{ busy: true }} accessible><Placeholder height={160} /></View>}
       </View>
     </View>
   );
@@ -83,5 +84,4 @@ const styles = StyleSheet.create({
   head: { flexDirection: "row", alignItems: "flex-end", gap: space.l },
   poster: { width: 104 },
   headText: { flex: 1, gap: space.xs },
-  skeleton: { height: 160, borderRadius: radius.m, backgroundColor: color.panel },
 });

@@ -18,6 +18,7 @@ import { KIND_LABEL, formatSlot, seasonsLabel, since } from "../requests/stage";
 import { AllClear, Heading, Pill, card } from "./bits";
 import { useAdminKey } from "./useAdmin";
 import { GlassFill, glass } from "../../ui/Glass";
+import { Placeholder } from "../../ui/Placeholder";
 
 export function useRequestsCount(enabled = true) {
   const client = useApi();
@@ -74,7 +75,7 @@ export function RequestsSection() {
   const data = requests.data;
   if (!data) {
     return <QueryGate query={requests} errorTitle="Couldn’t load the queue."
-      skeleton={<View style={styles.skeletons}>{[0, 1].map((i) => <View key={i} style={styles.skeleton} />)}</View>} />;
+      skeleton={<View style={styles.skeletons}>{[0, 1].map((i) => <Placeholder key={i} height={170} />)}</View>} />;
   }
 
   return (
@@ -128,7 +129,6 @@ export function RequestsSection() {
 
 const styles = StyleSheet.create({
   skeletons: { gap: space.m },
-  skeleton: { height: 170, borderRadius: radius.m, backgroundColor: color.panel },
   poster: { width: 64 },
   logRow: { flexDirection: "row", alignItems: "center", gap: space.m },
   older: { marginTop: space.s },

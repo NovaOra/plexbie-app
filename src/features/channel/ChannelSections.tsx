@@ -10,6 +10,7 @@ import { color, font, radius, space } from "../../ui/theme";
 import { useMe } from "../me/useMe";
 import { since } from "../requests/stage";
 import { GlassFill, glass } from "../../ui/Glass";
+import { Placeholder } from "../../ui/Placeholder";
 
 export function Board({ community, failed, retry }: { community?: AppCommunity; failed: boolean; retry: () => void }) {
   const me = useMe();
@@ -23,7 +24,7 @@ export function Board({ community, failed, retry }: { community?: AppCommunity; 
           <Text variant="body">Couldn’t load the board just now.</Text>
           <Button kind="secondary" label="Try again" onPress={retry} style={styles.start} />
         </>
-      ) : !community ? <View style={[styles.skeleton, { height: 240 }]} />
+      ) : !community ? <Placeholder height={240} />
       : !board.length ? <Text variant="body">No watch time recorded yet. It starts counting as soon as someone presses play.</Text>
       : (
         <View style={styles.board} accessibilityRole="list">
@@ -86,7 +87,6 @@ function Figure({ value, label, hot }: { value: string; label: string; hot?: boo
 const styles = StyleSheet.create({
   stack: { gap: space.m },
   start: { alignSelf: "flex-start" },
-  skeleton: { borderRadius: radius.m, backgroundColor: color.panel },
   board: { gap: space.xs },
   rank: { flexDirection: "row", alignItems: "center", gap: space.m, minHeight: 48, paddingHorizontal: space.m, borderRadius: radius.m, backgroundColor: color.panel },
   rankTop: { borderWidth: StyleSheet.hairlineWidth, borderColor: color.screenDeep },

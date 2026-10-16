@@ -7,6 +7,7 @@ import { Text } from "../../ui/Text";
 import { useLargeText } from "../../ui/useColumns";
 import { color, radius, space } from "../../ui/theme";
 import { GlassFill, glass } from "../../ui/Glass";
+import { Placeholder } from "../../ui/Placeholder";
 
 export function OnAirList({ community, failed, retry, limit }: {
   community?: AppCommunity; failed: boolean; retry: () => void; limit?: number;
@@ -20,7 +21,7 @@ export function OnAirList({ community, failed, retry, limit }: {
       </>
     );
   }
-  if (!community) return <View style={styles.skeleton} />;
+  if (!community) return <Placeholder height={96} />;
   const rows = community.onAir.slice(0, limit);
   if (!rows.length) return <Text variant="body">Nobody’s watching right now.</Text>;
   return (
@@ -47,7 +48,6 @@ export function OnAirList({ community, failed, retry, limit }: {
 
 const styles = StyleSheet.create({
   start: { alignSelf: "flex-start" },
-  skeleton: { height: 96, borderRadius: radius.m, backgroundColor: color.panel },
   row: { flexDirection: "row", gap: space.m, padding: space.m, borderRadius: radius.m, backgroundColor: color.panel },
   poster: { width: 52 },
   body: { flex: 1, gap: 2, justifyContent: "center", minWidth: 0 },

@@ -14,6 +14,7 @@ jest.mock("react-native-worklets", () => jest.requireActual("react-native-workle
 jest.mock("react-native-reanimated", () => ({
   ...jest.requireActual<object>("react-native-reanimated/mock"),
   cubicBezier: () => "ease-out",
+  useReducedMotion: () => false,
 }));
 jest.mock("../../../ui/Pressable", () => ({ PressableScale: jest.requireActual<typeof import("react-native")>("react-native").Pressable }));
 jest.mock("../../../ui/haptics", () => ({ tap: () => undefined, select: () => undefined, success: () => undefined, reward: () => undefined, error: () => undefined }));

@@ -17,6 +17,7 @@ import { useToast } from "../../ui/Toast";
 import { useLargeText } from "../../ui/useColumns";
 import { color, radius, space } from "../../ui/theme";
 import { TitleTile } from "../titles/TitleTile";
+import { Placeholder } from "../../ui/Placeholder";
 
 export type RequestType = "all" | "movie" | "tv" | "book";
 const TYPES: [RequestType, string][] = [["all", "Everything"], ["movie", "Films"], ["tv", "Shows"], ["book", "Books"]];
@@ -110,7 +111,7 @@ function GenreShelf({ kind, id, heading }: { kind: "movie" | "tv"; id: number; h
     queryFn: ({ signal }) => client.shelf(kind, `genre-${id}`, 1, signal),
     staleTime: 30 * 60_000,
   });
-  if (page.isPending) return <View style={styles.skeleton} />;
+  if (page.isPending) return <Placeholder height={220} />;
   if (!page.data) return <Text variant="body">Couldn’t load {heading.toLowerCase()} just now.</Text>;
   if (!page.data.titles.length) return <Text variant="meta">No {heading.toLowerCase()} to show right now.</Text>;
   return <Shelf kind={kind} shelfKey={`genre-${id}`} heading={heading} first={page.data.titles} firstMore={page.data.more} />;
@@ -188,7 +189,7 @@ export function RequestBody({ q, type, setType }: { q: string; type: RequestType
             <Text variant="body">Search didn’t answer just now.</Text>
             <Button kind="secondary" label="Try again" onPress={() => void results.refetch()} style={styles.start} />
           </>
-        ) : results.isPending ? <View style={styles.skeleton} />
+        ) : results.isPending ? <Placeholder height={220} />
         : total ? shown.map(([k, label, titles]) => <Rail key={k} heading={`${label} (${titles.length})`} titles={titles} />)
         : <Text variant="body">Nothing matched “{q}”{inType ? ` in ${inType}` : ""}. Check the spelling{inType ? ", or set Type to Everything" : ""}.</Text>}
       </View>
@@ -210,7 +211,7 @@ export function RequestBody({ q, type, setType }: { q: string; type: RequestType
     <View style={styles.stack}>
       {bar}
       <Text variant="meta">From TMDB through Seerr{chosen.length ? ", in the languages you picked" : ", worldwide"}.</Text>
-      {queries.some((x) => x.isPending) ? <><View style={styles.skeleton} /><View style={styles.skeleton} /></>
+      {queries.some((x) => x.isPending) ? <><Placeholder height={220} /><Placeholder height={220} /></>
       : queries.every((x) => x.error) ? (
         <>
           <Text variant="body">Couldn’t load what’s trending just now.</Text>
@@ -247,5 +248,4 @@ const styles = StyleSheet.create({
   more: { aspectRatio: 2 / 3, borderRadius: radius.s, borderWidth: 1, borderStyle: "dashed", borderColor: color.rule, backgroundColor: color.panel,
     alignItems: "center", justifyContent: "center" },
   moreText: { color: color.screen },
-  skeleton: { height: 220, borderRadius: radius.m, backgroundColor: color.panel },
 });

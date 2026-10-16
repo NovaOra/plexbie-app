@@ -33,6 +33,7 @@ import { TicketsSection, useTickets } from "./TicketsSection";
 import { Ambient, GlassFill, glass, TAB_BAR_CLEARANCE } from "../../ui/Glass";
 import { useMe } from "../me/useMe";
 import { card } from "./bits";
+import { Placeholder } from "../../ui/Placeholder";
 
 type Tab = "requests" | "tickets" | "all" | "joins" | "people" | "invites" | "cleanup" | "messages" | "health" | "discord";
 const TAB_IDS: Tab[] = ["requests", "tickets", "all", "joins", "people", "invites", "cleanup", "messages", "health", "discord"];
@@ -110,7 +111,7 @@ export function ManageScreen() {
       <Text variant="body">This page is for admins.</Text>
       <Button kind="secondary" label="Go to Home" onPress={() => router.navigate("/home")} style={styles.home} />
     </>
-  ) : <QueryGate query={me} errorTitle="Couldn’t load Manage." skeleton={<View style={[card.box, { height: 220 }]} />} />;
+  ) : <QueryGate query={me} errorTitle="Couldn’t load Manage." skeleton={<Placeholder height={220} />} />;
 
   return (
     <KeyboardAvoidingView style={styles.page} behavior={KEYBOARD_BEHAVIOR}>

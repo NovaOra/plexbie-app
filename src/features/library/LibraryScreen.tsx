@@ -19,6 +19,7 @@ import { useStatus } from "../home/useHome";
 import { since } from "../requests/stage";
 import { TitleTile } from "../titles/TitleTile";
 import { Ambient, TAB_BAR_CLEARANCE } from "../../ui/Glass";
+import { Placeholder } from "../../ui/Placeholder";
 
 type Shelf = "movie" | "tv" | "book";
 type Sort = "added" | "az" | "year";
@@ -95,7 +96,7 @@ export function LibraryScreen() {
 
   const empty = !current ? (
     <QueryGate query={items} errorTitle="Couldn’t load this shelf from Plex."
-      skeleton={<View style={styles.skeletons}>{Array.from({ length: columns * 3 }, (_, i) => <View key={i} style={[styles.skeleton, { width: itemWidth }]} />)}</View>} />
+      skeleton={<View style={styles.skeletons}>{Array.from({ length: columns * 3 }, (_, i) => <Placeholder key={i} round={radius.s} width={itemWidth} style={styles.skeleton} />)}</View>} />
   ) : (
     <Text variant="body" style={styles.message}>
       {genre ? "Nothing on this shelf matches. Try another genre, or request it." : "Nothing on this shelf yet. Ask for something and it lands here."}
@@ -135,5 +136,5 @@ const styles = StyleSheet.create({
   gridRow: { gap: GAP, marginBottom: space.l },
   message: { paddingVertical: space.l, gap: space.m },
   skeletons: { flexDirection: "row", flexWrap: "wrap", gap: GAP },
-  skeleton: { aspectRatio: 2 / 3, borderRadius: radius.s, backgroundColor: color.panel },
+  skeleton: { aspectRatio: 2 / 3 },
 });

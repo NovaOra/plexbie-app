@@ -15,6 +15,7 @@ import { RequestCard } from "./RequestCard";
 import { since, isOpen } from "./stage";
 import { useRequests } from "./useRequests";
 import { Ambient, TAB_BAR_CLEARANCE } from "../../ui/Glass";
+import { Placeholder } from "../../ui/Placeholder";
 
 // A word joiner after the slash: the command never breaks across two lines.
 const SLASH_REQUEST = "/\u2060request";
@@ -88,7 +89,7 @@ export function RequestsScreen() {
       <View style={[styles.page, styles.pad]}>
         {header}
         <View accessibilityLabel="Loading your requests" accessible>
-          {[0, 1, 2].map((i) => <View key={i} style={styles.skeleton} />)}
+          {[0, 1, 2].map((i) => <Placeholder key={i} height={132} style={styles.skeleton} />)}
         </View>
       </View>
     );
@@ -158,7 +159,7 @@ const styles = StyleSheet.create({
   onAirText: { color: color.tally },
   offline: { marginTop: space.xs, color: color.screen },
   section: { marginTop: space.l, marginBottom: space.m },
-  skeleton: { height: 132, borderRadius: radius.m, backgroundColor: color.panel, marginBottom: space.m },
+  skeleton: { marginBottom: space.m },
   message: { gap: space.s, paddingVertical: space.xl },
   button: {
     alignSelf: "flex-start", marginTop: space.s, paddingHorizontal: space.xl, borderRadius: radius.pill,

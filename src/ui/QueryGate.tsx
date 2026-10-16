@@ -5,8 +5,9 @@ import type { FetchStatus } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { Button } from "./Button";
+import { Placeholder } from "./Placeholder";
 import { Text } from "./Text";
-import { color, radius, space } from "./theme";
+import { space } from "./theme";
 
 /**
  * `errorTitle` heads a failed load ("Couldn’t load people."). The placeholder is a panel
@@ -30,7 +31,7 @@ export function QueryGate({ query, errorTitle, height = 160, skeleton }: {
   }
   return (
     <View accessible accessibilityLabel="Loading" accessibilityState={{ busy: true }}>
-      {skeleton ?? <View style={[styles.skeleton, { height }]} />}
+      {skeleton ?? <Placeholder height={height} />}
     </View>
   );
 }
@@ -48,5 +49,4 @@ export function OfflineNote() {
 const styles = StyleSheet.create({
   message: { gap: space.s, paddingVertical: space.l },
   start: { alignSelf: "flex-start" },
-  skeleton: { borderRadius: radius.m, backgroundColor: color.panel },
 });
