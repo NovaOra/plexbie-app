@@ -14,7 +14,7 @@ import { ActivityIndicator, StyleSheet, View, type StyleProp, type ViewStyle } f
 import Animated from "react-native-reanimated";
 import { PressableScale } from "./Pressable";
 import { Text } from "./Text";
-import { color, depth, EASE_OUT_CSS, radius, space, type } from "./theme";
+import { color, depth, EASE_OUT_CSS, radius, space, TOUCH, type } from "./theme";
 
 export type ButtonKind = "primary" | "secondary" | "quiet" | "danger";
 
@@ -72,7 +72,8 @@ export function Button({ label, onPress, kind = "primary", busy, busyLabel, bloc
 const styles = StyleSheet.create({
   base: { flexDirection: "row", gap: space.s, alignItems: "center", justifyContent: "center", overflow: "hidden", opacity: 1 },
   key: { minHeight: 48, paddingHorizontal: 20, borderRadius: radius.s },
-  pill: { minHeight: 44, paddingHorizontal: space.l, borderRadius: radius.pill, borderWidth: 1 },
+  // 48 like the keys (the app's touch size; the website's pill is 44), so a pill beside a key lines up.
+  pill: { minHeight: TOUCH, paddingHorizontal: space.l, borderRadius: radius.pill, borderWidth: 1 },
   primary: { backgroundColor: color.screen },
   primaryDown: { backgroundColor: color.screenDeep },
   secondary: { backgroundColor: color.panelRaised },

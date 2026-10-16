@@ -217,7 +217,7 @@ export function HoldButton({ label, onConfirm, ms = 1000, stages = [], bail, dis
 const styles = StyleSheet.create({
   button: { overflow: "hidden", justifyContent: "center" },
   key: { minHeight: TOUCH, borderRadius: radius.s },
-  pill: { minHeight: 44, borderRadius: radius.pill, borderWidth: 1 },
+  pill: { minHeight: TOUCH, borderRadius: radius.pill, borderWidth: 1 },
   primary: { backgroundColor: color.screen },
   secondary: { backgroundColor: color.panelRaised },
   keyOff: { backgroundColor: color.panelRaised },
