@@ -1,11 +1,43 @@
-# An admin approves a request from Manage, and it leaves the waiting list.
+# Manage's desk: the monitors count what needs you; the Requests monitor narrows the queue;
+# approving a request takes it and its count away; a ticket is taken from its row and let go
+# from its sheet; Everything else opens a full view.
 appId: com.plexbie.app
 ---
 - runFlow: subflows/sample.yaml
 - tapOn: "Manage.*"
-- assertVisible: "Waiting for a decision.*3"
+- extendedWaitUntil:
+    visible: "9 things need you.*"
+    timeout: 15000
+- assertVisible: "Requests \\(Asks\\): 3, 3 waiting.*"
+- tapOn: "Requests \\(Asks\\).*"
+- assertVisible: "Showing Requests only"
 - tapOn: "Approve Zombies of the Stratosphere for Sam"
 - extendedWaitUntil:
     notVisible: "Approve Zombies of the Stratosphere for Sam"
     timeout: 10000
-- assertVisible: "Waiting for a decision.*2"
+- assertVisible: "Requests \\(Asks\\): 2, 2 waiting.*"
+- assertVisible: "8 things need you.*"
+- tapOn: "Show all"
+# A ticket: taken from its row, then let go from its sheet.
+- tapOn: "Take it: Elephants Dream"
+- extendedWaitUntil:
+    notVisible: "Take it: Elephants Dream"
+    timeout: 10000
+- tapOn: "Ticket · request stuck.*Elephants Dream.*"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element: "Let it go"
+    direction: DOWN
+- tapOn: "Let it go"
+- extendedWaitUntil:
+    visible: "Nobody has it yet"
+    timeout: 10000
+- back
+- waitForAnimationToEnd
+# Everything else: every full view, and back to the desk.
+- tapOn: "Everything else"
+- waitForAnimationToEnd
+- tapOn: "Invite links.*"
+- assertVisible: "Invite someone"
+- tapOn: "Back to the desk"
+- assertVisible: "8 things need you.*"

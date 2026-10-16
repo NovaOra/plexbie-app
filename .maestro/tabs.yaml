@@ -14,6 +14,6 @@ tags: [smoke]
 - assertVisible: "Everything already on Plex.*"
 - assertVisible: "Sintel, 2010.*"
 - tapOn: "Manage.*"
-- assertVisible: "Waiting for a decision.*"
+- assertVisible: "\\d+ things need you.*"
 - tapOn: "Home"
 - assertVisible: "Just arrived"
