@@ -21,7 +21,7 @@ import { AllClear, Heading, TextField, card, optimistic } from "./bits";
 import { Stepper } from "./Stepper";
 import { useAct, useAdminKey } from "./useAdmin";
 import { GlassFill, glass } from "../../ui/Glass";
-import { EdgeRow } from "../../ui/EdgeRow";
+import { Segmented } from "../../ui/Segmented";
 
 type View3 = "soon" | "next" | "kept";
 function clockText(reason: string, when?: string) {
@@ -37,6 +37,9 @@ export function useCleanup(enabled = true) {
 }
 
 /** `onFieldFocus` scrolls Manage to its end, so the title search at the bottom shows above the keyboard. */
+/** The views' names on a narrow screen. */
+const SHORT: Record<View3, string> = { soon: "Soon", next: "Next", kept: "Kept" };
+
 export function CleanupSection({ onFieldFocus }: { onFieldFocus?: () => void }) {
   const cleanup = useCleanup();
   const [view, setView] = useState<View3>("soon");
@@ -47,9 +50,8 @@ export function CleanupSection({ onFieldFocus }: { onFieldFocus?: () => void }) 
     <>
       <Settings d={d} />
       <Heading title="On the clock" />
-      <EdgeRow>
-        {views.map(([id, label, n]) => <Chip key={id} label={`${label} · ${n}`} selected={view === id} onPress={() => setView(id)} />)}
-      </EdgeRow>
+      <Segmented accessibilityLabel="Which titles to show" value={view} onChange={setView}
+        options={views.map(([id, label, n]) => ({ id, label: `${label} · ${n}`, short: `${SHORT[id]} · ${n}`, accessibilityLabel: `${label} · ${n}` }))} />
       <Rows d={d} view={view} />
       <Heading title="Keep a title forever" />
       <KeepSearch kept={d.exempt} onFocus={onFieldFocus} />

@@ -21,6 +21,7 @@ import { SeasonsBox, StageBox } from "../request/StageBox";
 import { KIND_LABEL, formatSlot, seasonsLabel, since, stageLabel } from "../requests/stage";
 import { SEARCH_DONE, SearchFixes, StuckBox, card } from "./bits";
 import { useAct, useAdminKey } from "./useAdmin";
+import { KeyRow } from "../../ui/KeyRow";
 
 /** A ticket in the request's history, in a sentence. */
 function ticketLine(t: AppAdminTicket) {
@@ -128,11 +129,11 @@ export function AdminRequestScreen() {
                 <Text variant="meta">Sent the usual way (a Discord DM, or an alert). They can answer it.</Text>
               </>
             ) : null}
-            <View style={card.actions}>
+            <KeyRow>
               <Button kind="secondary" label="Back" onPress={() => { setWriting(false); setNote(""); }} style={card.grow} />
               <Button label="Open the ticket" busy={isBusy("ticket")} busyLabel="Opening…" disabled={!note.trim()}
                 onPress={() => void ticket()} style={card.grow} />
-            </View>
+            </KeyRow>
           </View>
         ) : (
           <Button label="Open a ticket" onPress={() => setWriting(true)} />

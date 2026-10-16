@@ -19,6 +19,7 @@ import { AllClear, Heading, Pill, card } from "./bits";
 import { useAdminKey } from "./useAdmin";
 import { GlassFill, glass } from "../../ui/Glass";
 import { Placeholder } from "../../ui/Placeholder";
+import { KeyRow } from "../../ui/KeyRow";
 
 export function useRequestsCount(enabled = true) {
   const client = useApi();
@@ -93,12 +94,12 @@ export function RequestsSection() {
               <Text variant="meta">{r.requester} asked {since(r.requestedAt)}</Text>
             </View>
           </View>
-          <View style={card.actions}>
+          <KeyRow>
             <Button kind="secondary" label="Approve" onPress={() => decide.mutate({ r, approve: true })} style={card.grow}
               accessibilityLabel={`Approve ${r.title} for ${r.requester}`} />
             <Button kind="danger" label="Decline" onPress={() => confirmDecline(r)} style={card.grow}
               accessibilityLabel={`Decline ${r.title} for ${r.requester}`} />
-          </View>
+          </KeyRow>
         </Animated.View>
       )) : <AllClear title="All caught up">Every request has an answer. New ones show up here and in Discord.</AllClear>}
 

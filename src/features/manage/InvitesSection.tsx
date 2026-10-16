@@ -11,7 +11,6 @@ import { useApi } from "../../auth/session";
 import { useAnnounce, useFocusHere } from "../../ui/announce";
 import { Button } from "../../ui/Button";
 import { useConfirm } from "../../ui/Confirm";
-import { Chip } from "../../ui/Chip";
 import { Text } from "../../ui/Text";
 import { useToast } from "../../ui/Toast";
 import { QueryGate } from "../../ui/QueryGate";
@@ -21,6 +20,8 @@ import { since } from "../requests/stage";
 import { AllClear, Heading, Initial, Pill, TextField, card } from "./bits";
 import { useAct, useAdminKey } from "./useAdmin";
 import { GlassFill, glass } from "../../ui/Glass";
+import { KeyRow } from "../../ui/KeyRow";
+import { Segmented } from "../../ui/Segmented";
 
 const LASTS = [1, 3, 7, 14];
 
@@ -144,9 +145,8 @@ export function InvitesSection({ fresh, onMade, onDone }: {
             accessibilityLabel="Their Plex email, optional" accessibilityLabelledBy="inv-email" />
           <Text variant="meta">Locks the link to that Plex account, so a forwarded link won’t work for anyone else.</Text>
           <Text variant="label">Link works for</Text>
-          <View style={card.pills} accessibilityRole="radiogroup" accessibilityLabel="Link works for">
-            {LASTS.map((d) => <Chip key={d} label={d === 1 ? "1 day" : `${d} days`} selected={days === d} onPress={() => setDays(d)} />)}
-          </View>
+          <Segmented accessibilityLabel="Link works for" value={String(days)} onChange={(d) => setDays(Number(d))}
+            options={LASTS.map((d) => ({ id: String(d), label: d === 1 ? "1 day" : `${d} days`, short: `${d}d`, accessibilityLabel: d === 1 ? "1 day" : `${d} days` }))} />
           {problem ? <Text variant="meta" style={styles.bad} accessibilityRole="alert">{problem}</Text> : null}
           <Button label="Make invite link" busy={making} busyLabel="Making it…" onPress={() => void create()} />
         </View>
@@ -173,11 +173,11 @@ export function InvitesSection({ fresh, onMade, onDone }: {
                 <Text variant="meta">Expires {until(i.expiresAt)} · made by {i.createdBy ?? "an admin"} {since(i.createdAt)}{i.email ? ` · for ${i.email}` : ""}</Text>
               </View>
             </View>
-            <View style={card.actions}>
+            <KeyRow>
               <Button kind="secondary" label="New link" busy={renewing === i.id} busyLabel="Making it…" onPress={() => void renew(i)} style={card.grow}
                 accessibilityLabel={`New link for ${i.label}`} />
               <Button kind="danger" label="Cancel" onPress={() => revoke(i)} style={card.grow} accessibilityLabel={`Cancel ${i.label}’s invite`} />
-            </View>
+            </KeyRow>
           </View>
         )) : <AllClear title="No open invites">Make one above when someone needs to get in without Discord.</AllClear>}
 
@@ -199,11 +199,11 @@ export function InvitesSection({ fresh, onMade, onDone }: {
                   </Text>
                 </View>
               </View>
-              <View style={card.actions}>
+              <KeyRow>
                 <Button kind="secondary" label={i.status === "used" ? "Invite again" : "New link"} busy={renewing === i.id} busyLabel="Making it…"
                   onPress={() => void renew(i)} style={card.grow} accessibilityLabel={`${i.status === "used" ? "Invite again" : "New link"} for ${i.label}`} />
                 {i.status === "used" ? null : <Button kind="danger" label="Delete" onPress={() => remove(i)} style={card.grow} accessibilityLabel={`Delete ${i.label}’s invite`} />}
-              </View>
+              </KeyRow>
             </View>
           ))}
         </>
@@ -291,18 +291,18 @@ function PlexInvites({ rows }: { rows: AppPlexInvite[] }) {
             <>
               <TextField value={next} onChangeText={setNext} placeholder="their Plex email" autoFocus
                 keyboardType="email-address" autoCapitalize="none" autoCorrect={false} accessibilityLabel="The right email" />
-              <View style={card.actions}>
+              <KeyRow>
                 <Button kind="secondary" label="Back" onPress={() => { setEditing(null); setNext(""); }} style={card.grow} />
                 <Button kind="secondary" label="Send invite" busy={isBusy(i.email)} busyLabel="Sending…" disabled={!EMAIL.test(next.trim())}
                   onPress={() => void change(i)} style={card.grow} />
-              </View>
+              </KeyRow>
             </>
           ) : (
-            <View style={card.actions}>
+            <KeyRow>
               <Button kind="secondary" label="Change email" onPress={() => { setEditing(i.email); setNext(""); }} style={card.grow}
                 accessibilityLabel={`Change email for ${title(i)}`} />
               <Button kind="danger" label="Cancel" onPress={() => cancel(i)} style={card.grow} accessibilityLabel={`Cancel the Plex invite to ${title(i)}`} />
-            </View>
+            </KeyRow>
           )}
         </View>
       ))}

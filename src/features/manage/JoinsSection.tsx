@@ -14,6 +14,7 @@ import { useAct, useAdminKey } from "./useAdmin";
 import { GlassFill, glass } from "../../ui/Glass";
 import { QueryGate } from "../../ui/QueryGate";
 import { radius } from "../../ui/theme";
+import { KeyRow } from "../../ui/KeyRow";
 
 export function useJoins(enabled = true) {
   const client = useApi();
@@ -60,12 +61,12 @@ export function JoinsSection() {
             </View>
           </View>
           {j.messageId ? (
-            <View style={card.actions}>
+            <KeyRow>
               <Button kind="secondary" label="Invite to Plex" busy={isBusy(j.key)} busyLabel="Inviting…" onPress={() => void decide(j, true)} style={card.grow}
                 accessibilityLabel={`Invite ${j.name} to Plex`} />
               <Button kind="danger" label="Deny" disabled={isBusy(j.key)} onPress={() => confirmDeny(j)} style={card.grow}
                 accessibilityLabel={`Deny ${j.name}`} />
-            </View>
+            </KeyRow>
           ) : <Text variant="meta">Answer this one in Discord.</Text>}
         </Animated.View>
       )) : <AllClear title="Nobody waiting">When someone asks to join, from Discord or by signing in with Plex, they land here.</AllClear>}

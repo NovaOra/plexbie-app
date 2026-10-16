@@ -12,7 +12,6 @@ import type { Ack } from "../../api/schemas";
 import { useApi } from "../../auth/session";
 import { useFocusHere } from "../../ui/announce";
 import { Button } from "../../ui/Button";
-import { Chip } from "../../ui/Chip";
 import { DetailFallback, DetailPage, detailStyles } from "../../ui/DetailPage";
 import { GlassFill, glass } from "../../ui/Glass";
 import { useScrollToField } from "../../ui/keyboard";
@@ -26,6 +25,8 @@ import { Thread, TicketPill, ticketKind, ticketState, ticketTitle } from "../tic
 import { SEARCH_DONE, SearchFixes, StuckBox, card } from "./bits";
 import { BlockedImport } from "./BlockedImport";
 import { useAct, useAdminKey } from "./useAdmin";
+import { KeyRow } from "../../ui/KeyRow";
+import { Segmented } from "../../ui/Segmented";
 
 export function AdminTicketScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -116,11 +117,11 @@ export function AdminTicketScreen() {
         ) : null}
 
         {page || plexUrl ? (
-          <View style={card.actions}>
+          <KeyRow>
             {page ? <Button kind="secondary" label="Open its page" style={card.grow}
               onPress={() => router.push({ pathname: "/title/[kind]/[id]", params: { kind: t.kind, id: page } })} /> : null}
             {plexUrl ? <Button kind="secondary" label="Open in Plex" style={card.grow} onPress={() => void Linking.openURL(plexUrl)} /> : null}
-          </View>
+          </KeyRow>
         ) : null}
 
         {saw.length ? (
@@ -148,30 +149,28 @@ export function AdminTicketScreen() {
             <TextInput value={last} onChangeText={setLast} multiline maxLength={600} autoFocus onFocus={field.onFocus}
               placeholder="Grabbed the 4K release, it’ll be on Plex tonight" placeholderTextColor={color.faint}
               accessibilityLabel={`Last word to ${t.who}, optional`} accessibilityLabelledBy="ticket-last" style={[styles.input, styles.inputReply]} />
-            <View style={card.actions}>
+            <KeyRow>
               <Button kind="secondary" label="Back" onPress={() => { setSolving(false); setLast(""); }} style={card.grow} />
               <Button label="Solve it" busy={busy === "solve"} busyLabel="Solving…" disabled={!!busy} onPress={() => void solve()} style={card.grow} />
-            </View>
+            </KeyRow>
           </View>
         ) : (
           <View style={[detailStyles.box, glass.surface, kind === "note" ? styles.noteBox : styles.replyBox]} onLayout={field.onLayout}>
             <GlassFill radius={radius.m} />
-            <View style={styles.seg} accessibilityRole="radiogroup" accessibilityLabel="Who sees it">
-              <Chip label="Note for admins" selected={kind === "note"} onPress={() => setKind("note")} />
-              <Chip label={`Reply to ${t.who}`} selected={kind === "reply"} onPress={() => setKind("reply")} />
-            </View>
+            <Segmented accessibilityLabel="Who sees it" value={kind} onChange={setKind} accent={kind === "note" ? color.note : color.screen}
+              options={[{ id: "note", label: "Note for admins", short: "Note" }, { id: "reply", label: `Reply to ${t.who}`, short: "Reply" }]} />
             <TextInput value={text} onChangeText={setText} multiline maxLength={1200} onFocus={field.onFocus}
               placeholder={kind === "note" ? "Only admins see this" : `${t.who} gets this as a Discord DM or an alert, and can answer`}
               placeholderTextColor={color.faint} accessibilityLabel={kind === "note" ? "Note for admins" : `Reply to ${t.who}`}
               style={[styles.input, kind === "note" ? styles.inputNote : styles.inputReply]} />
             <Button label={kind === "note" ? "Add note" : "Send reply"} busy={busy === "send"} busyLabel="Sending…"
               disabled={!text.trim() || !!busy} onPress={() => void send()} />
-            <View style={card.actions}>
+            <KeyRow>
               <Button kind="secondary" label={t.waiting ? "Back to open" : `Wait on ${them}`} busy={busy === "status"} busyLabel="Saving…" disabled={!!busy}
                 onPress={() => void run("status", () => client.ticketStatus(id, t.waiting ? "open" : "waiting"), t.waiting ? "Back with the admins" : `Waiting on ${t.who}`)}
                 style={card.grow} />
               <Button kind="secondary" label="Solve…" disabled={!!busy} onPress={() => setSolving(true)} style={card.grow} />
-            </View>
+            </KeyRow>
           </View>
         )}
     </DetailPage>
@@ -183,7 +182,6 @@ const styles = StyleSheet.create({
   owner: { gap: space.m },
   noteBox: { borderWidth: 1, ...replyRim(0.45, "note") },
   replyBox: { borderWidth: 1, ...replyRim(0.45) },
-  seg: { flexDirection: "row", flexWrap: "wrap", gap: space.s },
   input: multilineInput,
   inputNote: replyRim(0.6, "note"),
   inputReply: replyRim(0.6),

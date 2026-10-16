@@ -5,6 +5,7 @@ import { color, radius, space } from "../../ui/theme";
 import { UPDATE_VERB, installed, useAppUpdate, whatsNew } from "./useAppUpdate";
 import { useDownloadUpdate } from "./useDownloadUpdate";
 import { GlassFill, glass } from "../../ui/Glass";
+import { KeyRow } from "../../ui/KeyRow";
 
 /** "Plexbie 1.5.0 is out" on Home: what's new, Download, Not now (until the next version). */
 export function UpdateCard({ style }: { style?: StyleProp<ViewStyle> }) {
@@ -20,12 +21,12 @@ export function UpdateCard({ style }: { style?: StyleProp<ViewStyle> }) {
       <Text variant="title">Plexbie {newer.version} is out</Text>
       {lines.map((l) => <Text key={l} variant="body">• {l}</Text>)}
       <Text variant="meta">You have {installed.version || "an older version"}. {Math.round((Platform.OS === "ios" ? newer.ios?.size ?? 0 : newer.size) / 1_000_000)} MB.</Text>
-      <View style={styles.actions}>
+      <KeyRow>
         <Button label={UPDATE_VERB} busy={busy} busyLabel="Opening…" onPress={() => void get()} style={styles.grow}
           accessibilityLabel={`${UPDATE_VERB} Plexbie ${newer.version}`} />
         <Button kind="quiet" label="Not now" onPress={dismiss} style={styles.grow}
           accessibilityLabel={`Not now. Hide this until the next version`} />
-      </View>
+      </KeyRow>
     </View>
     </View>
   );

@@ -86,16 +86,22 @@ export const SEARCH_DONE: Record<HelpSearch, string> = {
 export function SearchFixes({ kind, busy, onSearch, byName = false }: {
   kind: string; busy: string | null; onSearch: (how: HelpSearch) => void; byName?: boolean;
 }) {
+  // Searching by name, when Plexbie offers it, is the one raised key, on a line of its own;
+  // the other fixes are quiet pills at their own width, side by side.
+  const name = <Button kind={byName ? "secondary" : "quiet"} label="Search by name" busy={busy === "name"} busyLabel="Starting…"
+    disabled={!!busy} onPress={() => onSearch("name")} />;
   return (
     <View style={styles.fixes}>
-      <Button kind="quiet" label="Search again" busy={busy === "again"} busyLabel="Searching…" disabled={!!busy}
-        onPress={() => onSearch("again")} style={styles.fix} />
-      {kind === "tv" ? (
-        <Button kind="quiet" label="Episode by episode" busy={busy === "episodes"} busyLabel="Searching…" disabled={!!busy}
-          onPress={() => onSearch("episodes")} style={styles.fix} />
-      ) : null}
-      <Button kind={byName ? "secondary" : "quiet"} label="Search by name" busy={busy === "name"} busyLabel="Starting…"
-        disabled={!!busy} onPress={() => onSearch("name")} style={styles.fix} />
+      {byName ? name : null}
+      <View style={styles.fixRow}>
+        <Button kind="quiet" label="Search again" busy={busy === "again"} busyLabel="Searching…" disabled={!!busy}
+          onPress={() => onSearch("again")} />
+        {kind === "tv" ? (
+          <Button kind="quiet" label="Episode by episode" busy={busy === "episodes"} busyLabel="Searching…" disabled={!!busy}
+            onPress={() => onSearch("episodes")} />
+        ) : null}
+        {byName ? null : name}
+      </View>
     </View>
   );
 }
@@ -124,10 +130,10 @@ const styles = StyleSheet.create({
   initialText: { fontFamily: font.bold, fontSize: 17, color: color.screen },
   stuckBox: { gap: space.s, backgroundColor: "rgba(255, 92, 147, 0.1)", borderColor: "rgba(255, 92, 147, 0.45)" },
   stuck: { color: color.tally },
-  fixes: { flexDirection: "row", flexWrap: "wrap", gap: space.s },
+  fixes: { gap: space.s },
+  fixRow: { flexDirection: "row", flexWrap: "wrap", gap: space.s },
   field: {
     minHeight: TOUCH, paddingHorizontal: space.l, borderRadius: radius.m, borderWidth: 1.5, borderColor: color.slate,
     backgroundColor: color.field, color: color.ink, fontFamily: font.regular, fontSize: 16,
   },
-  fix: { flexGrow: 1, flexBasis: 150 },
 });

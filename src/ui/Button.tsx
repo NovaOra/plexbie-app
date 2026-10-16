@@ -10,7 +10,7 @@
 // `blocked`: another action on the same thing is running, so it waits, flat and slate.
 // All are PressableScale (haptic, 48dp to hit).
 import { useState } from "react";
-import { ActivityIndicator, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { ActivityIndicator, StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from "react-native";
 import Animated from "react-native-reanimated";
 import { PressableScale } from "./Pressable";
 import { Text } from "./Text";
@@ -33,6 +33,7 @@ export function Button({ label, onPress, kind = "primary", busy, busyLabel, bloc
   haptic?: "light" | "none";
 }) {
   const [down, setDown] = useState(false);
+  const large = useWindowDimensions().fontScale >= 1.3;
   const quiet = kind === "quiet";
   const pink = kind === "primary";
   // Off (disabled, or waiting on something else) and not its own action: flat, no lip.
@@ -64,7 +65,7 @@ export function Button({ label, onPress, kind = "primary", busy, busyLabel, bloc
       ) : null}
       {!flat && !quiet ? <View pointerEvents="none" style={styles.highlight} /> : null}
       {busy ? <ActivityIndicator testID="key-spinner" color={tint} size="small" /> : null}
-      <Text variant="label" style={[quiet ? type.quiet : type.button, styles.label, { color: tint }]}>{busy && busyLabel ? busyLabel : label}</Text>
+      <Text variant="label" numberOfLines={large ? undefined : 1} style={[quiet ? type.quiet : type.button, styles.label, { color: tint }]}>{busy && busyLabel ? busyLabel : label}</Text>
     </PressableScale>
   );
 }

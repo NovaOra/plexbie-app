@@ -22,6 +22,7 @@ import { useAct, useAdminKey } from "./useAdmin";
 import { GlassFill, glass } from "../../ui/Glass";
 import { KEYBOARD_BEHAVIOR } from "../../ui/keyboard";
 import type { ToastIn } from "../../ui/Toast";
+import { KeyRow } from "../../ui/KeyRow";
 
 export function PeopleSection() {
   const confirm = useConfirm();
@@ -164,11 +165,11 @@ export function PeopleSection() {
                 <Text variant="meta">Shown everywhere in Plexbie and in Tautulli. Their Plex username stays {p.plexName}.</Text>
                 <TextField value={newName} onChangeText={setNewName} maxLength={40} autoFocus accessibilityLabel={`Display name for ${p.plexName}`}
                   returnKeyType="done" onSubmitEditing={() => { if (newName.trim()) void rename(p); }} />
-                <View style={card.actions}>
+                <KeyRow>
                   <Button kind="secondary" label="Back" onPress={() => setRenaming(null)} style={card.grow} accessibilityLabel={`Back, keep ${name}`} />
                   <Button label="Save" busy={isBusy(p.plexName)} disabled={!newName.trim()} onPress={() => void rename(p)} style={card.grow}
                     accessibilityLabel={`Save name for ${p.plexName}`} />
-                </View>
+                </KeyRow>
               </View>
             ) : null}
 

@@ -9,6 +9,7 @@ import { Button } from "./Button";
 import { Text } from "./Text";
 import { color, EASE_OUT, radius, space } from "./theme";
 import { GlassFill, glass } from "./Glass";
+import { KeyRow } from "./KeyRow";
 
 export interface ConfirmButton {
   text: string;
@@ -56,12 +57,12 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
               <GlassFill radius={radius.l} strong />
               <Text variant="title" accessibilityRole="header">{shown.title}</Text>
               {shown.message ? <Text variant="body" style={styles.message}>{shown.message}</Text> : null}
-              <View style={styles.actions}>
+              <KeyRow>
                 {shown.buttons.map((b) => (
                   <Button key={b.text} label={b.text} onPress={() => choose(b)} style={styles.grow}
                     kind={b.style === "cancel" ? "secondary" : b.style === "destructive" ? "danger" : "primary"} />
                 ))}
-              </View>
+              </KeyRow>
             </Animated.View>
           </View>
         ) : null}
