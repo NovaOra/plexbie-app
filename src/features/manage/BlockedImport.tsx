@@ -18,7 +18,7 @@ import { Heading, TextField } from "./bits";
 import { useAct, useAdminKey } from "./useAdmin";
 
 /** What the button says while it's held: a little ceremony, so nobody imports blind. */
-const STAGES = ["Did you look at the files? 👀", "Sizes? Episodes? No .exe? 🧐", "Okay, okay. Going in 3…", "2…", "1…"];
+const STAGES = ["Keep holding…", "Importing in 3…", "2…", "1…"];
 
 /** Imports that got no answer, by app and download, with when they were sent: Sonarr or Radarr
  *  may still be at it, so Import stays off for as long as the app would have waited. Kept
@@ -148,7 +148,7 @@ export function BlockedImport({ target, onDone }: { target: AppBlockedRef; onDon
           {tv ? (
             <View style={styles.owner}>
               <Text variant="label">Show: {owner?.title ?? "none"}{owner?.year ? ` (${owner.year})` : ""}</Text>
-              <Button kind="secondary" label="Wrong show?" onPress={() => setFinding(finding === "series" ? null : "series")} style={styles.start} />
+              <Button kind="quiet" label="Wrong show?" onPress={() => setFinding(finding === "series" ? null : "series")} style={styles.start} />
               {finding === "series" ? <ArrFinder app="sonarr" onPick={(s) => void useSeries(s)} /> : null}
               {series && epsWaiting ? (epsFailed ? (
                 <>
@@ -174,7 +174,7 @@ export function BlockedImport({ target, onDone }: { target: AppBlockedRef; onDon
                   </View>) : (
                     <>
                       <Text variant="meta">Film: {c.movieLabel ?? (f.movie ? `${f.movie.title}${f.movie.year ? ` (${f.movie.year})` : ""}` : "none")}</Text>
-                      <Button kind="secondary" label="Wrong film?" onPress={() => setFinding(finding === f.name ? null : f.name)} style={styles.start} />
+                      <Button kind="quiet" label="Wrong film?" onPress={() => setFinding(finding === f.name ? null : f.name)} style={styles.start} />
                       {finding === f.name ? <ArrFinder app="radarr" onPick={(m) => {
                         setFinding(null);
                         pick(f.name, { movieId: m.id, movieLabel: `${m.title}${m.year ? ` (${m.year})` : ""}` });
@@ -211,7 +211,7 @@ export function BlockedImport({ target, onDone }: { target: AppBlockedRef; onDon
             <>
               {waiting ? <Text variant="label" style={styles.warn}>May still be importing: no answer came back. Import is off for a couple of minutes while {app} finishes.</Text>
                 : blocker ? <Text variant="label" style={styles.warn}>{blocker}</Text> : null}
-              <HoldButton label="Import it" ms={3200} stages={STAGES} bail="Chickened out. Fair. 🐔" disabled={!!busy || !!blocker || waiting || preview.isFetching}
+              <HoldButton label="Import it" ms={3200} stages={STAGES} bail="Not imported." disabled={!!busy || !!blocker || waiting || preview.isFetching}
                 confirmText="Did you look at the files? It goes through Sonarr's or Radarr's own import." onConfirm={() => void go()} />
             </>
           )}
@@ -277,7 +277,7 @@ export function BlockedList() {
             <Text variant="eyebrow">{r.app === "sonarr" ? "Sonarr" : "Radarr"} · import blocked{r.episodes.length ? ` · ${r.episodes.join(", ")}` : ""}</Text>
             <Text variant="title">{r.title}{r.year ? ` (${r.year})` : ""}</Text>
             {open === id ? <BlockedImport target={r} onDone={() => setTimeout(() => void qc.invalidateQueries({ queryKey: key }), 1500)} />
-              : <Button kind="secondary" label="Look inside" onPress={() => setOpen(id)} style={styles.start} />}
+              : <Button kind="quiet" label="Look inside" onPress={() => setOpen(id)} style={styles.start} />}
           </View>
         );
       })}

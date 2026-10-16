@@ -68,7 +68,7 @@ export function RequestDetail() {
             <YourTicket request={r} ticket={r.help} onFocus={field.onFocus} />
           </View>
         ) : canAsk ? (
-          <Button kind="secondary" label="Something wrong? Ask for help" style={detailStyles.start}
+          <Button kind="quiet" label="Something wrong? Ask for help" style={detailStyles.start}
             onPress={() => router.push({ pathname: "/help/[slot]", params: { slot: String(r.slot) } })} />
         ) : null}
     </DetailPage>

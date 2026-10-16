@@ -107,7 +107,7 @@ export function NewTicketSheet() {
       <View style={[styles.sheet, { paddingBottom: insets.bottom + space.l }]}>
         <Text variant="title">This can’t take a ticket.</Text>
         <Text variant="meta">That link doesn’t point at a film or show.</Text>
-        <Button kind="secondary" label="Close" onPress={() => router.back()} style={styles.start} />
+        <Button kind="quiet" label="Close" onPress={() => router.back()} style={styles.start} />
       </View>
     );
   }

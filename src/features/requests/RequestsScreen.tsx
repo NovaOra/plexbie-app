@@ -6,11 +6,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { AppRequest } from "../../api/schemas";
 import { useSession } from "../../auth/session";
 import { useAnnounce } from "../../ui/announce";
-import { PressableScale } from "../../ui/Pressable";
+import { Button } from "../../ui/Button";
 import { StatusBarScrim } from "../../ui/StatusBarScrim";
 import { ScreenTitle } from "../../ui/ScreenTitle";
 import { Text } from "../../ui/Text";
-import { color, radius, space } from "../../ui/theme";
+import { color, space } from "../../ui/theme";
 import { RequestCard } from "./RequestCard";
 import { since, isOpen } from "./stage";
 import { useRequests } from "./useRequests";
@@ -102,9 +102,7 @@ export function RequestsScreen() {
         <View style={styles.message}>
           <Text variant="title" accessibilityRole="alert">Couldn’t load your requests.</Text>
           <Text variant="body">{offline ? "You’re offline. They’re still there." : error.message}</Text>
-          <PressableScale onPress={() => refetch()} style={styles.button} accessibilityLabel="Try again">
-            <Text variant="label" style={styles.buttonText}>Try again</Text>
-          </PressableScale>
+          <Button kind="secondary" label="Try again" onPress={() => void refetch()} style={styles.button} />
         </View>
       </View>
     );
@@ -121,9 +119,8 @@ export function RequestsScreen() {
       renderItem={renderItem}
       renderSectionHeader={({ section }) => <Text variant="eyebrow" style={styles.section} accessibilityRole="header">{section.title}</Text>}
       renderSectionFooter={({ section }) => section.hidden > 0 ? (
-        <PressableScale onPress={() => unfold(section.key)} style={styles.more} accessibilityLabel={`Show ${section.hidden} more ${section.title.toLowerCase()}`}>
-          <Text variant="label" style={styles.moreText}>Show {section.hidden} more</Text>
-        </PressableScale>
+        <Button kind="quiet" label={`Show ${section.hidden} more`} onPress={() => unfold(section.key)} style={styles.more}
+          accessibilityLabel={`Show ${section.hidden} more ${section.title.toLowerCase()}`} />
       ) : null}
       ItemSeparatorComponent={Separator}
       stickySectionHeadersEnabled={false}
@@ -161,14 +158,6 @@ const styles = StyleSheet.create({
   section: { marginTop: space.l, marginBottom: space.m },
   skeleton: { marginBottom: space.m },
   message: { gap: space.s, paddingVertical: space.xl },
-  button: {
-    alignSelf: "flex-start", marginTop: space.s, paddingHorizontal: space.xl, borderRadius: radius.pill,
-    backgroundColor: color.screen, justifyContent: "center",
-  },
-  buttonText: { color: color.onScreen },
-  more: {
-    alignSelf: "flex-start", marginTop: space.m, paddingHorizontal: space.xl, borderRadius: radius.pill,
-    borderWidth: 1.5, borderColor: color.screen, justifyContent: "center",
-  },
-  moreText: { color: color.screen },
+  button: { alignSelf: "flex-start", marginTop: space.s },
+  more: { alignSelf: "flex-start", marginTop: space.m },
 });

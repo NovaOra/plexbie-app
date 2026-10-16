@@ -120,7 +120,9 @@ function Loaded({ t }: { t: AppTitle }) {
           </View>
         </View>
         <View style={[styles.pad, styles.body]}>
-          {plexUrl ? <Button label="Watch on Plex" onPress={() => void Linking.openURL(plexUrl)} /> : null}
+          {/* One pink key: Watch on Plex, unless there are seasons still to ask for (then that button is). */}
+          {plexUrl ? <Button kind={t.kind === "tv" && openSeasons(t).length ? "secondary" : "primary"} label="Watch on Plex"
+            onPress={() => void Linking.openURL(plexUrl)} /> : null}
           {t.overview ? <Text variant="body" style={styles.overview}>{t.overview.replace(/\s*[—–]\s*/g, ", ")}</Text> : null}
           <Ask key={`${t.kind}/${t.id}`} t={t} book={book} />
           {t.kind === "movie" || t.kind === "tv" ? <MoreLikeThis kind={t.kind} id={t.id} /> : null}
@@ -227,23 +229,23 @@ function Ask({ t, book }: { t: AppTitle; book: boolean }) {
         </View>
       ) : null}
 
-      {ticket ? <TitleTicket t={t} /> : null}
+      {ticket ? <TitleTicket t={t} lead={!plexUrl && !(tv && missing.length)} /> : null}
     </View>
   );
 }
 
 /** "Something wrong? Open a ticket", or the member's open ticket on it. */
-function TitleTicket({ t }: { t: AppTitle }) {
+function TitleTicket({ t, lead }: { t: AppTitle; lead: boolean }) {
   const mine = t.yourTicket;
   if (mine) {
     return (
-      <Button kind={mine.waiting ? "primary" : "secondary"} style={styles.start}
+      <Button kind={mine.waiting && lead ? "primary" : "secondary"} style={styles.start}
         label={mine.waiting ? "An admin asked you something" : `Your ticket: ${inLine(mine.reason)}`}
         onPress={() => router.push({ pathname: "/ticket/[id]", params: { id: mine.id } })} />
     );
   }
   return (
-    <Button kind="secondary" label="Something wrong? Open a ticket" style={styles.start}
+    <Button kind="quiet" label="Something wrong? Open a ticket" style={styles.start}
       onPress={() => router.push({ pathname: "/ticket/new", params: { kind: t.kind, id: t.id, title: t.title } })} />
   );
 }

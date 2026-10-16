@@ -293,7 +293,7 @@ function PlexInvites({ rows }: { rows: AppPlexInvite[] }) {
                 keyboardType="email-address" autoCapitalize="none" autoCorrect={false} accessibilityLabel="The right email" />
               <View style={card.actions}>
                 <Button kind="secondary" label="Back" onPress={() => { setEditing(null); setNext(""); }} style={card.grow} />
-                <Button label="Send invite" busy={isBusy(i.email)} busyLabel="Sending…" disabled={!EMAIL.test(next.trim())}
+                <Button kind="secondary" label="Send invite" busy={isBusy(i.email)} busyLabel="Sending…" disabled={!EMAIL.test(next.trim())}
                   onPress={() => void change(i)} style={card.grow} />
               </View>
             </>

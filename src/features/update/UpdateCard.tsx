@@ -23,7 +23,7 @@ export function UpdateCard({ style }: { style?: StyleProp<ViewStyle> }) {
       <View style={styles.actions}>
         <Button label={UPDATE_VERB} busy={busy} busyLabel="Opening…" onPress={() => void get()} style={styles.grow}
           accessibilityLabel={`${UPDATE_VERB} Plexbie ${newer.version}`} />
-        <Button kind="secondary" label="Not now" onPress={dismiss} style={styles.grow}
+        <Button kind="quiet" label="Not now" onPress={dismiss} style={styles.grow}
           accessibilityLabel={`Not now. Hide this until the next version`} />
       </View>
     </View>

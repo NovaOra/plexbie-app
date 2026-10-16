@@ -2,10 +2,11 @@ import * as haptic from "../../ui/haptics";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { KEYBOARD_BEHAVIOR, useScrollToField } from "../../ui/keyboard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DEFAULT_SERVER, SignInError, normalizeServer, useSession, type Via } from "../../auth/session";
+import { Button } from "../../ui/Button";
 import { PressableScale } from "../../ui/Pressable";
 import { ScreenTitle } from "../../ui/ScreenTitle";
 import { StatusBarScrim } from "../../ui/StatusBarScrim";
@@ -148,14 +149,9 @@ export function SignInScreen() {
 
         {problem ? <Text variant="meta" style={styles.problem} accessibilityRole="alert" accessibilityLiveRegion="polite">{problem}</Text> : null}
 
-        <PressableScale onPress={() => go("discord")} disabled={!!busy} style={[styles.button, styles.primary]}
-          accessibilityLabel="Sign in with Discord">
-          {busy === "discord" ? <ActivityIndicator color={color.onScreen} /> : <Text variant="label" style={styles.primaryText}>Sign in with Discord</Text>}
-        </PressableScale>
-        <PressableScale onPress={() => go("plex")} disabled={!!busy} style={[styles.button, styles.secondary]}
-          accessibilityLabel="Sign in with Plex">
-          {busy === "plex" ? <ActivityIndicator color={color.screen} /> : <Text variant="label" style={styles.secondaryText}>Sign in with Plex</Text>}
-        </PressableScale>
+        {/* Discord is the one pink key; Plex shares the view, so it's a raised one. */}
+        <Button label="Sign in with Discord" onPress={() => go("discord")} busy={busy === "discord"} blocked={busy === "plex"} style={styles.button} />
+        <Button kind="secondary" label="Sign in with Plex" onPress={() => go("plex")} busy={busy === "plex"} blocked={busy === "discord"} style={styles.button} />
         <Text variant="meta" style={styles.small}>
           You sign in on your Plexbie’s own page. The app never sees your Discord or Plex password.
         </Text>
@@ -205,11 +201,7 @@ const styles = StyleSheet.create({
     backgroundColor: color.panel, color: color.ink, fontSize: 17, fontFamily: font.medium,
   },
   problem: { color: color.screen },
-  button: { borderRadius: radius.pill, alignItems: "center", justifyContent: "center", minHeight: 54 },
-  primary: { backgroundColor: color.screen },
-  primaryText: { color: color.onScreen, fontSize: 17 },
-  secondary: { borderWidth: 1.5, borderColor: color.screen },
-  secondaryText: { color: color.screen, fontSize: 17 },
+  button: { minHeight: 54 },
   small: { textAlign: "center", marginTop: space.xs },
   quiet: { alignItems: "center", justifyContent: "center", marginTop: space.l },
   invite: { gap: space.xs, marginTop: space.l },

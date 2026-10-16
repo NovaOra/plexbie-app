@@ -61,7 +61,7 @@ export function JoinsSection() {
           </View>
           {j.messageId ? (
             <View style={card.actions}>
-              <Button label="Invite to Plex" busy={isBusy(j.key)} busyLabel="Inviting…" onPress={() => void decide(j, true)} style={card.grow}
+              <Button kind="secondary" label="Invite to Plex" busy={isBusy(j.key)} busyLabel="Inviting…" onPress={() => void decide(j, true)} style={card.grow}
                 accessibilityLabel={`Invite ${j.name} to Plex`} />
               <Button kind="danger" label="Deny" disabled={isBusy(j.key)} onPress={() => confirmDeny(j)} style={card.grow}
                 accessibilityLabel={`Deny ${j.name}`} />

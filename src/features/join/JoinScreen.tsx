@@ -80,7 +80,7 @@ export function JoinScreen({ me }: { me: AppSession }) {
             {blocked ? (
               <>
                 <Text variant="body">{blocked}</Text>
-                {me.accessUnknown ? <Button kind="secondary" label="Check again" onPress={() => void qc.invalidateQueries({ queryKey: ["session"] })} style={styles.signOut} />
+                {me.accessUnknown ? <Button kind="quiet" label="Check again" onPress={() => void qc.invalidateQueries({ queryKey: ["session"] })} style={styles.signOut} />
                   : <Button label="I have an invite link" onPress={() => router.push("/invite")} style={styles.signOut} />}
               </>
             ) : (
@@ -118,7 +118,7 @@ export function JoinScreen({ me }: { me: AppSession }) {
             )}
           </>
         )}
-        <Button kind="secondary" label="Sign out" onPress={() => void signOut()} style={styles.signOut} />
+        <Button kind="quiet" label="Sign out" onPress={() => void signOut()} style={styles.signOut} />
       </ScrollView>
       <StatusBarScrim />
     </KeyboardAvoidingView>

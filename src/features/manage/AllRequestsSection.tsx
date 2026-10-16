@@ -114,7 +114,7 @@ export function AllRequestsSection() {
         <RequestCard key={r.id ?? r.slot} request={r} by={r.requester} stuck={r.stuck} onPress={() => open(r)} />
       ))}
       {more > 0 ? (
-        <Button kind="secondary" label={`Show ${more} more`} onPress={() => setShown({ view, limit: limit + PAGE })} style={styles.more} />
+        <Button kind="quiet" label={`Show ${more} more`} onPress={() => setShown({ view, limit: limit + PAGE })} style={styles.more} />
       ) : null}
       {!words && all.data && !rows.length ? (
         <AllClear title={show === "stuck" ? "Nothing looks stuck" : show === "finished" ? "Nothing on Plex lately" : show === "waiting" ? "Nothing waiting"
@@ -124,9 +124,9 @@ export function AllRequestsSection() {
       ) : null}
       {!words ? (
         history ? (
-          <Button kind="secondary" label="Back to the last 30 days" onPress={() => setHistory(false)} style={styles.more} />
+          <Button kind="quiet" label="Back to the last 30 days" onPress={() => setHistory(false)} style={styles.more} />
         ) : (
-          <Button kind="secondary" label={`Every request since No. 0001${total ? ` · ${total}` : ""}`} onPress={() => setHistory(true)} style={styles.more} />
+          <Button kind="quiet" label={`Every request since No. 0001${total ? ` · ${total}` : ""}`} onPress={() => setHistory(true)} style={styles.more} />
         )
       ) : null}
       {history && every.isFetching && !every.data ? <Text variant="meta" accessibilityLiveRegion="polite">Loading every request…</Text> : null}

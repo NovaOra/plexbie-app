@@ -59,7 +59,7 @@ export function HealthSection() {
         ))}
       {/* Before the first check is in, the gate above has its own Try again. */}
       {rows ? (
-        <Button kind="secondary" label="Check again" busy={health.isFetching} busyLabel="Checking…" onPress={() => void health.refetch()} style={{ alignSelf: "flex-start" }} />
+        <Button kind="quiet" label="Check again" busy={health.isFetching} busyLabel="Checking…" onPress={() => void health.refetch()} style={{ alignSelf: "flex-start" }} />
       ) : null}
       <SignOutOthers />
     </>

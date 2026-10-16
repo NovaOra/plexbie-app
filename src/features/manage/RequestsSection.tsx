@@ -94,7 +94,7 @@ export function RequestsSection() {
             </View>
           </View>
           <View style={card.actions}>
-            <Button label="Approve" onPress={() => decide.mutate({ r, approve: true })} style={card.grow}
+            <Button kind="secondary" label="Approve" onPress={() => decide.mutate({ r, approve: true })} style={card.grow}
               accessibilityLabel={`Approve ${r.title} for ${r.requester}`} />
             <Button kind="danger" label="Decline" onPress={() => confirmDecline(r)} style={card.grow}
               accessibilityLabel={`Decline ${r.title} for ${r.requester}`} />

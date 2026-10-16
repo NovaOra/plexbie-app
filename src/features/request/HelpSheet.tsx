@@ -70,7 +70,7 @@ export function HelpSheet() {
     return (
       <View style={[styles.sheet, { paddingBottom: insets.bottom + space.l }]}>
         <Text variant="title">This request can’t take a help request.</Text>
-        <Button kind="secondary" label="Close" onPress={() => router.back()} style={styles.start} />
+        <Button kind="quiet" label="Close" onPress={() => router.back()} style={styles.start} />
       </View>
     );
   }

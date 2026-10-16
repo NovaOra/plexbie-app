@@ -88,13 +88,13 @@ export function SearchFixes({ kind, busy, onSearch, byName = false }: {
 }) {
   return (
     <View style={styles.fixes}>
-      <Button kind="secondary" label="Search again" busy={busy === "again"} busyLabel="Searching…" disabled={!!busy}
+      <Button kind="quiet" label="Search again" busy={busy === "again"} busyLabel="Searching…" disabled={!!busy}
         onPress={() => onSearch("again")} style={styles.fix} />
       {kind === "tv" ? (
-        <Button kind="secondary" label="Episode by episode" busy={busy === "episodes"} busyLabel="Searching…" disabled={!!busy}
+        <Button kind="quiet" label="Episode by episode" busy={busy === "episodes"} busyLabel="Searching…" disabled={!!busy}
           onPress={() => onSearch("episodes")} style={styles.fix} />
       ) : null}
-      <Button kind={byName ? "primary" : "secondary"} label="Search by name" busy={busy === "name"} busyLabel="Starting…"
+      <Button kind={byName ? "secondary" : "quiet"} label="Search by name" busy={busy === "name"} busyLabel="Starting…"
         disabled={!!busy} onPress={() => onSearch("name")} style={styles.fix} />
     </View>
   );

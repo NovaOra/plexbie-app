@@ -117,7 +117,7 @@ function Conversation({ person, onBack, onComposerFocus }: { person: AppMessageP
   let lastDay = "";
   return (
     <>
-      <Button kind="secondary" label="‹ Everyone" onPress={onBack} style={{ alignSelf: "flex-start" }} accessibilityLabel="Back to everyone" />
+      <Button kind="quiet" label="‹ Everyone" onPress={onBack} style={{ alignSelf: "flex-start" }} accessibilityLabel="Back to everyone" />
       <View style={styles.head}>
         <Initial name={person.name} />
         <View style={{ flex: 1 }}>
@@ -126,7 +126,7 @@ function Conversation({ person, onBack, onComposerFocus }: { person: AppMessageP
           {person.done ? <Text variant="meta">Marked done{person.done.by ? ` by ${person.done.by}` : ""} {since(person.done.at)}</Text> : null}
         </View>
       </View>
-      <Button kind="secondary" label={handled ? "Mark unread" : "Done"} busy={isBusy("done")} busyLabel="Saving…"
+      <Button kind="quiet" label={handled ? "Mark unread" : "Done"} busy={isBusy("done")} busyLabel="Saving…"
         onPress={() => void done(!handled)} style={{ alignSelf: "flex-start" }}
         accessibilityLabel={handled ? `Mark the conversation with ${person.name} unread` : `Mark the conversation with ${person.name} done`} />
       {!valid ? <Text variant="meta">This person’s messages can’t be opened here.</Text> : null}
