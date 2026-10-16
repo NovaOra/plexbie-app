@@ -1,5 +1,5 @@
 // Copied from plexbie/web/src/api/types.ts by scripts/sync-types.mjs. Don't edit here:
-// change it in the bot's repo (the source of truth for /api) and re-run the script.
+// change it in the bot's repo (the source of truth) and re-run the script.
 
 // Shapes shared with the bot's /api routes. The bot is the source of truth;
 // the web app only renders what it is given.
