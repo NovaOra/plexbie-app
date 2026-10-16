@@ -10,7 +10,7 @@ import type { AppAdminRequestDetail, AppAdminTicket } from "../../api/schemas";
 import { useApi } from "../../auth/session";
 import { useFocusHere } from "../../ui/announce";
 import { Button } from "../../ui/Button";
-import { DetailFallback, DetailPage, TitleHead, detailStyles } from "../../ui/DetailPage";
+import { DetailFallback, DetailFrame, TitleHead, detailStyles } from "../../ui/DetailPage";
 import { GlassFill, glass } from "../../ui/Glass";
 import { useScrollToField } from "../../ui/keyboard";
 import { SwitchRow } from "../../ui/SwitchRow";
@@ -36,6 +36,11 @@ const SEARCHES: HelpSearch[] = ["again", "episodes", "name"];
 
 export function AdminRequestScreen() {
   const { key: id } = useLocalSearchParams<{ key: string }>();
+  return <AdminRequestBody id={id} />;
+}
+
+/** The request itself: on its own page, or `embedded` in Manage's detail sheet or pane. */
+export function AdminRequestBody({ id, embedded = false }: { id: string; embedded?: boolean }) {
   const client = useApi();
   const key = useAdminKey();
   const qc = useQueryClient();
@@ -76,7 +81,7 @@ export function AdminRequestScreen() {
     after();
   };
 
-  if (!r) return <DetailFallback error={error} errorTitle="Couldn’t load this request." onRetry={() => void refetch()} offline={fetchStatus === "paused"} />;
+  if (!r) return <DetailFallback error={error} errorTitle="Couldn’t load this request." onRetry={() => void refetch()} offline={fetchStatus === "paused"} embedded={embedded} />;
 
   // Only an approved request can be searched for (not one waiting for a decision, or declined).
   const video = (r.title.kind === "tv" || r.title.kind === "movie") && !["requested", "declined", "closed"].includes(r.stage);
@@ -86,7 +91,7 @@ export function AdminRequestScreen() {
   ].sort((a, b) => b.at.localeCompare(a.at));
 
   return (
-    <DetailPage scroll={field.scroll}>
+    <DetailFrame embedded={embedded} scroll={field.scroll}>
         <TitleHead title={r.title} eyebrow={[`No. ${formatSlot(r.slot)}`, KIND_LABEL[r.title.kind]].filter(Boolean).join(" · ")} heading={heading}>
           {seasonsLabel(r.seasons, { long: true }) ? <Text variant="meta">{seasonsLabel(r.seasons, { long: true })}</Text> : null}
           <Text variant="meta">Asked {since(r.requestedAt)} by {r.requester} · via {r.via}</Text>
@@ -148,7 +153,7 @@ export function AdminRequestScreen() {
             ))}
           </View>
         ) : null}
-    </DetailPage>
+    </DetailFrame>
   );
 }
 

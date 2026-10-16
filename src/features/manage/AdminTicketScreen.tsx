@@ -12,7 +12,7 @@ import type { Ack } from "../../api/schemas";
 import { useApi } from "../../auth/session";
 import { useFocusHere } from "../../ui/announce";
 import { Button } from "../../ui/Button";
-import { DetailFallback, DetailPage, detailStyles } from "../../ui/DetailPage";
+import { DetailFallback, DetailFrame, detailStyles } from "../../ui/DetailPage";
 import { GlassFill, glass } from "../../ui/Glass";
 import { useScrollToField } from "../../ui/keyboard";
 import { Text } from "../../ui/Text";
@@ -30,6 +30,11 @@ import { Segmented } from "../../ui/Segmented";
 
 export function AdminTicketScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  return <AdminTicketBody id={id} />;
+}
+
+/** The ticket itself: on its own page, or `embedded` in Manage's detail sheet or pane. */
+export function AdminTicketBody({ id, embedded = false }: { id: string; embedded?: boolean }) {
   const client = useApi();
   const key = useAdminKey();
   const qc = useQueryClient();
@@ -60,7 +65,7 @@ export function AdminTicketScreen() {
     return !!out;
   };
 
-  if (!t) return <DetailFallback error={error} errorTitle="Couldn’t load this ticket." onRetry={() => void refetch()} offline={fetchStatus === "paused"} />;
+  if (!t) return <DetailFallback error={error} errorTitle="Couldn’t load this ticket." onRetry={() => void refetch()} offline={fetchStatus === "paused"} embedded={embedded} />;
 
   const state = ticketState(t);
   const open = t.status === "open";
@@ -84,7 +89,7 @@ export function AdminTicketScreen() {
   };
 
   return (
-    <DetailPage scroll={field.scroll}>
+    <DetailFrame embedded={embedded} scroll={field.scroll}>
         <View style={styles.headText}>
           <Text variant="eyebrow">{ticketKind(t)} · {t.reason}</Text>
           <Text ref={heading} style={detailStyles.name} accessibilityRole="header">{ticketTitle(t)}{seasons ? ` · ${seasons}` : ""}</Text>
@@ -173,7 +178,7 @@ export function AdminTicketScreen() {
             </KeyRow>
           </View>
         )}
-    </DetailPage>
+    </DetailFrame>
   );
 }
 
