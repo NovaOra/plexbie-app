@@ -211,7 +211,7 @@ export function BlockedImport({ target, onDone }: { target: AppBlockedRef; onDon
             <>
               {waiting ? <Text variant="label" style={styles.warn}>May still be importing: no answer came back. Import is off for a couple of minutes while {app} finishes.</Text>
                 : blocker ? <Text variant="label" style={styles.warn}>{blocker}</Text> : null}
-              <HoldButton label="Import it" stages={STAGES} bail="Chickened out. Fair. 🐔" disabled={!!busy || !!blocker || waiting || preview.isFetching}
+              <HoldButton label="Import it" ms={3200} stages={STAGES} bail="Chickened out. Fair. 🐔" disabled={!!busy || !!blocker || waiting || preview.isFetching}
                 confirmText="Did you look at the files? It goes through Sonarr's or Radarr's own import." onConfirm={() => void go()} />
             </>
           )}
