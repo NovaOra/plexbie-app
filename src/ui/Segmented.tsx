@@ -4,7 +4,7 @@
 // stay on one line: when the track is too narrow for them, each option uses its `short` label.
 import { useState } from "react";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
-import { keyWidth } from "./keyFit";
+import { EM_PILL, keyWidth } from "./keyFit";
 import { PressableScale } from "./Pressable";
 import { Text } from "./Text";
 import { color, depth, radius, space, type } from "./theme";
@@ -22,7 +22,7 @@ export function Segmented<T extends string>({ options, value, onChange, accent =
   const [width, setWidth] = useState(0);
   const { fontScale } = useWindowDimensions();
   const share = (width - PAD * 2 - GAP * (options.length - 1)) / options.length;
-  const short = width > 0 && options.some((o) => keyWidth(o.label, fontScale, { padding: space.m * 2 }) > share);
+  const short = width > 0 && options.some((o) => keyWidth(o.label, fontScale, { padding: space.m * 2, em: EM_PILL }) > share);
   return (
     <View style={styles.track} accessibilityRole="radiogroup" accessibilityLabel={accessibilityLabel}
       onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>

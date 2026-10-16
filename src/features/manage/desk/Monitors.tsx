@@ -32,12 +32,11 @@ export function Monitors({ monitors, filter, onToggle }: { monitors: Monitor[]; 
         return (
           <PressableScale key={m.area} feel="key" sunk={on} haptic="none" onPress={() => onToggle(m.area)} style={styles.monitor}
             accessibilityLabel={monitorLabel(m)} accessibilityState={{ selected: on }}>
-            <View style={styles.name}>
-              <View style={[styles.lamp, hot && styles.lampHot]} />
-              <Text numberOfLines={1} style={styles.label}>{MONITOR_SHORT[m.area]}</Text>
-            </View>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={styles.label}>{MONITOR_SHORT[m.area]}</Text>
             <View style={[styles.screen, on && styles.screenOn]}>
               <LinearGradient colors={[color.fieldDeep, GLOW, color.fieldDeep]} locations={[0, 0.55, 1]} style={StyleSheet.absoluteFill} />
+              {/* The power lamp in the screen's corner: tally pink when something can't wait. */}
+              <View style={[styles.lamp, hot && styles.lampHot]} />
               <Text style={[styles.count, hot && styles.countHot]}>{m.failed ? "?" : m.known ? m.count : "–"}</Text>
             </View>
           </PressableScale>
@@ -61,10 +60,9 @@ const styles = StyleSheet.create({
   },
   bevel: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, borderRadius: radius.l, borderTopWidth: 1, borderLeftWidth: 1, borderColor: "rgba(174, 184, 216, 0.45)" },
   monitor: { flex: 1, gap: space.xs, minHeight: 0 },
-  name: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 2 },
-  lamp: { width: 6, height: 6, borderRadius: 3, backgroundColor: color.fieldDeep },
+  lamp: { position: "absolute", top: 6, right: 6, width: 6, height: 6, borderRadius: 3, backgroundColor: color.slate },
   lampHot: { backgroundColor: color.tally },
-  label: { flexShrink: 1, fontFamily: font.bold, fontSize: 11, lineHeight: 14, letterSpacing: 0.6, textTransform: "uppercase", color: color.onScreen },
+  label: { textAlign: "center", fontFamily: font.bold, fontSize: 11, lineHeight: 14, letterSpacing: 0.4, textTransform: "uppercase", color: color.onScreen },
   screen: {
     height: 56, borderRadius: radius.s, overflow: "hidden", alignItems: "center", justifyContent: "center",
     borderWidth: 1, borderColor: tint(color.screen, 0.14),

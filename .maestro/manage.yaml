@@ -8,14 +8,14 @@ appId: com.plexbie.app
 - extendedWaitUntil:
     visible: "9 things need you.*"
     timeout: 15000
-- assertVisible: "Requests \\(Asks\\): 3, 3 waiting.*"
+- assertVisible: "Requests \\(Asks\\): 3, 3.waiting.*"
 - tapOn: "Requests \\(Asks\\).*"
 - assertVisible: "Showing Requests only"
 - tapOn: "Approve Zombies of the Stratosphere for Sam"
 - extendedWaitUntil:
     notVisible: "Approve Zombies of the Stratosphere for Sam"
     timeout: 10000
-- assertVisible: "Requests \\(Asks\\): 2, 2 waiting.*"
+- assertVisible: "Requests \\(Asks\\): 2, 2.waiting.*"
 - assertVisible: "8 things need you.*"
 - tapOn: "Show all"
 # A ticket: taken from its row, then let go from its sheet.

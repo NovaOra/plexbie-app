@@ -101,7 +101,7 @@ function QueueRow({ item, onOpen, actions }: { item: Item; onOpen: () => void; a
         <ItemArt item={item} />
         <View style={styles.text}>
           <View style={styles.kind}>
-            <Text variant="eyebrow" numberOfLines={1} style={[styles.grow, item.group === "urgent" && styles.urgentEyebrow]}>{item.eyebrow}</Text>
+            <Text variant="eyebrow" numberOfLines={2} style={[styles.grow, item.group === "urgent" && styles.urgentEyebrow]}>{item.eyebrow}</Text>
             {item.age ? <Text variant="meta" style={styles.age}>{item.age}</Text> : null}
           </View>
           <Text variant="title" numberOfLines={2}>{item.title}{sub ? <Text variant="title" style={styles.season}>{sub}</Text> : null}</Text>
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   art: { width: 44, borderRadius: radius.s },
   artBig: { width: 96, borderRadius: radius.s },
   text: { flex: 1, gap: 2 },
-  kind: { flexDirection: "row", alignItems: "center", gap: space.s },
+  kind: { flexDirection: "row", alignItems: "flex-start", gap: space.s },
   urgentEyebrow: { color: color.tally },
   age: { color: color.faint },
   season: { color: color.slateInk, fontFamily: font.medium },

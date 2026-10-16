@@ -34,12 +34,12 @@ export function DetailSheet({ item, a, full, onClose }: { item: Item; a: DeskAct
       </Animated.View>
       <Animated.View entering={SlideInDown.duration(240)} exiting={SlideOutDown.duration(200)}
         style={[styles.sheet, { top: insets.top + space.xl }]} accessibilityViewIsModal onAccessibilityEscape={onClose}>
-        <View style={styles.grab} />
+        <View style={styles.bar}>
+          <View style={styles.grab} />
+          <Button kind="quiet" label="Close" onPress={onClose} haptic="none" accessibilityLabel="Back to the queue" />
+        </View>
         <ScrollView contentContainerStyle={[styles.sheetBody, { paddingBottom: insets.bottom + space.xxl }]} keyboardShouldPersistTaps="handled">
-          <View style={styles.top}>
-            <View style={styles.grow}>{ownHead(item) ? null : <Hero item={item} />}</View>
-            <Button kind="quiet" label="Close" onPress={onClose} haptic="none" accessibilityLabel="Back to the queue" />
-          </View>
+          {ownHead(item) ? null : <Hero item={item} />}
           <DetailBody item={item} a={a} full={(tab, who) => { onClose(); full(tab, who); }} />
         </ScrollView>
       </Animated.View>
@@ -207,9 +207,10 @@ const styles = StyleSheet.create({
     position: "absolute", left: 0, right: 0, bottom: 0, backgroundColor: color.field, borderTopLeftRadius: radius.l, borderTopRightRadius: radius.l,
     borderTopWidth: 1, borderColor: color.rule, elevation: 16, shadowColor: "#030612", shadowOpacity: 0.7, shadowRadius: 20, shadowOffset: { width: 0, height: -6 },
   },
-  grab: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: color.slate, marginTop: space.s },
-  sheetBody: { padding: space.l, gap: space.l },
-  top: { flexDirection: "row", alignItems: "flex-start", gap: space.m },
+  // The grab line in the middle, Close at the right, on one line above what scrolls.
+  bar: { flexDirection: "row", justifyContent: "flex-end", alignItems: "center", paddingHorizontal: space.l, paddingTop: space.s },
+  grab: { position: "absolute", left: "50%", marginLeft: -20, top: space.s, width: 40, height: 4, borderRadius: 2, backgroundColor: color.slate },
+  sheetBody: { paddingHorizontal: space.l, paddingTop: space.s, gap: space.l },
   pane: { flex: 1, gap: space.l, padding: space.l, borderRadius: radius.l, backgroundColor: color.panel },
   hero: { flexDirection: "row", gap: space.m, alignItems: "flex-start" },
   facts: { gap: space.m },
