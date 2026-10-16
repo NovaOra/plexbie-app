@@ -1,6 +1,6 @@
 // The top of a pushed screen: a back button (the system back gesture works too).
 import { router, type Href } from "expo-router";
-import { StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PressableScale } from "./Pressable";
 import { Text } from "./Text";
@@ -30,7 +30,7 @@ const styles = StyleSheet.create({
   overlay: { position: "absolute", left: 0, right: 0, top: 0, zIndex: 2 },
   back: {
     alignSelf: "flex-start", justifyContent: "center", minHeight: 44, paddingHorizontal: space.l, borderRadius: 22,
-    backgroundColor: "rgba(11, 17, 34, 0.72)",
+    ...(Platform.OS === "ios" ? { backgroundColor: "rgba(11, 17, 34, 0.72)" } : { backgroundColor: color.fieldDeep, borderWidth: 1, borderColor: color.slate }),
   },
   backText: { color: color.ink },
 });
