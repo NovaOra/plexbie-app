@@ -1,18 +1,24 @@
 // Every tappable thing: feedback the instant a finger lands (scale 0.97, 120ms ease-out,
-// a CSS transition on the UI thread), the action on release, at least 48dp to hit.
+// a CSS transition on the UI thread), the action on release, at least 48dp to hit. A key
+// (`feel="key"`) sinks 2px instead, as a button on the TV set does, and stays down while
+// `sunk` (its action is under way).
 import * as haptics from "./haptics";
 import { useState, type ReactNode } from "react";
 import { Pressable as RNPressable, StyleSheet, type PressableProps, type StyleProp, type ViewStyle } from "react-native";
 import Animated, { useReducedMotion } from "react-native-reanimated";
-import { EASE_OUT_CSS, TOUCH } from "./theme";
+import { depth, EASE_OUT_CSS, TOUCH } from "./theme";
 
 export function PressableScale({
-  children, style, haptic = "light", onPress, disabled, ...rest
+  children, style, haptic = "light", onPress, disabled, feel = "scale", sunk = false, ...rest
 }: Omit<PressableProps, "style" | "children"> & {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
   /** One haptic per committed press, at the moment it commits. "none" for frequent taps. */
   haptic?: "light" | "none";
+  /** "key": the face moves down 2px while pressed instead of shrinking. */
+  feel?: "scale" | "key";
+  /** A key held down by its own action. */
+  sunk?: boolean;
 }) {
   const [down, setDown] = useState(false);
   const reduced = useReducedMotion();
@@ -38,9 +44,11 @@ export function PressableScale({
           { minHeight: TOUCH, opacity: disabled ? 0.5 : 1 },
           inner,
           {
-            // Reduced motion: no scale, a dim instead, so the press still reads.
-            transform: [{ scale: down && !reduced ? 0.97 : 1 }],
-            ...(reduced && down ? { opacity: 0.7 } : null),
+            // Reduced motion: no movement. A key's lip still shrinks; anything else dims, so the press still reads.
+            transform: feel === "key"
+              ? [{ translateY: (down || sunk) && !reduced ? depth.press : 0 }]
+              : [{ scale: down && !reduced ? 0.97 : 1 }],
+            ...(reduced && down && feel === "scale" ? { opacity: 0.7 } : null),
             transitionProperty: ["transform", "opacity"],
             transitionDuration: 120,
             transitionTimingFunction: EASE_OUT_CSS,
