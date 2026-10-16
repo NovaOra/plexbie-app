@@ -13,7 +13,8 @@ import { GlassFill, glass } from "./Glass";
 export interface ToastIn {
   text: string;
   detail?: string;
-  tone?: "ok" | "error";
+  /** quiet: nothing changed (it was already so); a slate dot, not the success pink. */
+  tone?: "ok" | "error" | "quiet";
   /** One follow-up, e.g. Undo for something reversible. The toast stays a little longer. */
   action?: { label: string; onPress: () => void };
 }
@@ -75,7 +76,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === "act") act(); else setToast(null); }}
                 style={styles.message}
               >
-                <View style={[styles.dot, toast.tone === "error" && styles.dotError]} />
+                <View style={[styles.dot, toast.tone === "error" && styles.dotError, toast.tone === "quiet" && styles.dotQuiet]} />
                 <View style={styles.words}>
                   <Text variant="label">{toast.text}</Text>
                   {toast.detail ? <Text variant="meta">{toast.detail}</Text> : null}
@@ -105,6 +106,7 @@ const styles = StyleSheet.create({
   error: { borderColor: color.tally },
   dot: { width: 8, height: 8, borderRadius: 4, marginTop: 6, backgroundColor: color.screen },
   dotError: { backgroundColor: color.tally },
+  dotQuiet: { backgroundColor: color.slate },
   words: { flex: 1, gap: 2 },
   action: { minHeight: TOUCH, minWidth: TOUCH, justifyContent: "center", paddingHorizontal: space.s },
   actionText: { color: color.screen },

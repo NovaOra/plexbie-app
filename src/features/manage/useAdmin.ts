@@ -26,7 +26,9 @@ export function useAdminKey() {
  * `recheck`) at once, and keeps `id` busy until that's in, so it isn't simply tried again.
  * Several can be on their way at once, each busy until its own is in; another call with an
  * id that's still on its way is ignored (null, nothing toasted). A refusal because the
- * sign-in has ended signs out, as it does for a read. `onFail` hears the failure as toasted,
+ * sign-in has ended signs out, as it does for a read. When the bot changed nothing because it
+ * was already so (`changed: false`, a second press on a screen that hadn't caught up), the
+ * toast is a quiet note with the bot's sentence, not a success. `onFail` hears the failure as toasted,
  * for a sheet the toast would sit behind, and whether it was that no answer came.
  * `busy` is the latest id still on its way (or null); `isBusy(id)` asks about one.
  */
@@ -55,9 +57,11 @@ export function useAct() {
       const out = await call();
       if (out.ok === false) throw new Error(out.message || "That didn’t work.");
       const missed = out.told === false;
-      if (missed) haptic.error(); else if (opts.reward) haptic.reward(); else haptic.success();
+      const same = out.changed === false;
+      if (missed) haptic.error(); else if (same) haptic.select(); else if (opts.reward) haptic.reward(); else haptic.success();
       const t: ToastIn | null = missed ? { tone: "error", text: "Not delivered", detail: out.message || undefined }
-        : opts.done ? opts.done(out) : { text: out.message || "Done" };
+        : same ? { tone: "quiet", text: out.message || "Nothing changed" }
+          : opts.done ? opts.done(out) : { text: out.message || "Done" };
       if (t) toast(t);
       return out;
     } catch (e) {

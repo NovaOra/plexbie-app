@@ -90,6 +90,14 @@ test("yours: Let it go, and it says so, so a second press can't take it back", a
   expect(mockClient.ticketTake).toHaveBeenCalledWith(expect.any(String), "release");
 });
 
+test("a take the bot says changed nothing is a quiet note, not a success", async () => {
+  mockClient.ticketTake.mockResolvedValue({ ok: true, changed: false, message: "It isn’t yours, so there’s nothing to let go." });
+  await show();
+  await fireEvent.press(screen.getByRole("button", { name: "Let it go" }));
+  await settle();
+  expect(mockToast).toHaveBeenCalledWith({ tone: "quiet", text: "It isn’t yours, so there’s nothing to let go." });
+});
+
 test("until it's known who you are, the button can't flip the ticket", async () => {
   mockMe = { data: undefined, error: null, isFetching: true, refetch: mockRefetchMe };
   await show();
