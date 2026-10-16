@@ -8,7 +8,6 @@ import Animated, { FadeOut, LinearTransition } from "react-native-reanimated";
 import type { AppAdminRequest, AppAdminRequests } from "../../api/schemas";
 import { useApi } from "../../auth/session";
 import { Button } from "../../ui/Button";
-import { useConfirm } from "../../ui/Confirm";
 import { Poster } from "../../ui/Poster";
 import { Text } from "../../ui/Text";
 import { useToast } from "../../ui/Toast";
@@ -20,6 +19,7 @@ import { useAdminKey } from "./useAdmin";
 import { GlassFill, glass } from "../../ui/Glass";
 import { Placeholder } from "../../ui/Placeholder";
 import { KeyRow } from "../../ui/KeyRow";
+import { HoldButton } from "../../ui/HoldButton";
 
 export function useRequestsCount(enabled = true) {
   const client = useApi();
@@ -29,7 +29,6 @@ export function useRequestsCount(enabled = true) {
 }
 
 export function RequestsSection() {
-  const confirm = useConfirm();
   const client = useApi();
   const qc = useQueryClient();
   const toast = useToast();
@@ -67,11 +66,6 @@ export function RequestsSection() {
     onSettled: () => setTimeout(() => void qc.invalidateQueries({ queryKey: key }), 2500),
   });
 
-  const confirmDecline = (r: AppAdminRequest) =>
-    confirm(`Decline ${r.title}?`, `${r.requester} is told it won’t be added. This can’t be undone.`, [
-      { text: "Keep it", style: "cancel" },
-      { text: "Decline", style: "destructive", onPress: () => decide.mutate({ r, approve: false }) },
-    ]);
 
   const data = requests.data;
   if (!data) {
@@ -97,8 +91,8 @@ export function RequestsSection() {
           <KeyRow>
             <Button kind="secondary" label="Approve" onPress={() => decide.mutate({ r, approve: true })} style={card.grow}
               accessibilityLabel={`Approve ${r.title} for ${r.requester}`} />
-            <Button kind="danger" label="Decline" onPress={() => confirmDecline(r)} style={card.grow}
-              accessibilityLabel={`Decline ${r.title} for ${r.requester}`} />
+            <HoldButton kind="quiet" label="Decline" onConfirm={() => decide.mutate({ r, approve: false })} style={card.grow}
+              confirmText={`${r.requester} is told it won’t be added.`} accessibilityLabel={`Decline ${r.title} for ${r.requester}`} />
           </KeyRow>
         </Animated.View>
       )) : <AllClear title="All caught up">Every request has an answer. New ones show up here and in Discord.</AllClear>}

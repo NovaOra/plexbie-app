@@ -10,7 +10,6 @@ import type { AppAdminInvite, AppNewInvite, AppPlexInvite } from "../../api/sche
 import { useApi } from "../../auth/session";
 import { useAnnounce, useFocusHere } from "../../ui/announce";
 import { Button } from "../../ui/Button";
-import { useConfirm } from "../../ui/Confirm";
 import { Text } from "../../ui/Text";
 import { useToast } from "../../ui/Toast";
 import { QueryGate } from "../../ui/QueryGate";
@@ -22,6 +21,7 @@ import { useAct, useAdminKey } from "./useAdmin";
 import { GlassFill, glass } from "../../ui/Glass";
 import { KeyRow } from "../../ui/KeyRow";
 import { Segmented } from "../../ui/Segmented";
+import { HoldButton } from "../../ui/HoldButton";
 
 const LASTS = [1, 3, 7, 14];
 
@@ -40,14 +40,13 @@ export function InvitesSection({ fresh, onMade, onDone }: {
   onMade: (made: AppNewInvite) => void;
   onDone: (id: string) => void;
 }) {
-  const confirm = useConfirm();
   const client = useApi();
   const qc = useQueryClient();
   const keyOf = useAdminKey();
   const toast = useToast();
   const invites = useQuery({ queryKey: keyOf("invites"), queryFn: ({ signal }) => client.adminInvites(signal), staleTime: 30_000 });
   const plexInvites = useQuery({ queryKey: keyOf("plexinvites"), queryFn: ({ signal }) => client.plexInvites(signal), staleTime: 60_000 });
-  const { act } = useAct();
+  const { act, isBusy } = useAct();
   const [label, setLabel] = useState("");
   const [email, setEmail] = useState("");
   const [days, setDays] = useState(7);
@@ -102,28 +101,20 @@ export function InvitesSection({ fresh, onMade, onDone }: {
       setRenewing(null);
     }
   };
-  const revoke = (i: AppAdminInvite) =>
-    confirm(`Cancel ${i.label}’s invite?`, "The link stops working straight away.", [
-      { text: "Keep it", style: "cancel" },
-      { text: "Cancel invite", style: "destructive", onPress: async () => {
-        const out = await act(null, () => client.revokeInvite(i.id), { done: (o) => ({ text: `Cancelled ${i.label}’s invite`, detail: o.message || undefined }), refresh: ["invites"] });
-        if (out) {
-          onDone(i.id);
-          patchInvites((d) => d.map((x) => (x.id === i.id ? { ...x, status: "revoked" } : x)));
-        }
-      } },
-    ]);
-  const remove = (i: AppAdminInvite) =>
-    confirm(`Delete ${i.label}’s invite?`, "It’s removed from this list.", [
-      { text: "Keep it", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: async () => {
-        const out = await act(null, () => client.deleteInvite(i.id), { done: () => ({ text: `Deleted ${i.label}’s invite` }) });
-        if (out) {
-          onDone(i.id);
-          patchInvites((d) => d.filter((x) => x.id !== i.id));
-        }
-      } },
-    ]);
+  const revoke = async (i: AppAdminInvite) => {
+    const out = await act(`invite:${i.id}`, () => client.revokeInvite(i.id), { done: (o) => ({ text: `Cancelled ${i.label}’s invite`, detail: o.message || undefined }), refresh: ["invites"] });
+    if (out) {
+      onDone(i.id);
+      patchInvites((d) => d.map((x) => (x.id === i.id ? { ...x, status: "revoked" } : x)));
+    }
+  };
+  const remove = async (i: AppAdminInvite) => {
+    const out = await act(`invite:${i.id}`, () => client.deleteInvite(i.id), { done: () => ({ text: `Deleted ${i.label}’s invite` }) });
+    if (out) {
+      onDone(i.id);
+      patchInvites((d) => d.filter((x) => x.id !== i.id));
+    }
+  };
 
   const rows = invites.data;
   const active = (rows ?? []).filter((i) => i.status === "active");
@@ -176,7 +167,8 @@ export function InvitesSection({ fresh, onMade, onDone }: {
             <KeyRow>
               <Button kind="secondary" label="New link" busy={renewing === i.id} busyLabel="Making it…" onPress={() => void renew(i)} style={card.grow}
                 accessibilityLabel={`New link for ${i.label}`} />
-              <Button kind="danger" label="Cancel" onPress={() => revoke(i)} style={card.grow} accessibilityLabel={`Cancel ${i.label}’s invite`} />
+              <HoldButton kind="quiet" label="Cancel" ms={800} busy={isBusy(`invite:${i.id}`)} blocked={renewing === i.id} onConfirm={() => void revoke(i)} style={card.grow}
+                confirmText="The link stops working straight away." accessibilityLabel={`Cancel ${i.label}’s invite`} />
             </KeyRow>
           </View>
         )) : <AllClear title="No open invites">Make one above when someone needs to get in without Discord.</AllClear>}
@@ -202,7 +194,8 @@ export function InvitesSection({ fresh, onMade, onDone }: {
               <KeyRow>
                 <Button kind="secondary" label={i.status === "used" ? "Invite again" : "New link"} busy={renewing === i.id} busyLabel="Making it…"
                   onPress={() => void renew(i)} style={card.grow} accessibilityLabel={`${i.status === "used" ? "Invite again" : "New link"} for ${i.label}`} />
-                {i.status === "used" ? null : <Button kind="danger" label="Delete" onPress={() => remove(i)} style={card.grow} accessibilityLabel={`Delete ${i.label}’s invite`} />}
+                {i.status === "used" ? null : <HoldButton kind="quiet" label="Delete" ms={700} busy={isBusy(`invite:${i.id}`)} blocked={renewing === i.id}
+                  onConfirm={() => void remove(i)} style={card.grow} accessibilityLabel={`Delete ${i.label}’s invite`} />}
               </KeyRow>
             </View>
           ))}
@@ -244,7 +237,6 @@ function FreshLink({ made, last, onDone }: { made: AppNewInvite; last: boolean; 
 
 /** Invites sent on plex.tv that nobody has accepted: fix a wrong address, or take one back. */
 function PlexInvites({ rows }: { rows: AppPlexInvite[] }) {
-  const confirm = useConfirm();
   const client = useApi();
   const qc = useQueryClient();
   const key = useAdminKey()("plexinvites");
@@ -263,14 +255,10 @@ function PlexInvites({ rows }: { rows: AppPlexInvite[] }) {
   };
   // An invite to a Plex username has no email: its name tells it apart, and only plex.tv can change or cancel it.
   const title = (i: AppPlexInvite) => i.who || i.email || i.name || "A Plex invite";
-  const cancel = (i: AppPlexInvite) =>
-    confirm(`Cancel the Plex invite to ${title(i)}?`, "The invite on plex.tv is withdrawn.", [
-      { text: "Keep it", style: "cancel" },
-      { text: "Cancel invite", style: "destructive", onPress: async () => {
-        const out = await act(null, () => client.plexInviteCancel(i.email));
-        if (out) patch((d) => d.filter((x) => x.email !== i.email));
-      } },
-    ]);
+  const cancel = async (i: AppPlexInvite) => {
+    const out = await act(`cancel:${i.email}`, () => client.plexInviteCancel(i.email));
+    if (out) patch((d) => d.filter((x) => x.email !== i.email));
+  };
 
   return (
     <>
@@ -301,7 +289,8 @@ function PlexInvites({ rows }: { rows: AppPlexInvite[] }) {
             <KeyRow>
               <Button kind="secondary" label="Change email" onPress={() => { setEditing(i.email); setNext(""); }} style={card.grow}
                 accessibilityLabel={`Change email for ${title(i)}`} />
-              <Button kind="danger" label="Cancel" onPress={() => cancel(i)} style={card.grow} accessibilityLabel={`Cancel the Plex invite to ${title(i)}`} />
+              <HoldButton kind="quiet" label="Cancel" ms={800} busy={isBusy(`cancel:${i.email}`)} blocked={isBusy(i.email)} onConfirm={() => void cancel(i)} style={card.grow}
+                confirmText="The invite on plex.tv is withdrawn." accessibilityLabel={`Cancel the Plex invite to ${title(i)}`} />
             </KeyRow>
           )}
         </View>

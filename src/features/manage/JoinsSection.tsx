@@ -6,7 +6,6 @@ import Animated, { FadeOut, LinearTransition } from "react-native-reanimated";
 import type { AppAdminJoin } from "../../api/schemas";
 import { useApi } from "../../auth/session";
 import { Button } from "../../ui/Button";
-import { useConfirm } from "../../ui/Confirm";
 import { Text } from "../../ui/Text";
 import { since } from "../requests/stage";
 import { AllClear, Heading, Initial, Pill, card } from "./bits";
@@ -15,6 +14,7 @@ import { GlassFill, glass } from "../../ui/Glass";
 import { QueryGate } from "../../ui/QueryGate";
 import { radius } from "../../ui/theme";
 import { KeyRow } from "../../ui/KeyRow";
+import { HoldButton } from "../../ui/HoldButton";
 
 export function useJoins(enabled = true) {
   const client = useApi();
@@ -23,7 +23,6 @@ export function useJoins(enabled = true) {
 }
 
 export function JoinsSection() {
-  const confirm = useConfirm();
   const client = useApi();
   const qc = useQueryClient();
   const key = useAdminKey()("joins");
@@ -40,11 +39,6 @@ export function JoinsSection() {
     });
     if (out) qc.setQueryData<AppAdminJoin[]>(key, (d) => d?.map((x) => (x.key === j.key ? { ...x, status: approve ? "approved" : "denied" } : x)));
   };
-  const confirmDeny = (j: AppAdminJoin) =>
-    confirm(`Deny ${j.name}?`, "They’re told they won’t be added to Plex.", [
-      { text: "Keep it", style: "cancel" },
-      { text: "Deny", style: "destructive", onPress: () => void decide(j, false) },
-    ]);
 
   return (
     <>
@@ -64,8 +58,8 @@ export function JoinsSection() {
             <KeyRow>
               <Button kind="secondary" label="Invite to Plex" busy={isBusy(j.key)} busyLabel="Inviting…" onPress={() => void decide(j, true)} style={card.grow}
                 accessibilityLabel={`Invite ${j.name} to Plex`} />
-              <Button kind="danger" label="Deny" disabled={isBusy(j.key)} onPress={() => confirmDeny(j)} style={card.grow}
-                accessibilityLabel={`Deny ${j.name}`} />
+              <HoldButton kind="quiet" label="Deny" blocked={isBusy(j.key)} onConfirm={() => void decide(j, false)} style={card.grow}
+                confirmText="They’re told they won’t be added to Plex." accessibilityLabel={`Deny ${j.name}`} />
             </KeyRow>
           ) : <Text variant="meta">Answer this one in Discord.</Text>}
         </Animated.View>

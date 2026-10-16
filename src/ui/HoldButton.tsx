@@ -5,7 +5,7 @@
 // A screen reader, a switch, voice or a keyboard press it the same way: twice.
 // The fill is a transform on the UI thread; the words change a handful of times a hold.
 import { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Platform, Pressable, StyleSheet, View } from "react-native";
+import { AccessibilityInfo, Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import Animated, {
   cancelAnimation, Easing, ReduceMotion, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming,
 } from "react-native-reanimated";
@@ -19,7 +19,7 @@ const TAP_MS = 300;
 /** How long it stays armed waiting for the second press. */
 const ARMED_MS = 4000;
 
-export function HoldButton({ label, onConfirm, ms = 1000, stages = [], bail, disabled, busy = false, blocked = false, kind = "secondary", confirmText }: {
+export function HoldButton({ label, onConfirm, ms = 1000, stages = [], bail, disabled, busy = false, blocked = false, kind = "secondary", confirmText, accessibilityLabel, style }: {
   label: string;
   onConfirm: () => void;
   ms?: number;
@@ -36,6 +36,9 @@ export function HoldButton({ label, onConfirm, ms = 1000, stages = [], bail, dis
   kind?: "secondary" | "primary" | "quiet";
   /** What it does, said with the hint for a screen reader. */
   confirmText?: string;
+  /** What it acts on, in full ("Decline Sintel for Sam"); its name is "Hold to decline Sintel for Sam". */
+  accessibilityLabel?: string;
+  style?: StyleProp<ViewStyle>;
 }) {
   const fill = useSharedValue(0);
   const width = useSharedValue(0);
@@ -58,6 +61,7 @@ export function HoldButton({ label, onConfirm, ms = 1000, stages = [], bail, dis
   const isArmed = useRef(false);
   const reader = useRef(false);
   const off = !!disabled || busy || blocked;
+  const what = accessibilityLabel ?? label;
   const latest = useRef({ onConfirm, off });
   const clear = () => { timers.current.forEach(clearTimeout); timers.current = []; };
   useEffect(() => () => { clear(); clearTimeout(armTimer.current); }, []);
@@ -77,7 +81,7 @@ export function HoldButton({ label, onConfirm, ms = 1000, stages = [], bail, dis
     setArmed(on);
     if (on) {
       armTimer.current = setTimeout(() => arm(false), ARMED_MS);
-      AccessibilityInfo.announceForAccessibility(`Press again to confirm: ${label}`);
+      AccessibilityInfo.announceForAccessibility(`Press again to confirm: ${what}`);
     }
   };
   const confirm = () => {
@@ -193,10 +197,10 @@ export function HoldButton({ label, onConfirm, ms = 1000, stages = [], bail, dis
       disabled={off}
       accessibilityRole="button"
       // The name starts with the words on it, so "tap Hold to import it" works for voice control.
-      accessibilityLabel={armed ? `Again to confirm: ${label}` : `Hold to ${label.toLowerCase()}`}
+      accessibilityLabel={armed ? `Again to confirm: ${what}` : `Hold to ${what.charAt(0).toLowerCase()}${what.slice(1)}`}
       accessibilityHint={`${confirmText ? `${confirmText} ` : ""}Press and hold, or press twice, to confirm.`}
       accessibilityState={{ disabled: off, busy }}
-      style={[styles.button, quiet ? styles.pill : styles.key, face, sunk && !reduced && styles.down]}
+      style={[styles.button, quiet ? styles.pill : styles.key, face, sunk && !reduced && styles.down, style]}
     >
       <View style={styles.labelBox} pointerEvents="none">
         <Text style={[quiet ? type.quiet : type.button, styles.label, { color: ink }]} numberOfLines={large ? undefined : 1}>{words}</Text>

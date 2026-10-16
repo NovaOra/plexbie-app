@@ -26,9 +26,6 @@ jest.mock("../../../ui/haptics", () => ({ tap: () => undefined, select: () => un
 jest.mock("../../../ui/Glass", () => ({ GlassFill: () => null, glass: { surface: {} } }));
 const mockToast = jest.fn();
 jest.mock("../../../ui/Toast", () => ({ useToast: () => mockToast }));
-type Choice = { style?: string; onPress?: () => unknown };
-const mockConfirm = jest.fn<(title: string, message: string, choices: Choice[]) => void>();
-jest.mock("../../../ui/Confirm", () => ({ useConfirm: () => mockConfirm }));
 
 const mockClient = {
   adminInvites: jest.fn<() => Promise<AppAdminInvite[]>>(),
@@ -143,11 +140,12 @@ test("a new link for the same invite replaces the card whose link stopped workin
 test("cancelling an invite takes its new link away", async () => {
   mockClient.createInvite.mockResolvedValue(made("m1", "Mum"));
   mockClient.revokeInvite.mockResolvedValue({ ok: true, message: "" });
-  mockConfirm.mockImplementationOnce((_t, _m, choices) => void choices.find((c) => c.style === "destructive")?.onPress?.());
   await show();
   await fillAndMake("Mum");
   await settle();
-  await fireEvent.press(screen.getByLabelText("Cancel Mum’s invite"));
+  // A hold, or two presses: the first arms it, the second cancels.
+  await fireEvent.press(screen.getByLabelText("Hold to cancel Mum’s invite"));
+  await fireEvent.press(screen.getByLabelText("Again to confirm: Cancel Mum’s invite"));
   await settle();
   expect(mockClient.revokeInvite).toHaveBeenCalledWith("m1");
   expect(screen.queryByText("https://plexbie.example/invite/m1")).toBeNull();
@@ -192,7 +190,7 @@ test("Plex invites sent to a username show by name and point to plex.tv", async 
   // Only the invite with an address can be changed or cancelled from here.
   expect(screen.getAllByText("Change email")).toHaveLength(1);
   expect(screen.getByLabelText("Change email for Jo")).toBeTruthy();
-  expect(screen.getAllByLabelText(/^Cancel the Plex invite/)).toHaveLength(1);
+  expect(screen.getAllByLabelText(/^Hold to cancel the Plex invite/)).toHaveLength(1);
   // Each row has a key of its own.
   expect(errors.mock.calls.some((c) => String(c[0]).includes("same key"))).toBe(false);
   errors.mockRestore();

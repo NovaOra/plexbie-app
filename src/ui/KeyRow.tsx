@@ -6,7 +6,7 @@ import { StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle }
 import { keyWidth } from "./keyFit";
 import { space } from "./theme";
 
-type KeyProps = { label?: string; busyLabel?: string; kind?: string; style?: StyleProp<ViewStyle> };
+type KeyProps = { label?: string; busyLabel?: string; kind?: string; onConfirm?: unknown; style?: StyleProp<ViewStyle> };
 
 export function KeyRow({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   const [width, setWidth] = useState(0);
@@ -16,7 +16,9 @@ export function KeyRow({ children, style }: { children: ReactNode; style?: Style
   // The longer of its words and its busy words (with the spinner beside them), so a press never flips the layout.
   const widest = ({ props: k }: ReactElement<KeyProps>) => {
     const padding = k.kind === "quiet" ? space.l * 2 : 40;
-    return Math.max(k.label ? keyWidth(k.label, fontScale, { padding }) : 0, k.busyLabel ? keyWidth(k.busyLabel, fontScale, { padding }) + 28 : 0);
+    // A hold button reads "Hold to decline", not "Decline".
+    const words = k.label && k.onConfirm ? `Hold to ${k.label}` : k.label;
+    return Math.max(words ? keyWidth(words, fontScale, { padding }) : 0, k.busyLabel ? keyWidth(k.busyLabel, fontScale, { padding }) + 28 : 0);
   };
   // Until it's measured, side by side (most pairs fit).
   const side = !width || keys.every((k) => widest(k) <= share);

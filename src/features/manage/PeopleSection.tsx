@@ -1,6 +1,6 @@
 // Manage → People: everyone the server is shared with, closest to removal first. Rename,
 // link or unlink Discord, say which Plex account a missing person really is (a pick, then a
-// confirm), keep someone forever (with Undo), or remove them from Plex (after a confirm).
+// confirm), keep someone forever (with Undo), or remove them from Plex (hold, or press twice).
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, KeyboardAvoidingView, Modal, Platform, StyleSheet, View } from "react-native";
@@ -23,6 +23,7 @@ import { GlassFill, glass } from "../../ui/Glass";
 import { KEYBOARD_BEHAVIOR } from "../../ui/keyboard";
 import type { ToastIn } from "../../ui/Toast";
 import { KeyRow } from "../../ui/KeyRow";
+import { HoldButton } from "../../ui/HoldButton";
 
 export function PeopleSection() {
   const confirm = useConfirm();
@@ -101,20 +102,10 @@ export function PeopleSection() {
         { text: "Not them", style: "cancel" },
         { text: "That’s them", onPress: () => match(p, account) },
       ]);
-  const remove = (p: AppAdminPerson) =>
-    confirm(
-      p.hasAccess === false ? `Forget ${p.displayName || p.plexName}?` : `Remove ${p.displayName || p.plexName} from Plex?`,
-      p.hasAccess === false
-        ? "They aren’t on Plex (they never accepted the invite, or already left). Plexbie stops tracking them and takes back an invite that’s still waiting."
-        : "Their access to the server ends now, and they’re told. This can’t be undone from here.", [
-      { text: "Keep them", style: "cancel" },
-      {
-        text: p.hasAccess === false ? "Forget" : "Remove", style: "destructive", onPress: async () => {
-          const out = await act(p.plexName, () => client.removePerson(p.plexName), { done: (o) => ({ text: p.hasAccess === false ? `Forgot ${p.plexName}` : `Removed ${p.plexName}`, detail: o.message || undefined }) });
-          if (out) patch((d) => d.filter((x) => x.plexName !== p.plexName));
-        },
-      },
-    ]);
+  const remove = async (p: AppAdminPerson) => {
+    const out = await act(p.plexName, () => client.removePerson(p.plexName), { done: (o) => ({ text: p.hasAccess === false ? `Forgot ${p.plexName}` : `Removed ${p.plexName}`, detail: o.message || undefined }) });
+    if (out) patch((d) => d.filter((x) => x.plexName !== p.plexName));
+  };
 
   return (
     <>
@@ -207,7 +198,9 @@ export function PeopleSection() {
                 <SwitchRow label={`Never remove, ${name}`} value={!!p.neverRemove} onValueChange={(on) => void keep(p, on)} style={styles.keep}>
                   <Text variant="label">Never remove</Text>
                 </SwitchRow>
-                <Button kind="danger" label="Remove" disabled={isBusy(p.plexName)} onPress={() => remove(p)} accessibilityLabel={`Remove ${name} from Plex`} />
+                <HoldButton kind="quiet" label={p.hasAccess === false ? "Forget" : "Remove"} ms={1400} busy={isBusy(p.plexName)} onConfirm={() => void remove(p)}
+                  confirmText={p.hasAccess === false ? "Plexbie stops tracking them and takes back an invite that’s still waiting." : "Their access to the server ends now, and they’re told."}
+                  accessibilityLabel={p.hasAccess === false ? `Forget ${name}` : `Remove ${name} from Plex`} />
               </View>
             )}
           </View>
