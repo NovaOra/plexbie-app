@@ -4,7 +4,7 @@
 import { StyleSheet, View } from "react-native";
 import type { AppTicketEntry } from "../../api/schemas";
 import { Text } from "../../ui/Text";
-import { color, font, radius, space } from "../../ui/theme";
+import { color, font, radius, space, tint } from "../../ui/theme";
 import { formatSlot, since } from "../requests/stage";
 
 const AMBER = "#f2c66d";
@@ -56,13 +56,13 @@ export function Thread({ entries, who, admin }: { entries: AppTicketEntry[]; who
 const styles = StyleSheet.create({
   list: { gap: space.s },
   entry: { gap: space.xs, padding: space.m, borderRadius: radius.m, backgroundColor: color.panelRaised, borderWidth: 1, borderColor: "transparent" },
-  note: { backgroundColor: "rgba(229, 160, 13, 0.1)", borderColor: "rgba(229, 160, 13, 0.35)" },
+  note: { backgroundColor: tint(color.note, 0.1), borderColor: tint(color.note, 0.35) },
   reply: { backgroundColor: "rgba(255, 209, 228, 0.08)", borderColor: "rgba(255, 209, 228, 0.3)" },
   action: { backgroundColor: "transparent", borderColor: color.rule },
   head: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: space.s },
   by: { color: color.ink },
   tag: { fontFamily: font.bold, fontSize: 12, lineHeight: 16, paddingHorizontal: space.s, paddingVertical: 1, borderRadius: radius.pill, overflow: "hidden" },
-  tagNote: { color: AMBER, backgroundColor: "rgba(229, 160, 13, 0.16)" },
+  tagNote: { color: AMBER, backgroundColor: tint(color.note, 0.16) },
   tagReply: { color: color.screen, backgroundColor: "rgba(255, 209, 228, 0.14)" },
   tagMissed: { color: color.tally, backgroundColor: "rgba(255, 92, 147, 0.14)" },
   text: { color: color.ink },
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
 
 const pill = StyleSheet.create({
   hot: { backgroundColor: "rgba(255, 92, 147, 0.14)", color: color.tally },
-  wait: { backgroundColor: "rgba(229, 160, 13, 0.16)", color: AMBER },
+  wait: { backgroundColor: tint(color.note, 0.16), color: AMBER },
   done: { backgroundColor: "rgba(255, 209, 228, 0.16)", color: color.screen },
   plain: { backgroundColor: color.panelRaised, color: color.slateInk },
 });
