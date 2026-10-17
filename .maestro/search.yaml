@@ -2,7 +2,7 @@
 appId: com.plexbie.app
 ---
 - runFlow: subflows/sample.yaml
-- tapOn: "Request"
+- tapOn: "Find"
 - tapOn: "Search films, shows and books"
 - inputText: "spring"
 - hideKeyboard

@@ -4,7 +4,7 @@ tags: [smoke]
 ---
 - runFlow: subflows/sample.yaml
 - assertVisible: "Sintel, added .*"
-- tapOn: "Request"
+- tapOn: "Find"
 - assertVisible: "Search films, shows and books"
 - assertVisible: "Trending films"
 - tapOn: "Requests"

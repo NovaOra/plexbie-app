@@ -9,7 +9,8 @@ import { color } from "../../ui/theme";
 // accessibility and its haptics, nothing rebuilt in JS. Tab switches don't animate.
 // On iOS 26 it's the floating Liquid Glass bar, so it gets no colour of its own (a
 // background would make it opaque), and it tucks away as you scroll down a page.
-// Five at most (Android's bottom navigation holds five): You opens from Home's header. Someone signed in who isn't on Plex yet
+// Five at most (Android's bottom navigation holds five): You opens from Home's header.
+// Search is "Find", so it never sits as "Request" beside "Requests". Someone signed in who isn't on Plex yet
 // sees the join screen instead: there's nothing in the tabs they're allowed to load.
 export default function AppTabs() {
   const me = useMe();
@@ -29,7 +30,7 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Icon sf="tv" md="live_tv" />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="search">
-        <NativeTabs.Trigger.Label>Request</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>Find</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="magnifyingglass" md="search" />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="requests">

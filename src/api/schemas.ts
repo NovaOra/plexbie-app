@@ -538,7 +538,7 @@ export type AppRelease = NonNullable<z.infer<typeof AppReleaseSchema>>;
 export const DownloadLinkSchema = z.looseObject({ url: z.string(), version: z.string().catch("") });
 
 
-/** The Request tab's shelves (GET /api/discover/<kind>): Trending, Popular, Coming soon, Top rated, and genres. */
+/** The Find tab's shelves (GET /api/discover/<kind>): Trending, Popular, Coming soon, Top rated, and genres. */
 export const DiscoverSchema = z.looseObject({
   shelves: z.array(z.looseObject({ key: z.string(), title: z.string(), titles: TitlesSchema, more: z.boolean().catch(false) })).catch([]),
   genres: z.array(z.looseObject({ id: z.number(), name: z.string() })).catch([]),

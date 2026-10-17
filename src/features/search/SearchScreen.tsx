@@ -1,4 +1,4 @@
-// The Request tab: one search box for films, shows and books, three small dropdowns
+// The Find tab: one search box for films, shows and books, three small dropdowns
 // (Type, Language, Genre), and the results grouped, or things to browse when nothing's
 // typed (features/search/Discover). The same as the website's Request page.
 import { useEffect, useState } from "react";
@@ -34,8 +34,8 @@ export function SearchScreen() {
         keyboardDismissMode="on-drag"
       >
         <View style={styles.header}>
-          <ScreenTitle>Request</ScreenTitle>
-          <Text variant="body">Find a film, show or book and ask for it. An admin approves every request first.</Text>
+          <ScreenTitle>Find</ScreenTitle>
+          <Text variant="body">Look up a film, show or book and ask for it. An admin approves every request first.</Text>
           {/* On iOS the box is a glass capsule, as the system's own search fields are. */}
           <View style={[styles.field, glass.surface]}>
           <GlassFill radius={TOUCH / 2} />

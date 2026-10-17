@@ -1,4 +1,4 @@
-// The Request tab's Language dropdown: the pick is kept with their account. When the save
+// The Find tab's Language dropdown: the pick is kept with their account. When the save
 // fails, it says so (the dropdown goes back to what was saved), and when it failed because
 // the sign-in has ended, the app signs out as it does for any other answer like that.
 // A shelf's More: a page that fails leaves the button for another go, and a screen reader

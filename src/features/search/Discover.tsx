@@ -1,4 +1,4 @@
-// The Request tab under the search box: three small dropdowns (Type, Language, Genre),
+// The Find tab under the search box: three small dropdowns (Type, Language, Genre),
 // then either the search's results, grouped (films, shows, books), or things to browse
 // from Seerr (TMDB): Trending, Popular, Coming soon and Top rated, films and shows
 // together. The same as the website's Request page.

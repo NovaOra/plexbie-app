@@ -2,7 +2,7 @@
 appId: com.plexbie.app
 ---
 - runFlow: subflows/sample.yaml
-- tapOn: "Request"
+- tapOn: "Find"
 - scrollUntilVisible:
     element: "Zombies of the Stratosphere, 1952.*"
     centerElement: true
