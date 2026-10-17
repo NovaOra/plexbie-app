@@ -3,7 +3,7 @@
 // name), and "Open a ticket", which goes on Manage → Tickets like a member's would.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { StyleSheet, TextInput, View } from "react-native";
 import type { HelpSearch } from "../../api/client";
 import type { AppAdminRequestDetail, AppAdminTicket } from "../../api/schemas";
@@ -39,8 +39,9 @@ export function AdminRequestScreen() {
   return <AdminRequestBody id={id} />;
 }
 
-/** The request itself: on its own page, or `embedded` in Manage's detail sheet or pane. */
-export function AdminRequestBody({ id, embedded = false }: { id: string; embedded?: boolean }) {
+/** The request itself: on its own page, or `embedded` in Manage's detail sheet or pane, where
+ *  the sheet's own keys (`actions`) go under the title and who asked, before anything else. */
+export function AdminRequestBody({ id, embedded = false, actions }: { id: string; embedded?: boolean; actions?: ReactNode }) {
   const client = useApi();
   const key = useAdminKey();
   const qc = useQueryClient();
@@ -81,7 +82,14 @@ export function AdminRequestBody({ id, embedded = false }: { id: string; embedde
     after();
   };
 
-  if (!r) return <DetailFallback error={error} errorTitle="Couldn’t load this request." onRetry={() => void refetch()} offline={fetchStatus === "paused"} embedded={embedded} />;
+  if (!r) {
+    return (
+      <>
+        <DetailFallback error={error} errorTitle="Couldn’t load this request." onRetry={() => void refetch()} offline={fetchStatus === "paused"} embedded={embedded} />
+        {actions}
+      </>
+    );
+  }
 
   // Only an approved request can be searched for (not one waiting for a decision, or declined).
   const video = (r.title.kind === "tv" || r.title.kind === "movie") && !["requested", "declined", "closed"].includes(r.stage);
@@ -98,6 +106,8 @@ export function AdminRequestBody({ id, embedded = false }: { id: string; embedde
           {seasonsLabel(r.seasons, { long: true }) ? <Text variant="meta">{seasonsLabel(r.seasons, { long: true })}</Text> : null}
           <Text variant="meta">Asked {since(r.requestedAt)} by {r.requester} · via {r.via}</Text>
         </TitleHead>
+
+        {actions}
 
         <StuckBox stuck={r.stuck} ticketShown={!!openTicket} />
 

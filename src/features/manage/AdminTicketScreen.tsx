@@ -5,7 +5,7 @@
 // last word, or reopen it.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Linking, StyleSheet, TextInput, View } from "react-native";
 import type { HelpSearch } from "../../api/client";
 import type { Ack } from "../../api/schemas";
@@ -33,8 +33,9 @@ export function AdminTicketScreen() {
   return <AdminTicketBody id={id} />;
 }
 
-/** The ticket itself: on its own page, or `embedded` in Manage's detail sheet or pane. */
-export function AdminTicketBody({ id, embedded = false }: { id: string; embedded?: boolean }) {
+/** The ticket itself: on its own page, or `embedded` in Manage's detail sheet or pane, where
+ *  the sheet's own keys (`actions`) go under the title and who asked, before anything else. */
+export function AdminTicketBody({ id, embedded = false, actions }: { id: string; embedded?: boolean; actions?: ReactNode }) {
   const client = useApi();
   const key = useAdminKey();
   const qc = useQueryClient();
@@ -65,7 +66,14 @@ export function AdminTicketBody({ id, embedded = false }: { id: string; embedded
     return !!out;
   };
 
-  if (!t) return <DetailFallback error={error} errorTitle="Couldn’t load this ticket." onRetry={() => void refetch()} offline={fetchStatus === "paused"} embedded={embedded} />;
+  if (!t) {
+    return (
+      <>
+        <DetailFallback error={error} errorTitle="Couldn’t load this ticket." onRetry={() => void refetch()} offline={fetchStatus === "paused"} embedded={embedded} />
+        {actions}
+      </>
+    );
+  }
 
   const state = ticketState(t);
   const open = t.status === "open";
@@ -109,6 +117,8 @@ export function AdminTicketBody({ id, embedded = false }: { id: string; embedded
             <Text variant="meta">{asked} {since(t.createdAt)}</Text>
           </View>
         )}
+
+        {actions}
 
         <View style={styles.owner}>
           <View style={card.pills}>

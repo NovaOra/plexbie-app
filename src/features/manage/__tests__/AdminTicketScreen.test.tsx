@@ -6,10 +6,10 @@
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import { Linking } from "react-native";
+import { Linking, Text } from "react-native";
 import { titleTicket } from "../../../api/__fixtures__/bot";
 import type { Ack, AppAdminTicketDetail } from "../../../api/schemas";
-import { AdminTicketScreen } from "../AdminTicketScreen";
+import { AdminTicketBody, AdminTicketScreen } from "../AdminTicketScreen";
 
 const mockPush = jest.fn();
 jest.mock("expo-router", () => ({
@@ -80,6 +80,16 @@ const show = async (title = "Big Buck Bunny") => {
   await render(<QueryClientProvider client={qc}><AdminTicketScreen /></QueryClientProvider>);
   await screen.findByRole("header", { name: title });
 };
+/** Where each piece of text first appears on the screen, top to bottom. */
+const at = (text: string) => JSON.stringify(screen.toJSON()).indexOf(text);
+
+test("in Manage's sheet, its keys come under the title and who asked, before who has it", async () => {
+  await render(<QueryClientProvider client={qc}><AdminTicketBody id="abc123abc123" embedded actions={<Text>Sheet keys</Text>} /></QueryClientProvider>);
+  await screen.findByRole("header", { name: "Big Buck Bunny" });
+  expect(at("Sheet keys")).toBeGreaterThan(at("Asked by "));
+  expect(at("has it")).toBeGreaterThan(at("Sheet keys"));
+});
+
 const disabled = (name: string) => !!screen.getByRole("button", { name }).props.accessibilityState?.disabled;
 
 test("yours: Let it go, and it says so, so a second press can't take it back", async () => {

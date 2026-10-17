@@ -48,7 +48,9 @@ jest.mock("../../../ui/Glass", () => ({ Ambient: () => null, GlassFill: () => nu
 jest.mock("../../../ui/StatusBarScrim", () => ({ StatusBarScrim: () => null }));
 jest.mock("../../../ui/Toast", () => ({ useToast: () => () => undefined }));
 // The full views and the ticket and request pages, each as its name.
-function mockNamed(name: string) { return ({ id }: { id?: string }) => <MockText>{`${name}${id ? ` ${id}` : ""}`}</MockText>; }
+function mockNamed(name: string) {
+  return ({ id, actions }: { id?: string; actions?: unknown }) => <>{[<MockText key="name">{`${name}${id ? ` ${id}` : ""}`}</MockText>, actions as never]}</>;
+}
 jest.mock("../TicketsSection", () => ({ TicketsSection: mockNamed("Tickets section") }));
 jest.mock("../RequestsSection", () => ({ RequestsSection: mockNamed("Requests section") }));
 jest.mock("../AllRequestsSection", () => ({ AllRequestsSection: mockNamed("All requests section") }));
@@ -134,6 +136,21 @@ test("a row opens its detail in a sheet, and Android's Back closes it rather tha
   expect(screen.queryByText(/^Ticket page /)).toBeNull();
   expect(remove).toHaveBeenCalled();
   listen.mockRestore();
+});
+
+test("a request's sheet puts Approve and Hold to decline under the request's own head", async () => {
+  await desk();
+  await fireEvent.press(screen.getByRole("button", { name: /^Request.*Undersea Kingdom/ }));
+  // The words on screen, top to bottom.
+  type Node = { children?: (Node | string)[] | null; props?: { accessibilityLabel?: string } };
+  const words = (n: Node | string | null): string => typeof n === "string" ? n
+    : !n ? "" : `${n.props?.accessibilityLabel ?? ""} ${(n.children ?? []).map(words).join(" ")}`;
+  const tree = screen.toJSON() as Node | Node[] | null;
+  const sheet = (Array.isArray(tree) ? tree : [tree]).map(words).join(" ");
+  const page = sheet.indexOf("Request page ");
+  expect(page).toBeGreaterThan(-1);
+  expect(sheet.indexOf("Hold to decline", page)).toBeGreaterThan(page);
+  expect(screen.getAllByRole("button", { name: "Approve" }).length).toBeGreaterThan(0);
 });
 
 test("Waiting and Done show what's waiting on members and what was done lately", async () => {

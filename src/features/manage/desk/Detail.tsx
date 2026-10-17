@@ -1,6 +1,8 @@
 // One thing from the queue in full: on a phone, a sheet that rises over the desk; on a
 // wide screen, a pane beside the queue. Its main key is the sheet's one pink key, its next
-// a quiet pill; a ticket or a request shows its own page's insides under them.
+// a quiet pill. Every kind reads in the same order: what it is (the poster, the title, who
+// asked), then its keys, then the rest; a ticket or a request shows its own page's insides,
+// with the keys put in under its head.
 import { router } from "expo-router";
 import { useEffect, type ReactNode } from "react";
 import { BackHandler, Pressable, ScrollView, StyleSheet, View } from "react-native";
@@ -102,8 +104,7 @@ function DetailBody({ item, a, full }: { item: Item; a: DeskActions; full: OpenF
     case "ticket":
       return (
         <>
-          {item.group === "waiting" ? acts(pill("Stop waiting", () => a.reopen(src.t))) : null}
-          <AdminTicketBody id={src.t.id} embedded />
+          <AdminTicketBody id={src.t.id} embedded actions={item.group === "waiting" ? acts(pill("Stop waiting", () => a.reopen(src.t))) : null} />
           {pill("Open the full ticket", () => router.push({ pathname: "/manage-ticket/[id]", params: { id: src.t.id } }))}
         </>
       );
@@ -126,15 +127,14 @@ function DetailBody({ item, a, full }: { item: Item; a: DeskActions; full: OpenF
       }
       return (
         <>
-          {acts(key("Approve", () => a.approve(src.r, true)), hold("Decline", () => a.approve(src.r, false)))}
-          <AdminRequestBody id={src.r.id} embedded />
+          <AdminRequestBody id={src.r.id} embedded actions={acts(key("Approve", () => a.approve(src.r, true)), hold("Decline", () => a.approve(src.r, false)))} />
         </>
       );
     case "stuck":
       return (
         <>
-          {acts(["tv", "movie"].includes(src.r.title.kind) ? key("Search again", () => a.searchRequest(src.r)) : null, pill("All requests", () => full("all")))}
-          <AdminRequestBody id={src.r.id!} embedded />
+          <AdminRequestBody id={src.r.id!} embedded
+            actions={acts(["tv", "movie"].includes(src.r.title.kind) ? key("Search again", () => a.searchRequest(src.r)) : null, pill("All requests", () => full("all")))} />
         </>
       );
     case "chat":

@@ -4,7 +4,8 @@ import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { AdminRequestDetailSchema, type Ack, type AppAdminRequestDetail } from "../../../api/schemas";
-import { AdminRequestScreen } from "../AdminRequestScreen";
+import { Text } from "react-native";
+import { AdminRequestBody, AdminRequestScreen } from "../AdminRequestScreen";
 
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => ({ key: "5001" }),
@@ -59,6 +60,17 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => { await new Promise((r) => setTimeout(r, 1600)); });
   qc.clear();
+});
+
+/** Where each piece of text first appears on the screen, top to bottom. */
+const at = (text: string) => JSON.stringify(screen.toJSON()).indexOf(text);
+
+test("in Manage's sheet, its keys come under the title and who asked, before the rest", async () => {
+  await render(<QueryClientProvider client={qc}><AdminRequestBody id="5001" embedded actions={<Text>Sheet keys</Text>} /></QueryClientProvider>);
+  await screen.findByText("Big Buck Bunny");
+  expect(at("Asked ")).toBeGreaterThan(at("Big Buck Bunny"));
+  expect(at("Sheet keys")).toBeGreaterThan(at("Asked "));
+  expect(at("Open a ticket")).toBeGreaterThan(at("Sheet keys"));
 });
 
 test("a ticket opened during a search leaves the spinner on that search", async () => {
