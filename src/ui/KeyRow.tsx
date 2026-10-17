@@ -1,7 +1,7 @@
 // Keys that belong together (Back and Save, Approve and Decline): side by side, sharing the
-// width equally when every label fits on one line in its share; side by side in proportion
-// to their words when only that fits; otherwise one under another, full width. A label never
-// wraps inside a key.
+// width equally when every label fits on one line in its share; otherwise one under another,
+// full width and the same height (a key and a pill alike). Never a wide key over a short pill,
+// and a label never wraps inside a key.
 import { Children, cloneElement, Fragment, isValidElement, useState, type ReactElement, type ReactNode } from "react";
 import { StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from "react-native";
 import { EM_KEY, EM_PILL, keyWidth } from "./keyFit";
@@ -35,15 +35,14 @@ export function KeyRow({ children, style }: { children: ReactNode; style?: Style
   };
   // Until it's measured, side by side (most pairs fit).
   const even = !width || keys.every((k) => widest(k) <= share);
-  const sized = !even && keys.reduce((sum, k) => sum + widest(k), GAP * (keys.length - 1)) <= width;
-  const look = (k: ReactElement<KeyProps>) => (even ? styles.share : sized ? { flexGrow: 1, flexShrink: 0, flexBasis: widest(k) } : styles.full);
+  const look = even ? styles.share : styles.full;
   const texts = [...new Map(keys.flatMap(({ props: k }) => wordsOf(k).map((w) => {
     const id = `${quietOf(k) ? "q" : "k"}:${w.text}`;
     return [id, { id, text: w.text, quiet: quietOf(k) }] as const;
   }))).values()];
   return (
-    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={[even || sized ? styles.row : styles.column, style]}>
-      {keys.map((k) => cloneElement(k, { style: [k.props.style, look(k)] }))}
+    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={[even ? styles.row : styles.column, style]}>
+      {keys.map((k) => cloneElement(k, { style: [k.props.style, look] }))}
       {/* The labels laid out unconstrained, off screen, to know their real widths. */}
       <View style={styles.measure} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         {texts.map((t) => (

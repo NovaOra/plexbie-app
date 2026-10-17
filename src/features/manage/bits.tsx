@@ -7,6 +7,7 @@ import type { Ref } from "react";
 import { StyleSheet, TextInput, View, type TextInputProps } from "react-native";
 import type { HelpSearch } from "../../api/client";
 import { Button } from "../../ui/Button";
+import { KeyRow } from "../../ui/KeyRow";
 import { detailStyles } from "../../ui/DetailPage";
 import { Text } from "../../ui/Text";
 import { color, font, radius, space, TOUCH } from "../../ui/theme";
@@ -86,23 +87,22 @@ export const SEARCH_DONE: Record<HelpSearch, string> = {
 export function SearchFixes({ kind, busy, onSearch, byName = false }: {
   kind: string; busy: string | null; onSearch: (how: HelpSearch) => void; byName?: boolean;
 }) {
-  // Searching by name, when Plexbie offers it, is the one raised key, on a line of its own;
-  // the other fixes are quiet pills at their own width, side by side.
-  const name = <Button kind={byName ? "secondary" : "quiet"} label="Search by name" busy={busy === "name"} busyLabel="Starting…"
+  // Searching by name, when Plexbie offers it, is the one raised key and comes first. All the
+  // fixes share one row (equal shares when their words fit, else one under another, full
+  // width), so a wide key never sits over a short pill.
+  const name = <Button key="name" kind={byName ? "secondary" : "quiet"} label="Search by name" busy={busy === "name"} busyLabel="Starting…"
     disabled={!!busy} onPress={() => onSearch("name")} />;
   return (
-    <View style={styles.fixes}>
+    <KeyRow>
       {byName ? name : null}
-      <View style={styles.fixRow}>
-        <Button kind="quiet" label="Search again" busy={busy === "again"} busyLabel="Searching…" disabled={!!busy}
-          onPress={() => onSearch("again")} />
-        {kind === "tv" ? (
-          <Button kind="quiet" label="Episode by episode" busy={busy === "episodes"} busyLabel="Searching…" disabled={!!busy}
-            onPress={() => onSearch("episodes")} />
-        ) : null}
-        {byName ? null : name}
-      </View>
-    </View>
+      <Button kind="quiet" label="Search again" busy={busy === "again"} busyLabel="Searching…" disabled={!!busy}
+        onPress={() => onSearch("again")} />
+      {kind === "tv" ? (
+        <Button kind="quiet" label="Episode by episode" busy={busy === "episodes"} busyLabel="Searching…" disabled={!!busy}
+          onPress={() => onSearch("episodes")} />
+      ) : null}
+      {byName ? null : name}
+    </KeyRow>
   );
 }
 
@@ -130,8 +130,6 @@ const styles = StyleSheet.create({
   initialText: { fontFamily: font.bold, fontSize: 17, color: color.screen },
   stuckBox: { gap: space.s, backgroundColor: "rgba(255, 92, 147, 0.1)", borderColor: "rgba(255, 92, 147, 0.45)" },
   stuck: { color: color.tally },
-  fixes: { gap: space.s },
-  fixRow: { flexDirection: "row", flexWrap: "wrap", gap: space.s },
   field: {
     minHeight: TOUCH, paddingHorizontal: space.l, borderRadius: radius.m, borderWidth: 1.5, borderColor: color.slate,
     backgroundColor: color.field, color: color.ink, fontFamily: font.regular, fontSize: 16,

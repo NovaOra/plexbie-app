@@ -13,7 +13,7 @@ import type { AppRequest, AppTitle } from "../../api/schemas";
 import type { BookFormat, MediaKind } from "../../api/types";
 import { useApi, useServer } from "../../auth/session";
 import { useAnnounce, useFocusHere } from "../../ui/announce";
-import { BackHeader } from "../../ui/BackHeader";
+import { BackHeader, useBackClearance } from "../../ui/BackHeader";
 import { Button } from "../../ui/Button";
 import { Chip } from "../../ui/Chip";
 import { Poster } from "../../ui/Poster";
@@ -82,6 +82,7 @@ export function TitleScreen() {
 
 function Loaded({ t }: { t: AppTitle }) {
   const insets = useSafeAreaInsets();
+  const top = useBackClearance();
   const heading = useFocusHere();
   const backdrop = useArt()(t.backdrop, "w780");
   const book = isBook(t.kind);
@@ -98,7 +99,7 @@ function Loaded({ t }: { t: AppTitle }) {
     <View style={styles.page}>
       <Ambient />
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + space.xxl }}>
-        <View style={[styles.hero, { paddingTop: insets.top + 64 }]}>
+        <View style={[styles.hero, { paddingTop: top }]}>
           {backdrop ? (
             <>
               <Image source={backdrop} style={StyleSheet.absoluteFill} contentFit="cover" transition={200}

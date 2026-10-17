@@ -8,6 +8,7 @@ import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from "react-nati
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "../../../ui/Button";
 import { HoldButton } from "../../../ui/HoldButton";
+import { TAB_BAR_CLEARANCE } from "../../../ui/Glass";
 import { KeyRow } from "../../../ui/KeyRow";
 import { Text } from "../../../ui/Text";
 import { color, radius, space } from "../../../ui/theme";
@@ -38,7 +39,7 @@ export function DetailSheet({ item, a, full, onClose }: { item: Item; a: DeskAct
           <View style={styles.grabLine} pointerEvents="none"><View style={styles.grab} /></View>
           <Button kind="quiet" label="Close" onPress={onClose} haptic="none" accessibilityLabel="Back to the queue" />
         </View>
-        <ScrollView contentContainerStyle={[styles.sheetBody, { paddingBottom: insets.bottom + space.xxl }]} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={[styles.sheetBody, { paddingBottom: insets.bottom + space.xxl + TAB_BAR_CLEARANCE }]} keyboardShouldPersistTaps="handled">
           {ownHead(item) ? null : <Hero item={item} />}
           <DetailBody item={item} a={a} full={(tab, who) => { onClose(); full(tab, who); }} />
         </ScrollView>

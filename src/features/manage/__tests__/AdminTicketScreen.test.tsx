@@ -151,6 +151,16 @@ test("a ticket about a film: Title, its page, Open in Plex, what Plexbie saw a l
   open.mockRestore();
 });
 
+test("when Plexbie offers a search by name, it's the raised key, in one row with Search again", async () => {
+  mockClient.adminTicket.mockResolvedValue({ ...titleTicket, offer: "name" } as AppAdminTicketDetail);
+  await show("Sintel (2010)");
+  const byName = screen.getByRole("button", { name: "Search by name" });
+  const again = screen.getByRole("button", { name: "Search again" });
+  // Siblings in one KeyRow: side by side in equal halves, or both full width, never a key over a pill.
+  expect(byName.parent?.parent).toBeTruthy();
+  expect(byName.parent?.parent).toBe(again.parent?.parent);
+});
+
 test("a ticket about a film Plex has no TMDB id for: nothing to search with, and no page to open", async () => {
   mockClient.adminTicket.mockResolvedValue({ ...titleTicket, tmdb: null, plexUrl: null } as AppAdminTicketDetail);
   await show("Sintel (2010)");

@@ -4,7 +4,7 @@
 import type { ReactNode, Ref } from "react";
 import { KeyboardAvoidingView, ScrollView, StyleSheet, View, type Text as RNText } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { BackHeader } from "./BackHeader";
+import { BackHeader, useBackClearance } from "./BackHeader";
 import { Button } from "./Button";
 import { Ambient } from "./Glass";
 import { KEYBOARD_BEHAVIOR } from "./keyboard";
@@ -18,10 +18,11 @@ import { Placeholder } from "./Placeholder";
 /** `scroll`: useScrollToField's, so a focused field scrolls into view. */
 export function DetailPage({ scroll, children }: { scroll: Ref<ScrollView>; children: ReactNode }) {
   const insets = useSafeAreaInsets();
+  const top = useBackClearance();
   return (
     <KeyboardAvoidingView style={styles.page} behavior={KEYBOARD_BEHAVIOR}>
       <Ambient />
-      <ScrollView ref={scroll} contentContainerStyle={[styles.pad, { paddingTop: insets.top + 64, paddingBottom: insets.bottom + space.xxl }]}
+      <ScrollView ref={scroll} contentContainerStyle={[styles.pad, { paddingTop: top, paddingBottom: insets.bottom + space.xxl }]}
         keyboardShouldPersistTaps="handled">
         {children}
       </ScrollView>

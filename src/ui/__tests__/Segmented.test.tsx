@@ -52,13 +52,15 @@ test("keys sit side by side when their words fit, and stack when they don't", as
   );
   const view = await render(row(0));
   const keyRow = () => screen.getByTestId("wrap").children[0] as unknown as { props: { style: object } };
-  await fireEvent(keyRow() as never, "layout", layout(380));
+  await fireEvent(keyRow() as never, "layout", layout(420));
   expect(StyleSheet.flatten(keyRow().props.style)).toMatchObject({ flexDirection: "row" });
+  // Too narrow for equal halves: one under the other, full width (never in proportion).
   await fireEvent(keyRow() as never, "layout", layout(320));
-  // Too narrow for equal halves, but both fit at their own widths: side by side, in proportion.
-  expect(StyleSheet.flatten(keyRow().props.style)).toMatchObject({ flexDirection: "row" });
-  await fireEvent(keyRow() as never, "layout", layout(250));
-  expect((StyleSheet.flatten(keyRow().props.style) as { flexDirection?: string }).flexDirection).toBeUndefined();
+  const style = StyleSheet.flatten(keyRow().props.style) as { flexDirection?: string };
+  expect(style.flexDirection).toBeUndefined();
+  for (const name of ["Wait on Jordan", "Solve…"]) {
+    expect(StyleSheet.flatten(screen.getByRole("button", { name }).props.style)).toMatchObject({ alignSelf: "stretch" });
+  }
   await view.unmount();
 });
 
@@ -69,7 +71,7 @@ test("what the phone measures of a label wins over the estimate", async () => {
     </View>,
   );
   const keyRow = () => screen.getByTestId("wrap").children[0] as unknown as { props: { style: object } };
-  await fireEvent(keyRow() as never, "layout", layout(380));
+  await fireEvent(keyRow() as never, "layout", layout(420));
   expect(StyleSheet.flatten(keyRow().props.style)).toMatchObject({ flexDirection: "row" });
   // Laid out, "Wait on Jordan" is far wider than its letters suggested: the pair stacks.
   const measured = screen.getAllByText("Wait on Jordan", { includeHiddenElements: true }).at(-1)!;
