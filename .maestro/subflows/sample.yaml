@@ -12,6 +12,7 @@ appId: com.plexbie.app
     element:
       text: "Look around with sample data"
     direction: DOWN
+    timeout: 30000
     centerElement: true
 - waitForAnimationToEnd:
     timeout: 1500

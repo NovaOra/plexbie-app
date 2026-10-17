@@ -24,5 +24,6 @@ tags: [smoke]
     element:
       text: "Look around with sample data"
     direction: DOWN
+    timeout: 30000
     centerElement: true
 - assertVisible: "Look around with sample data"
