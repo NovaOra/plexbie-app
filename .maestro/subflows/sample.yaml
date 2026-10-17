@@ -3,6 +3,17 @@ appId: com.plexbie.app
 ---
 - launchApp:
     clearState: true
+- extendedWaitUntil:
+    visible: "Sign in with Discord"
+    timeout: 20000
+# The TV set fills the first screen; the other ways in are under it.
+- scrollUntilVisible:
+    element:
+      text: "Look around with sample data"
+    direction: DOWN
+    centerElement: true
+- waitForAnimationToEnd:
+    timeout: 1500
 - tapOn: "Look around with sample data"
 - extendedWaitUntil:
     visible: "Just arrived"

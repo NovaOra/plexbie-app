@@ -7,5 +7,16 @@ tags: [smoke]
 - extendedWaitUntil:
     visible: "Sign in with Discord"
     timeout: 20000
+- assertVisible: "Standby"
+# The keys are on the set's deck; the sample is below the set.
+- scrollUntilVisible:
+    element:
+      text: "Sign in with Plex"
+    direction: DOWN
 - assertVisible: "Sign in with Plex"
+- scrollUntilVisible:
+    element:
+      text: "Look around with sample data"
+    direction: DOWN
+    centerElement: true
 - assertVisible: "Look around with sample data"
