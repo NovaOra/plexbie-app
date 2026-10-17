@@ -21,7 +21,8 @@ export function EverythingElse({ groups, onPick }: { groups: MenuGroup[]; onPick
       {groups.map((g) => (
         <View key={g.id} style={styles.group}>
           <Text variant="eyebrow" accessibilityRole="header">
-            {g.label}{typeof g.count === "number" ? ` · ${g.count}` : ""}{g.makeup && g.count !== 0 ? <Text variant="eyebrow" style={styles.makeup}>{`  ${g.makeup}`}</Text> : null}
+            {/* What makes up the count says the count ("2 waiting"); a group without one gives its number. */}
+            {g.label}{g.makeup ? <Text variant="eyebrow" style={styles.makeup}>{` · ${g.makeup}`}</Text> : typeof g.count === "number" ? ` · ${g.count}` : ""}
           </Text>
           {g.rows.map((r) => {
             const b = badge(r);

@@ -149,8 +149,8 @@ test("Everything else lists every full view with the monitors' counts, and ‹ D
   await desk();
   await fireEvent.press(screen.getByRole("button", { name: "Everything else" }));
   const drawer = within(screen.getByTestId("sections-drawer"));
-  expect(drawer.getByRole("header", { name: /^Requests · 3/ })).toBeTruthy();
-  expect(drawer.getByRole("header", { name: /^Services · 1/ })).toBeTruthy();
+  expect(drawer.getByRole("header", { name: /^Requests · 3.waiting/ })).toBeTruthy();
+  expect(drawer.getByRole("header", { name: /^Services · 1.of 6.down/ })).toBeTruthy();
   await fireEvent.press(drawer.getByRole("button", { name: /^Invite links/ }));
   expect(screen.getByText("Invites section")).toBeTruthy();
   await fireEvent.press(screen.getByRole("button", { name: "Back to the desk" }));

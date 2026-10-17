@@ -50,6 +50,9 @@ appId: com.plexbie.app
 # Everything else: every full view, and back to the desk.
 - tapOn: "Everything else"
 - waitForAnimationToEnd
+- scrollUntilVisible:
+    element: "Invite links.*"
+    direction: DOWN
 - tapOn: "Invite links.*"
 - assertVisible: "Invite someone"
 - tapOn: "Back to the desk"
