@@ -4,10 +4,15 @@ tags: [smoke]
 ---
 - launchApp:
     clearState: true
-# The set's screen is at the top: its tally waits on Standby.
+# The set's screen is at the top: its tally waits on Standby. A keyboard left up by the last
+# flow can open the page further down (as in subflows/sample.yaml), so find the set, then its top.
 - extendedWaitUntil:
-    visible: "Standby"
+    visible: "Standby|Sign in with Discord|How to get in"
     timeout: 20000
+- scrollUntilVisible:
+    element: "Standby"
+    direction: UP
+- assertVisible: "Standby"
 - assertVisible: "CH 1.*Sign in"
 # The keys are on the set's deck, under the screen; the sample is below the set.
 - scrollUntilVisible:
