@@ -4,8 +4,10 @@
 // the page under the set. The screen is as tall as channel 1 (and never less than
 // SCREEN_MIN), so the keys are in the first view on a phone. Where channel 2's steps are
 // taller, the screen grows to show them whole on channel 2 only, and the room it grows
-// into is kept under the set on channel 1, so nothing under the set moves. The tally says Standby until a key is
-// pressed, and is lit pink only while that sign-in is under way. Reduce Motion: the channel
+// into is kept under the set on channel 1, so nothing under the set moves. The readout is
+// short ("CH 1 · Sign in", "CH 1 · Discord" while tuning in, "CH 2 · Help"), so it and the
+// tally share one row on a 360dp phone. The tally says Standby until a key is pressed, and
+// is lit pink only while that sign-in is under way. Reduce Motion: the channel
 // changes without the flick, the knob jumps, and keys sink by their lip alone.
 import * as haptic from "../../ui/haptics";
 import { Image } from "expo-image";
@@ -109,7 +111,8 @@ export function SignInScreen() {
   let shown = server;
   try { shown = normalizeServer(server).replace(/^https:\/\//, ""); } catch { /* shown as typed */ }
 
-  const readout = ch === 2 ? "CH 2 · Getting in" : busy ? `CH 1 · Tuning in to ${NAMES[busy]}` : "CH 1 · Sign in";
+  // Short, so it and the tally share a row; the tally says "Tuning in", and channel 2's heading says "Getting in".
+  const readout = ch === 2 ? "CH 2 · Help" : busy ? `CH 1 · ${NAMES[busy]}` : "CH 1 · Sign in";
   // Each channel's own height: channel 2 taller grows the screen on channel 2, and that much
   // room waits under the set on channel 1 (the reserve), so the page under it never moves.
   const [heights, setHeights] = useState({ one: 0, two: 0 });
@@ -140,7 +143,7 @@ export function SignInScreen() {
                       it says, so neither changing channel nor a sign-in starting moves the set. */}
                   <View style={[styles.osd, styles.osdGhost]} testID="osd-ghost" pointerEvents="none"
                     accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-                    <Text variant="eyebrow" style={styles.readout}>{`CH 1 · Tuning in to ${NAMES.discord}`}</Text>
+                    <Text variant="eyebrow" style={styles.readout}>{`CH 1 · ${NAMES.discord}`}</Text>
                     <Tally live />
                   </View>
                   <View style={[styles.osd, styles.osdShown]}>

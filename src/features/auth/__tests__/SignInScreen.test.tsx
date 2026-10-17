@@ -123,7 +123,9 @@ test("the channel key tunes to channel 2's steps after the flick, and back", asy
     // The picture changes as the flick closes, not before.
     expect(screen.getByText("CH 1 · Sign in")).toBeTruthy();
     await act(async () => { jest.advanceTimersByTime(100); });
-    expect(screen.getByText("CH 2 · Getting in")).toBeTruthy();
+    expect(screen.getByText("CH 2 · Help")).toBeTruthy();
+    // Its heading says what it's about; the readout doesn't say it again.
+    expect(screen.queryByText(/^CH 2 · Getting in/)).toBeNull();
     // Channel 1 is silent to screen readers while channel 2 is on, and the other way round.
     expect(screen.queryByText("Your household’s Plex, on air.")).toBeNull();
     expect(screen.getByTestId("channel-off", { includeHiddenElements: true }).props.importantForAccessibility).toBe("no-hide-descendants");
@@ -171,10 +173,10 @@ test("the readout keeps room for its longest words, unseen and unread, so the se
   const ghost = screen.getByTestId("osd-ghost", { includeHiddenElements: true });
   expect(ghost.props.importantForAccessibility).toBe("no-hide-descendants");
   expect(StyleSheet.flatten(ghost.props.style)).toMatchObject({ opacity: 0 });
-  expect(within(ghost).getByText("CH 1 · Tuning in to Discord", { includeHiddenElements: true })).toBeTruthy();
+  expect(within(ghost).getByText("CH 1 · Discord", { includeHiddenElements: true })).toBeTruthy();
   // Only the real readout is read out.
   expect(screen.getByText("CH 1 · Sign in")).toBeTruthy();
-  expect(screen.queryByText("CH 1 · Tuning in to Discord")).toBeNull();
+  expect(screen.queryByText("CH 1 · Discord")).toBeNull();
   expect(screen.queryByText("Tuning in")).toBeNull();
 });
 
@@ -182,7 +184,7 @@ test("under Reduce Motion the channel changes at once", async () => {
   mockReduced = true;
   await render(<SignInScreen />);
   await fireEvent.press(screen.getByLabelText("How to get in"));
-  expect(screen.getByText("CH 2 · Getting in")).toBeTruthy();
+  expect(screen.getByText("CH 2 · Help")).toBeTruthy();
 });
 
 test("a pressed key lights the tally while its sign-in is under way", async () => {
@@ -190,7 +192,7 @@ test("a pressed key lights the tally while its sign-in is under way", async () =
   mockSignIn.mockImplementation(() => new Promise((ok) => { finish = ok; }));
   await render(<SignInScreen />);
   await fireEvent.press(screen.getByLabelText("Sign in with Plex"));
-  expect(screen.getByText("CH 1 · Tuning in to Plex")).toBeTruthy();
+  expect(screen.getByText("CH 1 · Plex")).toBeTruthy();
   expect(screen.getByText("Tuning in")).toBeTruthy();
   await act(async () => { finish({}); });
   expect(screen.getByText("Standby")).toBeTruthy();
