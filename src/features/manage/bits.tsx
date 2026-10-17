@@ -10,7 +10,7 @@ import { Button } from "../../ui/Button";
 import { KeyRow } from "../../ui/KeyRow";
 import { detailStyles } from "../../ui/DetailPage";
 import { Text } from "../../ui/Text";
-import { color, font, radius, space, TOUCH } from "../../ui/theme";
+import { color, font, radius, space, tint, TOUCH } from "../../ui/theme";
 
 export function Heading({ title, count }: { title: string; count?: number }) {
   return (
@@ -125,12 +125,12 @@ const styles = StyleSheet.create({
   clear: { gap: space.xs, padding: space.l, borderRadius: radius.m, borderWidth: 1, borderStyle: "dashed", borderColor: color.rule },
   pill: { alignSelf: "flex-start", fontSize: 12, lineHeight: 16, paddingHorizontal: space.s, paddingVertical: 2, borderRadius: radius.pill, overflow: "hidden", fontFamily: font.semibold },
   plain: { backgroundColor: color.panelRaised, color: color.slateInk },
-  safe: { backgroundColor: "rgba(255, 209, 228, 0.16)", color: color.screen },
+  safe: { backgroundColor: tint(color.screen, 0.16), color: color.screen },
   ok: { backgroundColor: color.screen, color: color.onScreen },
-  bad: { backgroundColor: "rgba(255, 92, 147, 0.10)", color: color.tally },
+  bad: { backgroundColor: tint(color.tally, 0.1), color: color.tally },
   initial: { width: 44, height: 44, borderRadius: 22, backgroundColor: color.panelRaised, alignItems: "center", justifyContent: "center" },
   initialText: { fontFamily: font.bold, fontSize: 17, color: color.screen },
-  stuckBox: { gap: space.s, backgroundColor: "rgba(255, 92, 147, 0.1)", borderColor: "rgba(255, 92, 147, 0.45)" },
+  stuckBox: { gap: space.s, backgroundColor: tint(color.tally, 0.1), borderColor: tint(color.tally, 0.45) },
   stuck: { color: color.tally },
   field: {
     minHeight: TOUCH, paddingHorizontal: space.l, borderRadius: radius.m, borderWidth: 1.5, borderColor: color.slate,

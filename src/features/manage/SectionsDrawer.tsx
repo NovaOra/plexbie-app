@@ -105,7 +105,8 @@ export function SectionsDrawer({ open, onClose, title, panel, children }: {
 const styles = StyleSheet.create({
   frame: { flex: 1, overflow: "hidden" },
   fill: { flex: 1 },
-  scrim: { flex: 1, backgroundColor: IOS ? "rgba(6, 9, 20, 0.5)" : "rgba(6, 9, 20, 0.72)" },
+  // The deep field under the drawer: at least 0.6, so the desk behind reads as set aside.
+  scrim: { flex: 1, backgroundColor: IOS ? "rgba(3, 6, 18, 0.6)" : "rgba(3, 6, 18, 0.72)" },
   // Just past the right edge until it slides in.
   drawer: { position: "absolute", top: 0, bottom: 0, right: 0 },
   panel: { flex: 1, gap: space.m, paddingHorizontal: space.l },

@@ -53,7 +53,7 @@ const CAB_BOT = "#4a5574";
 const GLOW = "#3a3a55";
 const styles = StyleSheet.create({
   housing: {
-    flexDirection: "row", gap: space.s - 2, padding: space.s, borderRadius: radius.l, overflow: "hidden",
+    flexDirection: "row", gap: space.s, padding: space.s, borderRadius: radius.l, overflow: "hidden",
     // An object: one soft shadow under it.
     elevation: 10, shadowColor: "#030612", shadowOpacity: 0.6, shadowRadius: 18, shadowOffset: { width: 0, height: 12 },
     backgroundColor: color.slate,
@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
   monitor: { flex: 1, gap: space.xs, minHeight: 0 },
   lamp: { position: "absolute", top: 6, right: 6, width: 6, height: 6, borderRadius: 3, backgroundColor: color.slate },
   lampHot: { backgroundColor: color.tally },
-  label: { textAlign: "center", fontFamily: font.bold, fontSize: 11, lineHeight: 14, letterSpacing: 0.4, textTransform: "uppercase", color: color.onScreen },
+  label: { textAlign: "center", fontFamily: font.bold, fontSize: 11, lineHeight: 14, letterSpacing: 11 * 0.03, textTransform: "uppercase", color: color.onScreen },
   screen: {
     height: 56, borderRadius: radius.s, overflow: "hidden", alignItems: "center", justifyContent: "center",
     borderWidth: 1, borderColor: tint(color.screen, 0.14),

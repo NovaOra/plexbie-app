@@ -28,7 +28,7 @@ export function DeskView({ desk, a, me, full, view, onView, filter, onFilter, se
   return (
     <View style={styles.desk}>
       <Text variant="body" accessibilityLiveRegion="polite">
-        <Text variant="body" style={styles.ink}>{headline}</Text> The rest is in the menu.
+        <Text variant="body" style={styles.ink}>{headline}</Text> Everything else is in the menu, top right.
       </Text>
       <Monitors monitors={desk.monitors} filter={view === "needs" ? filter : null} onToggle={(area) => { onView("needs"); onFilter(filter === area ? null : area); }} />
       {desk.facts.party ? <Text variant="meta">Watch party: <Text variant="meta" style={styles.ink}>{desk.facts.party}</Text></Text> : null}
