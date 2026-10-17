@@ -132,11 +132,17 @@ export const savedPush = () => SecureStore.getItemAsync(KEY, STORE);
 
 /** A ticket's id, as the bot makes them. */
 const TICKET = /^[0-9a-f]{12}$/;
+/** One thing on Manage's desk, by the key the desk gives it (desk/manageQueue.ts): a ticket, a
+ *  request, a download that's stuck, or an import that's blocked. The website's /manage?item=…. */
+const ITEM = /^(ticket|request|stuck|import):[\w.:@+-]{1,160}$/;
 
 /** Where tapping an alert goes: the bot's website paths, mapped to the app's screens. The
  *  household's pages are at the site's root; alerts from older bots say /app/...
- *  "/manage?tab=tickets&ticket=…" opens that ticket; "/manage?tab=messages&who=…" that conversation;
- *  "/?ticket=…" (a member's own ticket, not on a request) opens it as theirs. */
+ *  "/manage?item=…" opens Manage's desk with that thing's detail sheet, and so does
+ *  "/manage?tab=tickets&ticket=…" (a ticket, or a blocked import's ticket); "/manage?tab=messages&who=…"
+ *  opens that conversation; "/?ticket=…" (a member's own ticket, not on a request) opens it as theirs.
+ *  The ticket and request pages of their own (/manage-ticket/…, /manage-request/…) stay, for
+ *  links made before the desk. */
 export function routeFor(url: unknown): Href {
   const u = (typeof url === "string" ? url : "").replace(/^\/app(?=[/?]|$)/, "") || "/";
   if (/^\/?(\?|$)/.test(u)) {
@@ -145,8 +151,9 @@ export function routeFor(url: unknown): Href {
   }
   if (u.startsWith("/manage")) {
     const q = new URLSearchParams(u.split("?")[1] ?? "");
-    const ticket = q.get("ticket"), who = q.get("who"), tab = q.get("tab");
-    if (ticket && TICKET.test(ticket)) return { pathname: "/manage-ticket/[id]", params: { id: ticket } };
+    const item = q.get("item"), ticket = q.get("ticket"), who = q.get("who"), tab = q.get("tab");
+    if (item && ITEM.test(item)) return { pathname: "/manage", params: { item } };
+    if (ticket && TICKET.test(ticket)) return { pathname: "/manage", params: { item: `ticket:${ticket}` } };
     if (tab === "messages" && who && /^[dp][\w .@+-]{1,120}$/.test(who)) return { pathname: "/manage", params: { tab, who } };
     return tab && /^[a-z]{2,20}$/.test(tab) ? { pathname: "/manage", params: { tab } } : "/manage";
   }

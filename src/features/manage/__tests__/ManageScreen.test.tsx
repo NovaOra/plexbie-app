@@ -12,7 +12,7 @@ import { router } from "expo-router";
 import { resetSample, sampleApi } from "../../../api/sample";
 import { ManageScreen } from "../ManageScreen";
 
-let mockParams: { tab?: string; who?: string } = {};
+let mockParams: { tab?: string; who?: string; item?: string } = {};
 jest.mock("expo-router", () => {
   const { useEffect } = jest.requireActual<typeof import("react")>("react");
   return {
@@ -181,7 +181,34 @@ test("an alert opens its full view, with its conversation, and its address is us
   mockParams = { tab: "messages", who: "d1" };
   await render(page());
   expect(screen.getByText("Messages section, open on d1")).toBeTruthy();
-  expect(router.setParams).toHaveBeenCalledWith({ tab: undefined, who: undefined });
+  expect(router.setParams).toHaveBeenCalledWith({ tab: undefined, who: undefined, item: undefined });
+});
+
+test("an alert about one thing opens the desk with its sheet, and its address is used up", async () => {
+  mockParams = { item: "ticket:h4" };
+  await render(page());
+  expect(await screen.findByText(/^Ticket page /, undefined, LONG)).toBeTruthy();
+  // The desk, behind its sheet.
+  expect(await screen.findByText(/9 things need you\./, { includeHiddenElements: true }, LONG)).toBeTruthy();
+  expect(router.setParams).toHaveBeenCalledWith({ tab: undefined, who: undefined, item: undefined });
+});
+
+test("an alert about a request opens that request's sheet, over a full view that was open", async () => {
+  mockParams = { tab: "people" };
+  const { rerender } = await render(page());
+  expect(screen.getByText("People section")).toBeTruthy();
+  mockParams = { item: "request:7001" };
+  await rerender(page());
+  expect(await screen.findByText(/^Request page /, undefined, LONG)).toBeTruthy();
+  expect(screen.queryByText("People section")).toBeNull();
+});
+
+test("an alert about something no longer on the desk leaves the desk as it is", async () => {
+  mockParams = { item: "request:999999" };
+  await render(page());
+  await screen.findByText(/9 things need you\./, undefined, LONG);
+  expect(screen.queryByText(/^Request page /)).toBeNull();
+  expect(screen.queryByText(/^Ticket page /)).toBeNull();
 });
 
 test("a member who isn't an admin is told it's for admins, and nothing is asked of the bot", async () => {

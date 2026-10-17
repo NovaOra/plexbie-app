@@ -12,9 +12,20 @@ test("the household's pages, at the root and under /app from older bots", () => 
   expect(routeFor("/app/manage")).toBe("/manage");
 });
 
-test("a ticket opens that ticket", () => {
-  expect(routeFor("/manage?tab=tickets&ticket=0123456789ab")).toEqual({ pathname: "/manage-ticket/[id]", params: { id: "0123456789ab" } });
-  expect(routeFor("/app/manage?ticket=abcdef012345")).toEqual({ pathname: "/manage-ticket/[id]", params: { id: "abcdef012345" } });
+test("a ticket (or a blocked import's ticket) opens the desk with that ticket's sheet", () => {
+  expect(routeFor("/manage?tab=tickets&ticket=0123456789ab")).toEqual({ pathname: "/manage", params: { item: "ticket:0123456789ab" } });
+  expect(routeFor("/app/manage?ticket=abcdef012345")).toEqual({ pathname: "/manage", params: { item: "ticket:abcdef012345" } });
+});
+
+test("the website's desk address opens that request, stuck download or blocked import in its sheet", () => {
+  expect(routeFor("/manage?item=request:7001")).toEqual({ pathname: "/manage", params: { item: "request:7001" } });
+  expect(routeFor("/manage?item=ticket%3A0123456789ab")).toEqual({ pathname: "/manage", params: { item: "ticket:0123456789ab" } });
+  expect(routeFor("/manage?item=stuck:42")).toEqual({ pathname: "/manage", params: { item: "stuck:42" } });
+  expect(routeFor("/manage?item=import:sonarr:SABnzbd_nzo_demo")).toEqual({ pathname: "/manage", params: { item: "import:sonarr:SABnzbd_nzo_demo" } });
+  // Not one of those: the tab it named, else the desk.
+  expect(routeFor("/manage?item=chat:d1")).toBe("/manage");
+  expect(routeFor("/manage?item=request:../../etc&tab=requests")).toEqual({ pathname: "/manage", params: { tab: "requests" } });
+  expect(routeFor("/manage?item=request:")).toBe("/manage");
 });
 
 test("a member's own ticket (an alert about a title or general one) opens it as theirs", () => {
@@ -57,7 +68,7 @@ test("the app's own links name their screen", () => {
   expect(routeForLink("com.plexbie.app:///title/movie/693134")).toEqual({ pathname: "/title/[kind]/[id]", params: { kind: "movie", id: "693134" } });
   expect(routeForLink("com.plexbie.app:///requests")).toBe("/requests");
   expect(routeForLink("com.plexbie.app:///library/")).toBe("/library");
-  expect(routeForLink("com.plexbie.app:///manage?tab=tickets&ticket=0123456789ab")).toEqual({ pathname: "/manage-ticket/[id]", params: { id: "0123456789ab" } });
+  expect(routeForLink("com.plexbie.app:///manage?tab=tickets&ticket=0123456789ab")).toEqual({ pathname: "/manage", params: { item: "ticket:0123456789ab" } });
   expect(routeForLink("com.plexbie.app:///ticket/0123456789ab")).toEqual({ pathname: "/ticket/[id]", params: { id: "0123456789ab" } });
 });
 

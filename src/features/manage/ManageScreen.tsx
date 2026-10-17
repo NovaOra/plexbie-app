@@ -3,7 +3,8 @@
 // Waiting on them, or Done, each row with its two keys and a detail sheet. The full views
 // (every section the website's Manage has) are under "Everything else", a drawer that
 // slides in beside the title and pushes the page aside; an alert or a link opens one
-// straight away (/manage?tab=…&who=…), and "‹ Desk" goes back.
+// straight away (/manage?tab=…&who=…), and "‹ Desk" goes back. An alert about one thing (a
+// ticket, a request, a blocked import) opens the desk with its detail sheet: /manage?item=<its key>.
 // Anyone else who reaches it (an alert from when they were an admin, a link) is told it's
 // for admins, and nothing is asked of the bot.
 import { useQueryClient } from "@tanstack/react-query";
@@ -57,7 +58,7 @@ export function ManageScreen() {
   const qc = useQueryClient();
   const server = useServer();
   // An alert can open a full view (and, for a DM, the conversation): /manage?tab=messages&who=d123.
-  const params = useLocalSearchParams<{ tab?: string; who?: string }>();
+  const params = useLocalSearchParams<{ tab?: string; who?: string; item?: string }>();
   /** The full view shown, or null for the desk. */
   const [tab, setTab] = useState<Tab | null>(null);
   const [who, setWho] = useState<string | undefined>(undefined);
@@ -78,9 +79,15 @@ export function ManageScreen() {
     const t = params.tab ? tabOf(params.tab) : null;
     if (t) { setTab(t); setWho(undefined); toTop(); }
     if (params.who) setWho(params.who);
+    // One thing: the desk, on the list it's in, with its sheet open (once the desk has it).
+    if (params.item) { setTab(null); setWho(undefined); setFilter(null); setView(params.item.startsWith("done-") ? "done" : "needs"); toTop(); }
     // Used up: the next alert with the same address changes them again, with the drawer gone.
-    if (params.tab || params.who) { router.setParams({ tab: undefined, who: undefined }); closeMenu(); setOpenKey(null); }
-  }, [params.tab, params.who]);
+    if (params.tab || params.who || params.item) {
+      router.setParams({ tab: undefined, who: undefined, item: undefined });
+      closeMenu();
+      setOpenKey(params.item ?? null);
+    }
+  }, [params.tab, params.who, params.item]);
   // New invite links are shown only once: held here until dismissed, so leaving Invites
   // (even while one is being made) doesn't lose them. Only this server's.
   const [fresh, setFresh] = useState<{ server: string; links: AppNewInvite[] }>({ server, links: [] });
@@ -95,7 +102,9 @@ export function ManageScreen() {
   const a = useDeskActions();
   const wide = useWindowDimensions().width >= WIDE;
   const groups = menuGroups(desk, data);
-  const opened = openKey ? [...desk.needs, ...desk.waiting, ...desk.done].find((i) => i.key === openKey) ?? null : null;
+  const items = [...desk.needs, ...desk.waiting, ...desk.done];
+  // A thing an alert named may be done by now: then its Done row's sheet.
+  const opened = openKey ? items.find((i) => i.key === openKey) ?? items.find((i) => i.key === `done-${openKey}`) ?? null : null;
   const [pulling, setPulling] = useState(false);
   const onRefresh = useCallback(async () => {
     setPulling(true);
