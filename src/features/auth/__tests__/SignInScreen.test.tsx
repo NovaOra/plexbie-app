@@ -4,10 +4,10 @@
 // domain field does focus it. The Plexbie project's own site is never taken as a household's
 // server, however it's typed.
 import { beforeEach, expect, jest, test } from "@jest/globals";
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, within } from "@testing-library/react-native";
 import type * as Session from "../../../auth/session";
-import { Text as MockText } from "react-native";
-import { SignInScreen } from "../SignInScreen";
+import { StyleSheet, Text as MockText } from "react-native";
+import { SCREEN_MIN, SignInScreen } from "../SignInScreen";
 
 jest.mock("react-native-worklets", () => jest.requireActual("react-native-worklets/src/mock"));
 jest.mock("react-native-reanimated", () => ({
@@ -134,6 +134,41 @@ test("the channel key tunes to channel 2's steps after the flick, and back", asy
   } finally {
     jest.useRealTimers();
   }
+});
+
+test("the screen is as tall as channel 1: channel 2 lies over it and scrolls inside it, never resizing the set", async () => {
+  await render(<SignInScreen />);
+  const style = (id: string) => StyleSheet.flatten(screen.getByTestId(id, { includeHiddenElements: true }).props.style);
+  // Channel 1 is in the flow and sizes the screen, never under SCREEN_MIN; channel 2 fills that height and no more.
+  expect(style("channel-on").position).toBeUndefined();
+  expect(style("channel-off")).toMatchObject({ position: "absolute", top: 0, bottom: 0, left: 0, right: 0 });
+  expect(style("channels")).toMatchObject({ minHeight: SCREEN_MIN });
+  await fireEvent.press(screen.getByLabelText("How to get in"));
+  await act(async () => { await new Promise((ok) => setTimeout(ok, 120)); });
+  expect(style("channel-on")).toMatchObject({ position: "absolute" });
+  // Longer than the screen: it scrolls, its bottom fading while there's more below.
+  const steps = screen.getByTestId("channel-2-scroll");
+  expect(steps.props.nestedScrollEnabled).toBe(true);
+  expect(screen.queryByTestId("channel-2-more", { includeHiddenElements: true })).toBeNull();
+  await fireEvent(steps, "layout", { nativeEvent: { layout: { height: 240 } } });
+  await fireEvent(steps, "contentSizeChange", 200, 420);
+  expect(screen.getByTestId("channel-2-more", { includeHiddenElements: true })).toBeTruthy();
+  await fireEvent.scroll(steps, { nativeEvent: { contentOffset: { y: 180 } } });
+  expect(screen.queryByTestId("channel-2-more", { includeHiddenElements: true })).toBeNull();
+  // All of it is there for a screen reader, scrolled or not.
+  expect(within(steps).getAllByLabelText(/^Step \d:/)).toHaveLength(3);
+});
+
+test("the readout keeps room for its longest words, unseen and unread, so the set never moves as it changes", async () => {
+  await render(<SignInScreen />);
+  const ghost = screen.getByTestId("osd-ghost", { includeHiddenElements: true });
+  expect(ghost.props.importantForAccessibility).toBe("no-hide-descendants");
+  expect(StyleSheet.flatten(ghost.props.style)).toMatchObject({ opacity: 0 });
+  expect(within(ghost).getByText("CH 1 · Tuning in to Discord", { includeHiddenElements: true })).toBeTruthy();
+  // Only the real readout is read out.
+  expect(screen.getByText("CH 1 · Sign in")).toBeTruthy();
+  expect(screen.queryByText("CH 1 · Tuning in to Discord")).toBeNull();
+  expect(screen.queryByText("Tuning in")).toBeNull();
 });
 
 test("under Reduce Motion the channel changes at once", async () => {
