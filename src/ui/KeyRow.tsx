@@ -16,8 +16,9 @@ export function KeyRow({ children, style }: { children: ReactNode; style?: Style
   const share = (width - GAP * (keys.length - 1)) / keys.length;
   // The longer of its words and its busy words (with the spinner beside them), so a press never flips the layout.
   const widest = ({ props: k }: ReactElement<KeyProps>) => {
+    // A hold's words sit 18 in from each side, inside its edge.
     const quiet = k.kind === "quiet";
-    const padding = quiet ? space.l * 2 : 40;
+    const padding = k.onConfirm ? 40 : quiet ? space.l * 2 + 2 : 40;
     const em = quiet ? EM_PILL : EM_KEY;
     // A hold button reads "Hold to decline", not "Decline".
     const words = k.label && k.onConfirm ? `Hold to ${k.label}` : k.label;

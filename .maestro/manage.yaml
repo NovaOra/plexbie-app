@@ -14,7 +14,6 @@ appId: com.plexbie.app
 - scrollUntilVisible:
     element: "Approve Zombies of the Stratosphere for Sam"
     direction: DOWN
-    centerElement: true
 - tapOn: "Approve Zombies of the Stratosphere for Sam"
 - extendedWaitUntil:
     notVisible: "Approve Zombies of the Stratosphere for Sam"
@@ -28,7 +27,6 @@ appId: com.plexbie.app
 - scrollUntilVisible:
     element: "Take it: Elephants Dream"
     direction: DOWN
-    centerElement: true
 - tapOn: "Take it: Elephants Dream"
 - extendedWaitUntil:
     notVisible: "Take it: Elephants Dream"
