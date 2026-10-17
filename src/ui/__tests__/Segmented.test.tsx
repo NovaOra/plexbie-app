@@ -54,6 +54,9 @@ test("keys sit side by side when their words fit, and stack when they don't", as
   const keyRow = () => screen.getByTestId("wrap").children[0] as unknown as { props: { style: object } };
   await fireEvent(keyRow() as never, "layout", layout(380));
   expect(StyleSheet.flatten(keyRow().props.style)).toMatchObject({ flexDirection: "row" });
+  await fireEvent(keyRow() as never, "layout", layout(320));
+  // Too narrow for equal halves, but both fit at their own widths: side by side, in proportion.
+  expect(StyleSheet.flatten(keyRow().props.style)).toMatchObject({ flexDirection: "row" });
   await fireEvent(keyRow() as never, "layout", layout(250));
   expect((StyleSheet.flatten(keyRow().props.style) as { flexDirection?: string }).flexDirection).toBeUndefined();
   await view.unmount();
