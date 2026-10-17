@@ -64,7 +64,7 @@ test("switching back to the domain field focuses it", async () => {
   mockServer = "";
   await render(<SignInScreen />);
   await fireEvent.press(screen.getByText("Use a different address"));
-  await fireEvent.press(screen.getByText("Use plexbie.your domain instead"));
+  await fireEvent.press(screen.getByText("Use your plexbie. address instead"));
   expect(screen.getByLabelText("Your domain").props.autoFocus).toBe(true);
 });
 

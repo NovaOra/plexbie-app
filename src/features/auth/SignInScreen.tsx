@@ -220,7 +220,7 @@ export function SignInScreen() {
                     />
                     <PressableScale onPress={() => { setMode("domain"); setServer(fromDomain(domain)); setSwitchedBack(true); }} haptic="none" style={styles.switch}
                       accessibilityRole="button">
-                      <Text variant="meta" style={styles.change}>Use plexbie.your domain instead</Text>
+                      <Text variant="meta" style={styles.change}>Use your plexbie. address instead</Text>
                     </PressableScale>
                   </>
                 ) : (
