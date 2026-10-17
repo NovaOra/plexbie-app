@@ -5,7 +5,7 @@
 // at a time; a general one says "General", and has nothing to search for.
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, within } from "@testing-library/react-native";
 import { Linking, Text } from "react-native";
 import { titleTicket } from "../../../api/__fixtures__/bot";
 import type { Ack, AppAdminTicketDetail } from "../../../api/schemas";
@@ -88,6 +88,16 @@ test("in Manage's sheet, its keys come under the title and who asked, before who
   await screen.findByRole("header", { name: "Big Buck Bunny" });
   expect(at("Sheet keys")).toBeGreaterThan(at("Asked by "));
   expect(at("has it")).toBeGreaterThan(at("Sheet keys"));
+});
+
+test("the composer's only key is Add note; Wait on and Solve… are a row of their own under it", async () => {
+  await show();
+  const composer = within(screen.getByTestId("ticket-composer"));
+  expect(composer.getByText("Add note")).toBeTruthy();
+  expect(composer.queryByText("Solve…")).toBeNull();
+  expect(composer.queryByText(/^Wait on /)).toBeNull();
+  expect(screen.getByText("Solve…")).toBeTruthy();
+  expect(screen.getByText("Wait on Sam")).toBeTruthy();
 });
 
 const disabled = (name: string) => !!screen.getByRole("button", { name }).props.accessibilityState?.disabled;

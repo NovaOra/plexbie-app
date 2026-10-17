@@ -184,16 +184,20 @@ export function AdminTicketBody({ id, embedded = false, actions }: { id: string;
             </KeyRow>
           </View>
         ) : (
-          <View style={[detailStyles.box, glass.surface, kind === "note" ? styles.noteBox : styles.replyBox]} onLayout={field.onLayout}>
-            <GlassFill radius={radius.m} />
-            <Segmented accessibilityLabel="Who sees it" value={kind} onChange={setKind} accent={kind === "note" ? color.note : color.screen}
-              options={[{ id: "note", label: "Note for admins", short: "Note" }, { id: "reply", label: `Reply to ${t.who}`, short: "Reply" }]} />
-            <TextInput value={text} onChangeText={setText} multiline maxLength={1200} onFocus={field.onFocus}
-              placeholder={kind === "note" ? "Only admins see this" : `${t.who} gets this as a Discord DM or an alert, and can answer`}
-              placeholderTextColor={color.faint} accessibilityLabel={kind === "note" ? "Note for admins" : `Reply to ${t.who}`}
-              style={[styles.input, kind === "note" ? styles.inputNote : styles.inputReply]} />
-            <Button label={kind === "note" ? "Add note" : "Send reply"} busy={busy === "send"} busyLabel="Sending…"
-              disabled={!text.trim() || !!busy} onPress={() => void send()} />
+          // The composer's one key is its own (Add note, Send reply); what to do with the
+          // ticket itself (wait on them, solve it) is a row of its own under it.
+          <View style={styles.compose}>
+            <View testID="ticket-composer" style={[detailStyles.box, glass.surface, kind === "note" ? styles.noteBox : styles.replyBox]} onLayout={field.onLayout}>
+              <GlassFill radius={radius.m} />
+              <Segmented accessibilityLabel="Who sees it" value={kind} onChange={setKind} accent={kind === "note" ? color.note : color.screen}
+                options={[{ id: "note", label: "Note for admins", short: "Note" }, { id: "reply", label: `Reply to ${t.who}`, short: "Reply" }]} />
+              <TextInput value={text} onChangeText={setText} multiline maxLength={1200} onFocus={field.onFocus}
+                placeholder={kind === "note" ? "Only admins see this" : `${t.who} gets this as a Discord DM or an alert, and can answer`}
+                placeholderTextColor={color.faint} accessibilityLabel={kind === "note" ? "Note for admins" : `Reply to ${t.who}`}
+                style={[styles.input, kind === "note" ? styles.inputNote : styles.inputReply]} />
+              <Button label={kind === "note" ? "Add note" : "Send reply"} busy={busy === "send"} busyLabel="Sending…"
+                disabled={!text.trim() || !!busy} onPress={() => void send()} />
+            </View>
             <KeyRow>
               <Button kind="secondary" label={t.waiting ? "Back to open" : `Wait on ${them}`} busy={busy === "status"} busyLabel="Saving…" disabled={!!busy}
                 onPress={() => void run("status", () => client.ticketStatus(id, t.waiting ? "open" : "waiting"), t.waiting ? "Back with the admins" : `Waiting on ${t.who}`)}
@@ -208,6 +212,8 @@ export function AdminTicketBody({ id, embedded = false, actions }: { id: string;
 
 const styles = StyleSheet.create({
   headText: { gap: space.xs },
+  // The composer, then its ticket's keys 24dp under it.
+  compose: { gap: space.xl },
   owner: { gap: space.m },
   noteBox: { borderWidth: 1, ...replyRim(0.45, "note") },
   replyBox: { borderWidth: 1, ...replyRim(0.45) },
