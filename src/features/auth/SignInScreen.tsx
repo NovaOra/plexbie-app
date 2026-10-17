@@ -2,16 +2,16 @@
 // came back with, as its lower third); channel 2 is how to get in. Your Plexbie's address
 // and the two sign-in keys sit on the deck below the screen, and the same steps stay on
 // the page under the set. The screen is as tall as channel 1 (and never less than
-// SCREEN_MIN): channel 2's steps scroll inside it, so the keys are in the first view on a
-// phone and nothing moves when the channel changes. The tally says Standby until a key is
+// SCREEN_MIN), so the keys are in the first view on a phone. Where channel 2's steps are
+// taller, the screen grows to show them whole on channel 2 only, and the room it grows
+// into is kept under the set on channel 1, so nothing under the set moves. The tally says Standby until a key is
 // pressed, and is lit pink only while that sign-in is under way. Reduce Motion: the channel
 // changes without the flick, the knob jumps, and keys sink by their lip alone.
 import * as haptic from "../../ui/haptics";
 import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View, type LayoutChangeEvent } from "react-native";
 import Animated, {
   useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withTiming,
 } from "react-native-reanimated";
@@ -110,6 +110,14 @@ export function SignInScreen() {
   try { shown = normalizeServer(server).replace(/^https:\/\//, ""); } catch { /* shown as typed */ }
 
   const readout = ch === 2 ? "CH 2 · Getting in" : busy ? `CH 1 · Tuning in to ${NAMES[busy]}` : "CH 1 · Sign in";
+  // Each channel's own height: channel 2 taller grows the screen on channel 2, and that much
+  // room waits under the set on channel 1 (the reserve), so the page under it never moves.
+  const [heights, setHeights] = useState({ one: 0, two: 0 });
+  const measure = (which: "one" | "two") => (e: LayoutChangeEvent) => {
+    const h = Math.ceil(e.nativeEvent.layout.height);
+    setHeights((was) => (was[which] === h ? was : { ...was, [which]: h }));
+  };
+  const extra = heights.one && heights.two ? Math.max(0, heights.two - Math.max(heights.one, SCREEN_MIN)) : 0;
   const titleRef = useFocusHere();
   const bob = useBob();
 
@@ -140,8 +148,8 @@ export function SignInScreen() {
                     <Tally live={!!busy} />
                   </View>
                 </View>
-                <Animated.View testID="channels" style={[styles.channels, flicking]}>
-                  <Channel on={ch === 1}>
+                <Animated.View testID="channels" style={[styles.channels, ch === 2 && extra ? { minHeight: heights.two } : null, flicking]}>
+                  <Channel on={ch === 1} onLayout={measure("one")}>
                     <Animated.View style={bob}>
                       <Image source={LOGO} style={styles.mascot} accessibilityIgnoresInvertColors accessible={false} />
                     </Animated.View>
@@ -155,11 +163,9 @@ export function SignInScreen() {
                       </View>
                     ) : null}
                   </Channel>
-                  <Channel on={ch === 2} over>
-                    <ScreenScroll>
-                      <Text variant="heading" accessibilityRole="header" style={styles.ch2Title}>Getting in</Text>
-                      <Steps compact />
-                    </ScreenScroll>
+                  <Channel on={ch === 2} over onLayout={measure("two")}>
+                    <Text variant="heading" accessibilityRole="header" style={styles.ch2Title}>Getting in</Text>
+                    <Steps compact />
                   </Channel>
                 </Animated.View>
               </LitScreen>
@@ -249,6 +255,8 @@ export function SignInScreen() {
           </Cabinet>
           <Feet />
         </View>
+        {/* The room channel 2 grows into, kept here while channel 1 is on. */}
+        {ch === 1 && extra ? <View testID="channel-2-reserve" style={{ height: extra }} /> : null}
 
         <Text variant="meta" style={styles.small}>
           You sign in on your Plexbie’s own page. The app never sees your Discord or Plex password.
@@ -279,11 +287,12 @@ export function SignInScreen() {
 }
 
 /** One channel's picture. Channel 1 sets the screen's height; channel 2 (`over`) lies over it
- *  at that height, so changing channel moves nothing. The one not on is invisible, untouchable
- *  and silent to screen readers. */
-function Channel({ on, over, children }: { on: boolean; over?: boolean; children: ReactNode }) {
+ *  from the top at its own height (the screen grows to it when it's taller). The one not on is
+ *  invisible, untouchable and silent to screen readers. */
+function Channel({ on, over, onLayout, children }: { on: boolean; over?: boolean; onLayout?: (e: LayoutChangeEvent) => void; children: ReactNode }) {
   return (
     <View
+      onLayout={onLayout}
       style={[styles.channel, over && styles.channelOver, !on && styles.channelOff]}
       pointerEvents={on ? "auto" : "none"}
       accessibilityElementsHidden={!on}
@@ -291,34 +300,6 @@ function Channel({ on, over, children }: { on: boolean; over?: boolean; children
       testID={on ? "channel-on" : "channel-off"}
     >
       {children}
-    </View>
-  );
-}
-
-/** Channel 2's picture, scrolling inside the screen when it's longer than channel 1's, its
- *  bottom fading out while there's more below. */
-function ScreenScroll({ children }: { children: ReactNode }) {
-  const [box, setBox] = useState({ view: 0, content: 0, at: 0 });
-  const more = box.content - box.view - box.at > 2;
-  return (
-    <View style={styles.screenScroll}>
-      <ScrollView
-        testID="channel-2-scroll"
-        nestedScrollEnabled
-        persistentScrollbar
-        indicatorStyle="white"
-        scrollEventThrottle={64}
-        onLayout={(e) => { const view = e.nativeEvent.layout.height; setBox((b) => ({ ...b, view })); }}
-        onContentSizeChange={(_, content) => setBox((b) => ({ ...b, content }))}
-        onScroll={(e) => { const at = e.nativeEvent.contentOffset.y; setBox((b) => ({ ...b, at })); }}
-        contentContainerStyle={styles.channel}
-      >
-        {children}
-      </ScrollView>
-      {more ? (
-        <LinearGradient testID="channel-2-more" pointerEvents="none" colors={["transparent", color.fieldDeep]} style={styles.more}
-          accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />
-      ) : null}
     </View>
   );
 }
@@ -366,11 +347,9 @@ const styles = StyleSheet.create({
   readout: { color: color.screen, flexShrink: 0 },
   channels: { minHeight: SCREEN_MIN },
   channel: { gap: space.m },
-  // Laid over the first at its height: channel 1 alone sizes the screen.
-  channelOver: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
+  // Laid over the first from the top, at its own height.
+  channelOver: { position: "absolute", top: 0, left: 0, right: 0 },
   channelOff: { opacity: 0 },
-  screenScroll: { flex: 1 },
-  more: { position: "absolute", left: 0, right: 0, bottom: 0, height: 28 },
   mascot: { width: 56, height: 56, borderRadius: 14 },
   // Sized for a 360dp phone's screen-in-a-screen: the longest word still fits its line.
   title: { fontSize: 24, lineHeight: 26, color: color.ink },

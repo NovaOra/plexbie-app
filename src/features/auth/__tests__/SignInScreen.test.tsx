@@ -136,27 +136,34 @@ test("the channel key tunes to channel 2's steps after the flick, and back", asy
   }
 });
 
-test("the screen is as tall as channel 1: channel 2 lies over it and scrolls inside it, never resizing the set", async () => {
+test("the screen is as tall as channel 1; a taller channel 2 grows it on channel 2 only, into room kept under the set", async () => {
   await render(<SignInScreen />);
   const style = (id: string) => StyleSheet.flatten(screen.getByTestId(id, { includeHiddenElements: true }).props.style);
-  // Channel 1 is in the flow and sizes the screen, never under SCREEN_MIN; channel 2 fills that height and no more.
+  // Channel 1 is in the flow and sizes the screen, never under SCREEN_MIN; channel 2 lies over it from the top.
   expect(style("channel-on").position).toBeUndefined();
-  expect(style("channel-off")).toMatchObject({ position: "absolute", top: 0, bottom: 0, left: 0, right: 0 });
+  expect(style("channel-off")).toMatchObject({ position: "absolute", top: 0, left: 0, right: 0 });
+  expect(style("channel-off").bottom).toBeUndefined();
   expect(style("channels")).toMatchObject({ minHeight: SCREEN_MIN });
+  // Channel 2 is 120 taller than channel 1: that much room waits under the set while channel 1 is on.
+  await fireEvent(screen.getByTestId("channel-on"), "layout", { nativeEvent: { layout: { height: 300 } } });
+  await fireEvent(screen.getByTestId("channel-off", { includeHiddenElements: true }), "layout", { nativeEvent: { layout: { height: 420 } } });
+  expect(style("channel-2-reserve")).toMatchObject({ height: 120 });
+  expect(style("channels").minHeight).toBe(SCREEN_MIN);
   await fireEvent.press(screen.getByLabelText("How to get in"));
   await act(async () => { await new Promise((ok) => setTimeout(ok, 120)); });
-  expect(style("channel-on")).toMatchObject({ position: "absolute" });
-  // Longer than the screen: it scrolls, its bottom fading while there's more below.
-  const steps = screen.getByTestId("channel-2-scroll");
-  expect(steps.props.nestedScrollEnabled).toBe(true);
-  expect(screen.queryByTestId("channel-2-more", { includeHiddenElements: true })).toBeNull();
-  await fireEvent(steps, "layout", { nativeEvent: { layout: { height: 240 } } });
-  await fireEvent(steps, "contentSizeChange", 200, 420);
-  expect(screen.getByTestId("channel-2-more", { includeHiddenElements: true })).toBeTruthy();
-  await fireEvent.scroll(steps, { nativeEvent: { contentOffset: { y: 180 } } });
-  expect(screen.queryByTestId("channel-2-more", { includeHiddenElements: true })).toBeNull();
-  // All of it is there for a screen reader, scrolled or not.
-  expect(within(steps).getAllByLabelText(/^Step \d:/)).toHaveLength(3);
+  // On channel 2 the screen takes that room: the set grows by as much as the reserve gives up.
+  expect(style("channels").minHeight).toBe(420);
+  expect(screen.queryByTestId("channel-2-reserve", { includeHiddenElements: true })).toBeNull();
+  // All of it shows, with no scrolling box inside the screen.
+  expect(screen.queryByTestId("channel-2-scroll", { includeHiddenElements: true })).toBeNull();
+  expect(within(screen.getByTestId("channel-on")).getAllByLabelText(/^Step \d:/)).toHaveLength(3);
+});
+
+test("a channel 2 no taller than channel 1 keeps no room and changes nothing", async () => {
+  await render(<SignInScreen />);
+  await fireEvent(screen.getByTestId("channel-on"), "layout", { nativeEvent: { layout: { height: 300 } } });
+  await fireEvent(screen.getByTestId("channel-off", { includeHiddenElements: true }), "layout", { nativeEvent: { layout: { height: 280 } } });
+  expect(screen.queryByTestId("channel-2-reserve", { includeHiddenElements: true })).toBeNull();
 });
 
 test("the readout keeps room for its longest words, unseen and unread, so the set never moves as it changes", async () => {
