@@ -3,7 +3,8 @@
 // slow rolling line, a glass glare), domed knobs with grip ridges, a power light and a
 // dotted grille at the side, and two feet with a shadow on the floor. Light from the
 // screen spills onto the room behind it. Everything is drawn from Views and gradients
-// (the app has no SVG). Idle motion is slow and stops under Reduce Motion.
+// (the app has no SVG). Idle motion is slow, plays a cycle or two as the screen appears,
+// and is off under Reduce Motion.
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useState, type ReactNode } from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
@@ -26,21 +27,26 @@ const LIGHT_EDGE = "rgba(174, 184, 216, 0.45)";
 /** Hidden from screen readers: drawing only. */
 const DRAWING = { accessibilityElementsHidden: true, importantForAccessibility: "no-hide-descendants" } as const;
 
-/** A value that runs 0 → 1 (and back, with `bounce`) every `ms`, forever; still under Reduce Motion. */
-function useIdle(ms: number, bounce = false) {
+/**
+ * A value that runs 0 → 1 (and back, with `bounce`) every `ms`, `times` over, then rests at 0:
+ * the set comes alive as the screen appears and then holds still, so a phone left on it isn't
+ * redrawing forever (nor is Android's accessibility tree never idle). Still under Reduce Motion.
+ */
+function useIdle(ms: number, times: number, bounce = false) {
   const reduced = useReducedMotion();
   const t = useSharedValue(0);
   useEffect(() => {
     if (reduced) { t.set(0); return; }
-    t.set(withRepeat(withTiming(1, { duration: ms, easing: bounce ? Easing.inOut(Easing.sin) : Easing.linear }), -1, bounce));
+    // A bounce takes two runs per cycle (there and back), so it ends where it started.
+    t.set(withRepeat(withTiming(1, { duration: ms, easing: bounce ? Easing.inOut(Easing.sin) : Easing.linear }), bounce ? times * 2 : times, bounce));
     return () => cancelAnimation(t);
-  }, [reduced, t, ms, bounce]);
+  }, [reduced, t, ms, times, bounce]);
   return t;
 }
 
 /** The room behind the set: a pool of the screen's light, breathing slowly. */
 export function RoomGlow() {
-  const t = useIdle(5000, true);
+  const t = useIdle(5000, 1, true);
   const breathe = useAnimatedStyle(() => ({ opacity: 0.75 + t.get() * 0.25 }));
   return (
     <Animated.View pointerEvents="none" style={[styles.room, breathe]} {...DRAWING}>
@@ -89,7 +95,7 @@ export function Cabinet({ children }: { children: ReactNode }) {
 /** The bezel and the lit screen in it: glowing from its centre, with scanlines, a rolling line and a glare. */
 export function LitScreen({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   const [height, setHeight] = useState(0);
-  const roll = useIdle(7000);
+  const roll = useIdle(7000, 1);
   const rolling = useAnimatedStyle(() => ({ transform: [{ translateY: -48 + roll.get() * (height + 48) }] }));
   return (
     <View style={[styles.bezel, style]}>
@@ -181,9 +187,9 @@ export function PlayIcon() {
   );
 }
 
-/** The mascot's gentle bob, 3.5s a cycle; still under Reduce Motion. */
+/** The mascot's gentle bob, 3.5s a cycle, twice; still under Reduce Motion. */
 export function useBob() {
-  const t = useIdle(3500, true);
+  const t = useIdle(3500, 2, true);
   return useAnimatedStyle(() => ({ transform: [{ translateY: -3 * t.get() }] }));
 }
 
