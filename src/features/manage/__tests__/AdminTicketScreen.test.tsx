@@ -213,8 +213,8 @@ test("one Plexbie opened: its first message is Plexbie's, for the member, and no
   expect(screen.getByText("Plexbie, for Sam Rivers")).toBeTruthy();
   expect(screen.getByText("212 releases came back, but none matched by ID. Search by name instead?")).toBeTruthy();
   expect(screen.queryByText("When it was opened, Plexbie saw")).toBeNull();
-  expect(screen.getByText("⚠︎ Nothing found for over a day")).toBeTruthy();
-  expect(screen.queryByText("⚠︎ Help asked: Can’t be found")).toBeNull();
+  expect(screen.getByText("Nothing found for over a day")).toBeTruthy();
+  expect(screen.queryByText("Help asked: Can’t be found")).toBeNull();
 });
 
 test("one Plexbie opened, from a bot that says so: Plexbie's first message, for the member, whatever it saw", async () => {

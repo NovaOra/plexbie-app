@@ -4,6 +4,7 @@ import Animated, { useReducedMotion } from "react-native-reanimated";
 import type { AppRequest } from "../../api/schemas";
 import { PressableScale } from "../../ui/Pressable";
 import { Text } from "../../ui/Text";
+import { AlertLine } from "../../ui/AlertLine";
 import { useLargeText } from "../../ui/useColumns";
 import { color, EASE_OUT_CSS, font, radius, space } from "../../ui/theme";
 import { KIND_LABEL, formatSlot, isLive, seasonsLabel, since, stageHelp, stageLabel } from "./stage";
@@ -46,7 +47,7 @@ export const RequestCard = memo(function RequestCard({ request: r, onPress, by, 
           <Text style={[styles.stage, done && styles.stageDone, muted && styles.stageMuted]}>{stageLabel(r.stage, r.title.kind)}</Text>
         </View>
         <Text variant="meta" numberOfLines={large ? undefined : 2}>{detail}</Text>
-        {stuck?.map((s) => <Text key={s} variant="meta" style={styles.stuck}>⚠︎ {s}</Text>)}
+        {stuck?.map((s) => <AlertLine key={s} variant="meta" style={styles.stuck}>{s}</AlertLine>)}
         {!by && r.help?.waiting && r.help.status !== "resolved" ? <Text variant="meta" style={styles.asked}>An admin asked you something</Text> : null}
         {live && percent !== null ? (
           <View style={styles.track} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">

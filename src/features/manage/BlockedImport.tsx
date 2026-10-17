@@ -13,6 +13,7 @@ import { useApi } from "../../auth/session";
 import { Button } from "../../ui/Button";
 import { HoldButton } from "../../ui/HoldButton";
 import { Text } from "../../ui/Text";
+import { AlertLine } from "../../ui/AlertLine";
 import { color, radius, space } from "../../ui/theme";
 import { Heading, TextField } from "./bits";
 import { useAct, useAdminKey } from "./useAdmin";
@@ -133,7 +134,7 @@ export function BlockedImport({ target, onDone }: { target: AppBlockedRef; onDon
 
   return (
     <View style={styles.box} accessibilityLabel={`${app} won’t import this by itself`}>
-      <Text variant="label" style={styles.head}>⚠︎ {app} won’t import this by itself</Text>
+      <AlertLine>{app} won’t import this by itself</AlertLine>
       {preview.error ? (
         <>
           <Text variant="meta">{preview.error.message}</Text>
@@ -144,7 +145,7 @@ export function BlockedImport({ target, onDone }: { target: AppBlockedRef; onDon
         <>
           {p.messages.map((m) => <Text key={m} variant="meta" style={styles.why}>{app} says: “{m}”</Text>)}
           <Text variant="body">Look before you import. Usually it’s fine (a name {app} couldn’t match), but a blocked import can be the wrong episode, the wrong film, or something that shouldn’t be there. Check each file is what {app} thinks it is.</Text>
-          {p.warnings.map((w) => <Text key={w} variant="label" style={styles.warn}>⚠︎ {w}</Text>)}
+          {p.warnings.map((w) => <AlertLine key={w}>{w}</AlertLine>)}
           {tv ? (
             <View style={styles.owner}>
               <Text variant="label">Show: {owner?.title ?? "none"}{owner?.year ? ` (${owner.year})` : ""}</Text>
@@ -288,7 +289,6 @@ export function BlockedList() {
 const styles = StyleSheet.create({
   box: { gap: space.m, padding: space.l, borderRadius: radius.m, borderWidth: 1, borderColor: "rgba(255, 92, 147, 0.45)",
     backgroundColor: "rgba(255, 92, 147, 0.08)" },
-  head: { color: color.tally },
   why: { fontStyle: "italic" },
   warn: { color: color.tally },
   file: { gap: 2, padding: space.m, borderRadius: radius.s, backgroundColor: "rgba(255, 255, 255, 0.04)" },

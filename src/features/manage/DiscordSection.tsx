@@ -9,6 +9,7 @@ import { Button } from "../../ui/Button";
 import { useConfirm } from "../../ui/Confirm";
 import { Chip } from "../../ui/Chip";
 import { Text } from "../../ui/Text";
+import { AlertLine } from "../../ui/AlertLine";
 import { QueryGate } from "../../ui/QueryGate";
 import { color, multilineInput, radius, space } from "../../ui/theme";
 import { since } from "../requests/stage";
@@ -108,7 +109,7 @@ export function DiscordSection() {
 
       {d.inbox?.threadsMissing ? (
 
-        <Text variant="meta" style={styles.warn}>⚠︎ Plexbie can’t make threads in the admin channel, so DMs are posted in the channel itself. Give Plexbie’s role {d.inbox.threadsMissing} there.</Text>
+        <AlertLine variant="meta">Plexbie can’t make threads in the admin channel, so DMs are posted in the channel itself. Give Plexbie’s role {d.inbox.threadsMissing} there.</AlertLine>
 
       ) : null}
 
@@ -152,7 +153,6 @@ export function DiscordSection() {
 
 const styles = StyleSheet.create({
   ink: { color: color.ink },
-  warn: { color: color.tally },
   party: { borderColor: color.tally },
   liveText: { color: color.tally },
   chips: { gap: space.s, paddingVertical: space.xs },

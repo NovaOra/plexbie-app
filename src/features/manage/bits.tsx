@@ -10,6 +10,7 @@ import { Button } from "../../ui/Button";
 import { KeyRow } from "../../ui/KeyRow";
 import { detailStyles } from "../../ui/DetailPage";
 import { Text } from "../../ui/Text";
+import { AlertLine } from "../../ui/AlertLine";
 import { color, font, radius, space, tint, TOUCH } from "../../ui/theme";
 
 export function Heading({ title, count }: { title: string; count?: number }) {
@@ -72,7 +73,7 @@ export function StuckBox({ stuck: all, ticketShown = false }: { stuck: string[];
   if (!stuck.length) return null;
   return (
     <View style={[detailStyles.box, styles.stuckBox]} accessibilityRole="summary" accessibilityLabel={`Looks stuck: ${stuck.join(". ")}`}>
-      {stuck.map((s) => <Text key={s} variant="label" style={styles.stuck}>⚠︎ {s}</Text>)}
+      {stuck.map((s) => <AlertLine key={s}>{s}</AlertLine>)}
     </View>
   );
 }
@@ -131,7 +132,6 @@ const styles = StyleSheet.create({
   initial: { width: 44, height: 44, borderRadius: 22, backgroundColor: color.panelRaised, alignItems: "center", justifyContent: "center" },
   initialText: { fontFamily: font.bold, fontSize: 17, color: color.screen },
   stuckBox: { gap: space.s, backgroundColor: tint(color.tally, 0.1), borderColor: tint(color.tally, 0.45) },
-  stuck: { color: color.tally },
   field: {
     minHeight: TOUCH, paddingHorizontal: space.l, borderRadius: radius.m, borderWidth: 1.5, borderColor: color.slate,
     backgroundColor: color.field, color: color.ink, fontFamily: font.regular, fontSize: 16,
