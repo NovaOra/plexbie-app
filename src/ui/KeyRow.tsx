@@ -5,35 +5,58 @@
 import { Children, cloneElement, Fragment, isValidElement, useState, type ReactElement, type ReactNode } from "react";
 import { StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from "react-native";
 import { EM_KEY, EM_PILL, keyWidth } from "./keyFit";
-import { space } from "./theme";
+import { Text } from "./Text";
+import { space, type } from "./theme";
 
 type KeyProps = { label?: string; busyLabel?: string; kind?: string; onConfirm?: unknown; style?: StyleProp<ViewStyle> };
 
+/** Every set of words a key can show (a hold says "Hold to decline", then "Again to confirm"), with whether it's busy (a spinner beside it). */
+function wordsOf(k: KeyProps): { text: string; spinner: boolean }[] {
+  if (!k.label) return [];
+  if (k.onConfirm) return [{ text: `Hold to ${k.label.toLowerCase()}`, spinner: false }, { text: "Again to confirm", spinner: false }];
+  return [{ text: k.label, spinner: false }, ...(k.busyLabel ? [{ text: k.busyLabel, spinner: true }] : [])];
+}
+
 export function KeyRow({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   const [width, setWidth] = useState(0);
+  // Each label's own width, as the phone lays it out (the estimate stands in until then).
+  const [natural, setNatural] = useState<Record<string, number>>({});
   const { fontScale } = useWindowDimensions();
   const keys = flat(children);
   const share = (width - GAP * (keys.length - 1)) / keys.length;
-  // The longer of its words and its busy words (with the spinner beside them), so a press never flips the layout.
+  const quietOf = (k: KeyProps) => k.kind === "quiet";
+  // The widest of its words (with the spinner beside busy ones), so a press or an arm never flips the layout.
   const widest = ({ props: k }: ReactElement<KeyProps>) => {
-    // A hold's words sit 18 in from each side, inside its edge.
-    const quiet = k.kind === "quiet";
-    const padding = k.onConfirm ? 40 : quiet ? space.l * 2 + 2 : 40;
-    const em = quiet ? EM_PILL : EM_KEY;
-    // A hold button reads "Hold to decline", not "Decline".
-    const words = k.label && k.onConfirm ? `Hold to ${k.label}` : k.label;
-    return Math.max(words ? keyWidth(words, fontScale, { padding, em }) : 0, k.busyLabel ? keyWidth(k.busyLabel, fontScale, { padding, em }) + 28 : 0);
+    // Keys and holds have 20 (holds 18 and an edge) each side; pills 16 and an edge.
+    const padding = k.onConfirm || !quietOf(k) ? 40 : space.l * 2 + 2;
+    const em = quietOf(k) ? EM_PILL : EM_KEY;
+    return Math.max(0, ...wordsOf(k).map((w) =>
+      (natural[`${quietOf(k) ? "q" : "k"}:${w.text}`] ?? keyWidth(w.text, fontScale, { padding: 0, em })) + padding + SAFE + (w.spinner ? 28 : 0)));
   };
   // Until it's measured, side by side (most pairs fit).
   const even = !width || keys.every((k) => widest(k) <= share);
   const sized = !even && keys.reduce((sum, k) => sum + widest(k), GAP * (keys.length - 1)) <= width;
   const look = (k: ReactElement<KeyProps>) => (even ? styles.share : sized ? { flexGrow: 1, flexShrink: 0, flexBasis: widest(k) } : styles.full);
+  const texts = [...new Map(keys.flatMap(({ props: k }) => wordsOf(k).map((w) => {
+    const id = `${quietOf(k) ? "q" : "k"}:${w.text}`;
+    return [id, { id, text: w.text, quiet: quietOf(k) }] as const;
+  }))).values()];
   return (
     <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={[even || sized ? styles.row : styles.column, style]}>
       {keys.map((k) => cloneElement(k, { style: [k.props.style, look(k)] }))}
+      {/* The labels laid out unconstrained, off screen, to know their real widths. */}
+      <View style={styles.measure} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        {texts.map((t) => (
+          <Text key={t.id} variant="label" style={t.quiet ? type.quiet : type.button}
+            onLayout={(e) => { const w = Math.ceil(e.nativeEvent.layout.width); setNatural((n) => (n[t.id] === w ? n : { ...n, [t.id]: w })); }}>{t.text}</Text>
+        ))}
+      </View>
     </View>
   );
 }
+
+/** A little over the label's own width, so a line that only just fits is never cut. */
+const SAFE = 6;
 
 /** The keys themselves, through any fragment a caller grouped them in. */
 function flat(children: ReactNode): ReactElement<KeyProps>[] {
@@ -44,6 +67,7 @@ function flat(children: ReactNode): ReactElement<KeyProps>[] {
 const GAP = space.m;
 const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: GAP },
+  measure: { position: "absolute", left: -10000, top: 0, width: 4000, alignItems: "flex-start", opacity: 0 },
   column: { gap: space.s },
   share: { flex: 1 },
   full: { flex: undefined, flexGrow: 0, flexBasis: "auto", alignSelf: "stretch" },

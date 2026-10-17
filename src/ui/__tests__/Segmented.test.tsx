@@ -62,6 +62,21 @@ test("keys sit side by side when their words fit, and stack when they don't", as
   await view.unmount();
 });
 
+test("what the phone measures of a label wins over the estimate", async () => {
+  await render(
+    <View testID="wrap">
+      <KeyRow><Button kind="secondary" label="Wait on Jordan" onPress={() => undefined} /><Button kind="secondary" label="Solve…" onPress={() => undefined} /></KeyRow>
+    </View>,
+  );
+  const keyRow = () => screen.getByTestId("wrap").children[0] as unknown as { props: { style: object } };
+  await fireEvent(keyRow() as never, "layout", layout(380));
+  expect(StyleSheet.flatten(keyRow().props.style)).toMatchObject({ flexDirection: "row" });
+  // Laid out, "Wait on Jordan" is far wider than its letters suggested: the pair stacks.
+  const measured = screen.getAllByText("Wait on Jordan", { includeHiddenElements: true }).at(-1)!;
+  await fireEvent(measured, "layout", layout(320));
+  expect((StyleSheet.flatten(keyRow().props.style) as { flexDirection?: string }).flexDirection).toBeUndefined();
+});
+
 test("a key's words stay on one line, unless the phone's text is large", async () => {
   const view = await render(<Button label="Sign out and try again with Plex" onPress={() => undefined} />);
   expect(screen.getByText("Sign out and try again with Plex").props.numberOfLines).toBe(1);
