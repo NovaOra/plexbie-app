@@ -1,18 +1,20 @@
 // "Everything else": every full view, grouped by job like the monitors, with the same
-// counts (the website's manageMenu.ts). A row opens its full view.
+// counts (the website's manageMenu.ts): a group's head says what its rows count, and each
+// row's line starts with its own share of it. A row opens its full view.
 import { StyleSheet, View } from "react-native";
 import { PressableScale } from "../../../ui/Pressable";
 import { Text } from "../../../ui/Text";
 import { color, font, radius, space, TOUCH } from "../../../ui/theme";
 import type { MenuGroup, MenuRow } from "./manageMenu";
 
-/** What a row says beside its name: a count, "2 urgent", "Urgent", or a tally for what's down or live. */
+/** What a row shows beside its name, in one style everywhere: its count in a round badge, and a
+ *  tally dot when any of it can't wait (urgent, down, or a watch party on now). */
 function badge(r: MenuRow) {
-  if (r.tally === "down") return { text: `${r.count ?? 1} down`, tally: true };
-  if (r.tally === "live") return { text: "Live", tally: true };
-  if (r.count) return { text: r.urgent ? `${r.count} · ${r.urgent} urgent` : String(r.count), tally: false };
-  if (r.hot) return { text: "Urgent", tally: false, hot: true };
-  return null;
+  const count = r.count ?? 0;
+  const live = r.tally === "live";
+  const hot = !!r.urgent || !!r.hot || r.tally === "down";
+  if (!count && !hot && !live) return null;
+  return { count, dot: hot || live, said: [count ? String(count) : "", live ? "live now" : hot ? "urgent" : ""].filter(Boolean).join(", ") };
 }
 
 export function EverythingElse({ groups, onPick }: { groups: MenuGroup[]; onPick: (row: MenuRow) => void }) {
@@ -28,12 +30,17 @@ export function EverythingElse({ groups, onPick }: { groups: MenuGroup[]; onPick
             const b = badge(r);
             return (
               <PressableScale key={r.id} haptic="none" onPress={() => onPick(r)} style={styles.row}
-                accessibilityLabel={`${r.label}${b ? `, ${b.text}` : ""}. ${r.desc}`}>
+                accessibilityLabel={`${r.label}${b ? `, ${b.said}` : ""}. ${r.desc}`}>
                 <View style={styles.text}>
                   <Text variant="label" style={styles.ink} numberOfLines={1}>{r.label}</Text>
                   <Text variant="meta" numberOfLines={2}>{r.desc}</Text>
                 </View>
-                {b ? <Text style={[styles.badge, b.tally && styles.tally, b.hot && styles.hot]}>{b.text}</Text> : null}
+                {b ? (
+                  <View style={styles.badge} testID={`menu-badge-${r.id}`}>
+                    {b.dot ? <View testID={`menu-dot-${r.id}`} style={styles.dot} /> : null}
+                    {b.count ? <View style={styles.count}><Text style={styles.countText}>{b.count}</Text></View> : null}
+                  </View>
+                ) : null}
               </PressableScale>
             );
           })}
@@ -50,7 +57,9 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: space.m, minHeight: TOUCH, paddingVertical: space.s, paddingHorizontal: space.m, borderRadius: radius.m, backgroundColor: color.panelRaised },
   text: { flex: 1, gap: 2 },
   ink: { color: color.ink },
-  badge: { fontFamily: font.bold, fontSize: 13, lineHeight: 16, color: color.ink, paddingHorizontal: space.s, paddingVertical: 2, borderRadius: radius.pill, backgroundColor: color.rule, overflow: "hidden" },
-  tally: { backgroundColor: color.tally, color: color.onTally },
-  hot: { color: color.tally, backgroundColor: "transparent" },
+  badge: { flexDirection: "row", alignItems: "center", gap: space.s },
+  // The tally: an 8px dot, as on the sign-in set and the monitors' lamps.
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: color.tally },
+  count: { minWidth: 24, minHeight: 24, paddingHorizontal: 6, borderRadius: radius.pill, alignItems: "center", justifyContent: "center", backgroundColor: color.field },
+  countText: { fontFamily: font.bold, fontSize: 13, lineHeight: 16, color: color.ink, fontVariant: ["tabular-nums"] },
 });

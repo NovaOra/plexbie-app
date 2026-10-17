@@ -151,6 +151,14 @@ test("Everything else lists every full view with the monitors' counts, and ‹ D
   const drawer = within(screen.getByTestId("sections-drawer"));
   expect(drawer.getByRole("header", { name: /^Requests · 3.waiting/ })).toBeTruthy();
   expect(drawer.getByRole("header", { name: /^Services · 1.of 6.down/ })).toBeTruthy();
+  // One badge style: the count, and a tally dot when some of it is urgent; the row's line says the same numbers.
+  expect(drawer.getByRole("header", { name: /^Help · 2.tickets · 1.chat/ })).toBeTruthy();
+  expect(drawer.getByRole("button", { name: /^All tickets, 2, urgent\. 2.need you · 1.urgent · 2.more waiting on a reply$/ })).toBeTruthy();
+  expect(drawer.getByRole("button", { name: /^All requests, 3\. 3.waiting · 2.stuck under Help$/ })).toBeTruthy();
+  expect(drawer.getByRole("button", { name: /^Blocked imports, urgent\. Radar Men from the Moon under All tickets$/ })).toBeTruthy();
+  expect(drawer.getByRole("button", { name: /^Services, 1, urgent\. Discord Public Bot down · 6.checks$/ })).toBeTruthy();
+  expect(drawer.getByTestId("menu-dot-tickets")).toBeTruthy();
+  expect(drawer.queryByTestId("menu-dot-all")).toBeNull();
   await fireEvent.press(drawer.getByRole("button", { name: /^Invite links/ }));
   expect(screen.getByText("Invites section")).toBeTruthy();
   await fireEvent.press(screen.getByRole("button", { name: "Back to the desk" }));
