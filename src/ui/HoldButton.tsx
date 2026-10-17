@@ -1,6 +1,6 @@
 // An action you have to mean, as the website's: press and hold until the fill reaches the
-// end (about a second), or press twice. The first quick press arms it ("Again to
-// confirm", said out loud) and a second within a few seconds confirms; otherwise it
+// end (about a second), or press twice. The first quick press arms it ("Tap again to
+// decline", said out loud) and a second within a few seconds confirms; otherwise it
 // disarms by itself. Letting go of a hold early cancels, with a word about it (`bail`).
 // A screen reader, a switch, voice or a keyboard press it the same way: twice.
 // The fill is a transform on the UI thread; the words change a handful of times a hold.
@@ -13,6 +13,9 @@ import * as haptic from "./haptics";
 import { Text } from "./Text";
 import { color, depth, radius, TOUCH, type } from "./theme";
 import { useLargeText } from "./useColumns";
+
+/** What an armed hold says: the verb kept ("Tap again to decline"), on one line. */
+export const armedWords = (label: string) => `Tap again to ${label.toLowerCase()}`;
 
 /** A press shorter than this is a tap: it arms, or confirms once armed. */
 const TAP_MS = 300;
@@ -62,6 +65,7 @@ export function HoldButton({ label, onConfirm, ms = 1000, stages = [], bail, dis
   const reader = useRef(false);
   const off = !!disabled || busy || blocked;
   const what = accessibilityLabel ?? label;
+  const lower = (w: string) => `${w.charAt(0).toLowerCase()}${w.slice(1)}`;
   const latest = useRef({ onConfirm, off });
   const clear = () => { timers.current.forEach(clearTimeout); timers.current = []; };
   useEffect(() => () => { clear(); clearTimeout(armTimer.current); }, []);
@@ -81,7 +85,7 @@ export function HoldButton({ label, onConfirm, ms = 1000, stages = [], bail, dis
     setArmed(on);
     if (on) {
       armTimer.current = setTimeout(() => arm(false), ARMED_MS);
-      AccessibilityInfo.announceForAccessibility(`Press again to confirm: ${what}`);
+      AccessibilityInfo.announceForAccessibility(`Tap again to ${lower(what)}`);
     }
   };
   const confirm = () => {
@@ -149,7 +153,7 @@ export function HoldButton({ label, onConfirm, ms = 1000, stages = [], bail, dis
     transform: [{ translateX: (fill.get() - 1) * width.get() }],
   }));
   const still = useAnimatedStyle(() => ({ transform: [{ translateX: (1 - fill.get()) * width.get() }] }));
-  const words = holding && stages.length ? stages[stage] : armed ? "Again to confirm" : bailed && bail ? bail : `Hold to ${label.toLowerCase()}`;
+  const words = holding && stages.length ? stages[stage] : armed ? armedWords(label) : bailed && bail ? bail : `Hold to ${label.toLowerCase()}`;
 
   const quiet = kind === "quiet";
   const pink = kind === "primary";
@@ -197,7 +201,7 @@ export function HoldButton({ label, onConfirm, ms = 1000, stages = [], bail, dis
       disabled={off}
       accessibilityRole="button"
       // The name starts with the words on it, so "tap Hold to import it" works for voice control.
-      accessibilityLabel={armed ? `Again to confirm: ${what}` : `Hold to ${what.charAt(0).toLowerCase()}${what.slice(1)}`}
+      accessibilityLabel={armed ? `Tap again to ${lower(what)}` : `Hold to ${lower(what)}`}
       accessibilityHint={`${confirmText ? `${confirmText} ` : ""}Press and hold, or press twice, to confirm.`}
       accessibilityState={{ disabled: off, busy }}
       style={[styles.button, quiet ? styles.pill : styles.key, face, sunk && !reduced && styles.down, style]}

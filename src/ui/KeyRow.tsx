@@ -4,16 +4,17 @@
 // and a label never wraps inside a key.
 import { Children, cloneElement, Fragment, isValidElement, useState, type ReactElement, type ReactNode } from "react";
 import { StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from "react-native";
+import { armedWords } from "./HoldButton";
 import { EM_KEY, EM_PILL, keyWidth } from "./keyFit";
 import { Text } from "./Text";
 import { space, type } from "./theme";
 
 type KeyProps = { label?: string; busyLabel?: string; kind?: string; onConfirm?: unknown; style?: StyleProp<ViewStyle> };
 
-/** Every set of words a key can show (a hold says "Hold to decline", then "Again to confirm"), with whether it's busy (a spinner beside it). */
+/** Every set of words a key can show (a hold says "Hold to decline", then "Tap again to decline"), with whether it's busy (a spinner beside it). */
 function wordsOf(k: KeyProps): { text: string; spinner: boolean }[] {
   if (!k.label) return [];
-  if (k.onConfirm) return [{ text: `Hold to ${k.label.toLowerCase()}`, spinner: false }, { text: "Again to confirm", spinner: false }];
+  if (k.onConfirm) return [{ text: `Hold to ${k.label.toLowerCase()}`, spinner: false }, { text: armedWords(k.label), spinner: false }];
   return [{ text: k.label, spinner: false }, ...(k.busyLabel ? [{ text: k.busyLabel, spinner: true }] : [])];
 }
 

@@ -145,7 +145,7 @@ test("cancelling an invite takes its new link away", async () => {
   await settle();
   // A hold, or two presses: the first arms it, the second cancels.
   await fireEvent.press(screen.getByLabelText("Hold to cancel Mum’s invite"));
-  await fireEvent.press(screen.getByLabelText("Again to confirm: Cancel Mum’s invite"));
+  await fireEvent.press(screen.getByLabelText("Tap again to cancel Mum’s invite"));
   await settle();
   expect(mockClient.revokeInvite).toHaveBeenCalledWith("m1");
   expect(screen.queryByText("https://plexbie.example/invite/m1")).toBeNull();

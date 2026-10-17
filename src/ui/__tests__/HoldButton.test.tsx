@@ -78,8 +78,10 @@ test("a quick tap arms it and says so; a second confirms", async () => {
   await answer(false);
   await tap();
   expect(onConfirm).not.toHaveBeenCalled();
-  expect(screen.getByRole("button", { name: "Again to confirm: Import it" })).toBeTruthy();
-  expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith("Press again to confirm: Import it");
+  expect(screen.getByRole("button", { name: "Tap again to import it" })).toBeTruthy();
+  expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith("Tap again to import it");
+  // The words on it keep the verb, as its name does.
+  expect(screen.getAllByText("Tap again to import it", { includeHiddenElements: true }).length).toBeGreaterThan(0);
   expect(lip()).toMatchObject({ height: depth.lip, backgroundColor: color.tally });
   await tap();
   expect(onConfirm).toHaveBeenCalledTimes(1);
@@ -174,7 +176,7 @@ test("iOS's accessibility activate arms, with no extra custom action", async () 
   await answer(false);
   expect(button().props.accessibilityActions).toBeUndefined();
   await fireEvent(button(), "accessibilityTap");
-  expect(screen.getByRole("button", { name: "Again to confirm: Import it" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Tap again to import it" })).toBeTruthy();
   await fireEvent(button(), "accessibilityTap");
   expect(onConfirm).toHaveBeenCalledTimes(1);
 });
@@ -189,7 +191,7 @@ test("with a screen reader on, a press arms instead of starting a hold", async (
   expect(onConfirm).not.toHaveBeenCalled();
   await fireEvent(button(), "pressOut");
   await fireEvent.press(button());
-  expect(screen.getByRole("button", { name: "Again to confirm: Import it" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Tap again to import it" })).toBeTruthy();
 });
 
 test("a disabled, busy or blocked button does nothing, however it's pressed", async () => {

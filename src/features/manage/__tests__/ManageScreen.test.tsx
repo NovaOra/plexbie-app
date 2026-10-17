@@ -116,7 +116,7 @@ test("Decline is a hold: two presses decline, one only arms it", async () => {
   await desk();
   await fireEvent.press(screen.getByRole("button", { name: "Hold to decline Undersea Kingdom" }));
   expect(mockAsked).not.toContain("decide");
-  await fireEvent.press(screen.getByRole("button", { name: "Again to confirm: Decline Undersea Kingdom" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Tap again to decline Undersea Kingdom" }));
   await screen.findByText(/8 things need you\./, undefined, LONG);
   expect(screen.queryByText("Undersea Kingdom")).toBeNull();
 });
