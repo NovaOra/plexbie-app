@@ -89,6 +89,22 @@ test("a quick tap arms it and says so; a second confirms", async () => {
   expect(screen.getByRole("button", { name: "Hold to import it" })).toBeTruthy();
 });
 
+test("a tap too quick for React Native to show the press (its press arrives before it lets go) still arms it", async () => {
+  await show();
+  await answer(false);
+  await fireEvent(button(), "pressIn");
+  await answer(false);
+  await fireEvent.press(button());
+  await wait(130);
+  await fireEvent(button(), "pressOut");
+  expect(onConfirm).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "Tap again to import it" })).toBeTruthy();
+  await fireEvent(button(), "pressIn");
+  await fireEvent.press(button());
+  await fireEvent(button(), "pressOut");
+  expect(onConfirm).toHaveBeenCalledTimes(1);
+});
+
 test("armed, it waits a few seconds for the second press, then disarms", async () => {
   await show();
   await answer(false);

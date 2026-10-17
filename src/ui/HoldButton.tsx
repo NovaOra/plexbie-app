@@ -186,7 +186,9 @@ export function HoldButton({ label, onConfirm, ms = 1000, stages = [], bail, dis
       // screen reader on, works like a tap.
       onPress={() => {
         const touch = touched.current;
-        const tap = quick.current;
+        // A tap quicker than the press React Native lets show (130ms) reaches here before
+        // onPressOut, so it's timed here too, or the quickest taps would never arm it.
+        const tap = quick.current || (pressed.current && Date.now() - pressedAt.current < TAP_MS);
         touched.current = false;
         quick.current = false;
         if (!touch || reader.current || tap) tapped();
