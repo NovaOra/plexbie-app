@@ -99,7 +99,7 @@ export function AdminRequestBody({ id, embedded = false }: { id: string; embedde
           <Text variant="meta">Asked {since(r.requestedAt)} by {r.requester} · via {r.via}</Text>
         </TitleHead>
 
-        <StuckBox stuck={r.stuck} />
+        <StuckBox stuck={r.stuck} ticketShown={!!openTicket} />
 
         <StageBox r={r} />
         <SeasonsBox r={r} />

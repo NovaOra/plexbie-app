@@ -180,3 +180,30 @@ test("a general ticket: General, and nothing to search for or open", async () =>
   expect(screen.queryByRole("button", { name: "Search again" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Open its page" })).toBeNull();
 });
+
+test("one Plexbie opened: its first message is Plexbie's, for the member, and nothing says the reason twice", async () => {
+  mockClient.adminTicket.mockResolvedValue({
+    ...ticket, reason: "Can’t be found", offer: "name", statusThen: "Nothing found",
+    request: { slot: 3, title: { id: "1", kind: "movie", title: "Big Buck Bunny" }, stage: "searching", requestedAt: now, updatedAt: now,
+      stuck: ["Help asked: Can’t be found", "Nothing found for over a day"] },
+    thread: [{ id: "e1", kind: "member", by: "Sam Rivers", text: "Can’t be found. 212 releases came back, but none matched by ID. Search by name instead?", at: now }],
+  } as AppAdminTicketDetail);
+  await show();
+  expect(screen.getByText("Opened by Plexbie for Sam Rivers just now")).toBeTruthy();
+  expect(screen.getByText("Plexbie, for Sam Rivers")).toBeTruthy();
+  expect(screen.getByText("212 releases came back, but none matched by ID. Search by name instead?")).toBeTruthy();
+  expect(screen.queryByText("When it was opened, Plexbie saw")).toBeNull();
+  expect(screen.getByText("⚠︎ Nothing found for over a day")).toBeTruthy();
+  expect(screen.queryByText("⚠︎ Help asked: Can’t be found")).toBeNull();
+});
+
+test("a member's own: their name on their message, and what Plexbie saw when it adds something", async () => {
+  mockClient.adminTicket.mockResolvedValue({
+    ...ticket, reason: "Stuck downloading", statusThen: "Downloading, 62%",
+    thread: [{ id: "e1", kind: "member", by: "Sam Rivers", text: "Stuck downloading. Since this morning.", at: now }],
+  } as AppAdminTicketDetail);
+  await show();
+  expect(screen.getByText("Asked by Sam Rivers just now")).toBeTruthy();
+  expect(screen.getByText("Sam Rivers")).toBeTruthy();
+  expect(screen.getByText("Downloading, 62%")).toBeTruthy();
+});

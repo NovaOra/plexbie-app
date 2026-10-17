@@ -25,6 +25,26 @@ export function ticketTitle(t: { subject: string; title: string; year?: string |
   return t.subject === "title" && t.year ? `${t.title} (${t.year})` : t.title;
 }
 
+/** What Plexbie writes as "what it saw" when it opens a ticket itself (the bot's season_search.open_help callers). */
+const PLEXBIE_SAW = /^(Nothing found|Downloaded, import blocked|On Plex, as another film|Adding to Plex|Approved, not in (Sonarr|Radarr))$/;
+
+/** Plexbie opened it, on its own (a search that found nothing, an import it won't take): the bot
+ *  files it under the member who asked, with Plexbie's words as their first message. */
+export function openedByPlexbie(t: { openedBy?: string | null; offer?: string | null; reasonCode?: string | null; statusThen?: string | null }) {
+  if (t.openedBy) return t.openedBy === "Plexbie";
+  return t.offer === "name" || t.reasonCode === "blocked" || t.reasonCode === "notreached" || PLEXBIE_SAW.test((t.statusThen ?? "").trim());
+}
+
+/** Its first message when Plexbie wrote it for the member: said to be Plexbie's, for them, and
+ *  without the reason in front, which the ticket's eyebrow already says. */
+export function plexbieFirst(entries: AppTicketEntry[], t: { who: string; reason: string }): AppTicketEntry[] {
+  return entries.map((e, i) => {
+    if (i || e.kind !== "member" || e.by !== t.who) return e;
+    const lead = `${t.reason}. `;
+    return { ...e, by: `Plexbie, for ${t.who}`, text: t.reason && e.text.startsWith(lead) ? e.text.slice(lead.length) : e.text };
+  });
+}
+
 export function TicketPill({ label, tone }: { label: string; tone: "hot" | "wait" | "done" | "plain" }) {
   return <Text style={[styles.pill, pill[tone]]}>{label}</Text>;
 }

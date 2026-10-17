@@ -65,8 +65,10 @@ export async function optimistic<T, R>(qc: QueryClient, key: QueryKey, change: (
   return out;
 }
 
-/** Why a request looks stuck, one warning a line. Nothing when it doesn't. */
-export function StuckBox({ stuck }: { stuck: string[] }) {
+/** Why a request looks stuck, one warning a line. Nothing when it doesn't. Beside its ticket
+ *  (`ticketShown`), "Help asked: …" is left out: the ticket says that itself. */
+export function StuckBox({ stuck: all, ticketShown = false }: { stuck: string[]; ticketShown?: boolean }) {
+  const stuck = ticketShown ? all.filter((s) => !s.startsWith("Help asked")) : all;
   if (!stuck.length) return null;
   return (
     <View style={[detailStyles.box, styles.stuckBox]} accessibilityRole="summary" accessibilityLabel={`Looks stuck: ${stuck.join(". ")}`}>

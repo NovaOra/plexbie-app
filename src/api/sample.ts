@@ -227,7 +227,7 @@ function makeSampleState() {
     { id: "h1", slot: 214, title: "Pepper & Carrot", kind: "tv", seasons: [2], who: "Alex Kim", reason: "Stuck downloading",
       note: "It’s been at 62% since this morning.", status_then: "Downloading, 62%", status: "open", created_at: ago(40), actions: [] },
     { id: "h2", slot: 210, title: "Elephants Dream", kind: "movie", seasons: null, who: "Jordan Lee", reason: "Can’t be found", offer: "name",
-      note: "Searching by its IDs found nothing Plexbie could grab for Elephants Dream: 212 releases came back. Search by name instead?",
+      note: "212 releases came back, but none matched by ID. Search by name instead?",
       status_then: "Nothing found", status: "open", created_at: ago(12), actions: [] },
     // A download Sonarr won't import by itself, as Plexbie opens it (the bot's core/blocked_imports).
     { id: "h4", slot: 217, title: "Radar Men from the Moon", kind: "tv", seasons: [1], who: "Jordan Lee", reason: "Downloaded, but won’t import",
@@ -296,7 +296,7 @@ function makeSampleState() {
       entry("status", "Priya N.", "Waiting on them", 30),
     ] },
     h2: { requestKey: "6002", owner: null, waiting: false, thread: [
-      entry("member", "Jordan Lee", "Can’t be found. Searching by its IDs found nothing Plexbie could grab for Elephants Dream: 212 releases came back. Search by name instead?", 12),
+      entry("member", "Jordan Lee", "Can’t be found. 212 releases came back, but none matched by ID. Search by name instead?", 12),
     ] },
     h5: { requestKey: null, owner: "Priya N.", waiting: true, thread: [
       entry("member", ME, "Picture looks wrong. It’s grey and washed out on the living-room TV.", 60 * 20),

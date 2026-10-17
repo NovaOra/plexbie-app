@@ -21,7 +21,7 @@ import { useDraftGuard } from "../../ui/useDraftGuard";
 import { useMe } from "../me/useMe";
 import { StageBox } from "../request/StageBox";
 import { seasonsLabel, since } from "../requests/stage";
-import { Thread, TicketPill, ticketKind, ticketState, ticketTitle } from "../tickets/Thread";
+import { Thread, TicketPill, openedByPlexbie, plexbieFirst, ticketKind, ticketState, ticketTitle } from "../tickets/Thread";
 import { SEARCH_DONE, SearchFixes, StuckBox, card } from "./bits";
 import { BlockedImport } from "./BlockedImport";
 import { useAct, useAdminKey } from "./useAdmin";
@@ -76,6 +76,12 @@ export function AdminTicketBody({ id, embedded = false }: { id: string; embedded
   const page = t.subject === "title" && video && t.tmdb ? t.tmdb : null;
   const plexUrl = t.subject === "title" && t.plexUrl?.startsWith("https://") ? t.plexUrl : null;
   const saw = (t.statusThen ?? "").split("\n").map((line) => line.trim()).filter(Boolean);
+  const plexbie = openedByPlexbie(t);
+  // What Plexbie saw, unless it only says the reason again: Plexbie's own one line when it
+  // opened the ticket itself ("Nothing found" on "Can't be found"), or the reason word for word.
+  const sameWords = (a: string, b: string) => a.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim() === b.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const sawShown = saw.length > 0 && !(saw.length === 1 && (plexbie || sameWords(saw[0], t.reason)));
+  const asked = t.openedBy ? `Opened by ${t.openedBy}` : plexbie ? `Opened by Plexbie for ${t.who}` : `Asked by ${t.who}`;
   const seasons = seasonsLabel(t.seasons);
   const them = t.who.split(" ")[0] || t.who;       // "Wait on Jordan" fits a half-width button
   const send = async () => {
@@ -94,13 +100,13 @@ export function AdminTicketBody({ id, embedded = false }: { id: string; embedded
           // About a film, show or request: the bot's poster for it (or a drawn cover) beside the heading.
           <TitleHead title={{ poster: t.poster, title: t.title, id: t.id }} name={`${ticketTitle(t)}${seasons ? ` · ${seasons}` : ""}`}
             eyebrow={`${ticketKind(t)} · ${t.reason}`} heading={heading}>
-            <Text variant="meta">{t.openedBy ? `Opened by ${t.openedBy}` : `Asked by ${t.who}`} {since(t.createdAt)}</Text>
+            <Text variant="meta">{asked} {since(t.createdAt)}</Text>
           </TitleHead>
         ) : (
           <View style={styles.headText}>
             <Text variant="eyebrow">{ticketKind(t)} · {t.reason}</Text>
             <Text ref={heading} style={detailStyles.name} accessibilityRole="header">{ticketTitle(t)}{seasons ? ` · ${seasons}` : ""}</Text>
-            <Text variant="meta">{t.openedBy ? `Opened by ${t.openedBy}` : `Asked by ${t.who}`} {since(t.createdAt)}</Text>
+            <Text variant="meta">{asked} {since(t.createdAt)}</Text>
           </View>
         )}
 
@@ -125,7 +131,7 @@ export function AdminTicketBody({ id, embedded = false }: { id: string; embedded
         {t.request ? (
           <>
             <StageBox r={t.request} />
-            <StuckBox stuck={t.request.stuck} />
+            <StuckBox stuck={t.request.stuck} ticketShown />
           </>
         ) : null}
 
@@ -137,7 +143,7 @@ export function AdminTicketBody({ id, embedded = false }: { id: string; embedded
           </KeyRow>
         ) : null}
 
-        {saw.length ? (
+        {sawShown ? (
           <View style={[detailStyles.box, glass.surface]} accessibilityRole="summary" accessible
             accessibilityLabel={`When it was opened, Plexbie saw: ${saw.join(". ")}`}>
             <GlassFill radius={radius.m} />
@@ -150,7 +156,7 @@ export function AdminTicketBody({ id, embedded = false }: { id: string; embedded
 
         {searchable && open ? <SearchFixes kind={t.kind} busy={busy} onSearch={search} byName={t.offer === "name"} /> : null}
 
-        <Thread entries={t.thread} who={t.who} admin />
+        <Thread entries={plexbie ? plexbieFirst(t.thread, t) : t.thread} who={t.who} admin />
 
         {!open ? (
           <Button kind="secondary" label="Reopen" busy={busy === "reopen"} busyLabel="Reopening…" disabled={!!busy}
