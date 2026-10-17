@@ -113,6 +113,14 @@ test("the member's own tickets parse as sent: about a film, on a request, and ge
   expect(parsed.map((t) => t.subject)).toEqual(["title", "request", "general"]);
 });
 
+test("the member's own tickets read the bot's poster; a general one, an older bot's or an odd value has none", () => {
+  const parsed = MyTicketsSchema.parse(wire(fx.myTickets));
+  expect(parsed.map((t) => t.poster ?? null)).toEqual(["/img/tmdb/w185/sintel.jpg?v=2", "/img/tmdb/w185/pepper.jpg?v=2", null]);
+  const older = fx.myTickets.map(({ poster: _, ...t }) => t);
+  expect(MyTicketsSchema.parse(wire(older)).map((t) => t.poster ?? null)).toEqual([null, null, null]);
+  expect(MyTicketsSchema.parse([{ ...fx.myTickets[0], poster: 5 }])[0].poster ?? null).toBeNull();
+});
+
 test("a ticket with odd values reads safely, an unknown subject as a request's, and a broken row is left out", () => {
   const [odd, ...rest] = MyTicketsSchema.parse([
     { id: "0a1b2c3d4e5f", subject: "account", title: 5, slot: "seven", waiting: "yes", status: 1, thread: "none", createdAt: null },

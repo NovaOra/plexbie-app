@@ -96,8 +96,21 @@ test("until the first answer there's no card; a list that couldn't load says so,
   expect(mockMyTickets).toHaveBeenCalledTimes(2);
 });
 
-test("a request ticket carries its request's poster; a title one a drawn cover; a general one none", async () => {
+test("a ticket shows the poster the bot sends with it; a general one none", async () => {
   mockMyTickets.mockResolvedValue(myTickets as AppMyTicket[]);
+  mockMyRequests.mockResolvedValue([{ slot: 7, title: { id: "1", kind: "tv", title: "Pepper & Carrot", poster: "https://media.plexbie.com/posters/pepper.jpg" } }]);
+  await show();
+  await screen.findByRole("header", { name: "Your tickets" });
+  await waitFor(() => expect(mockMyRequests).toHaveBeenCalled());
+  await settle();
+  // The bot's own poster wins over the request's.
+  expect(screen.getAllByTestId("poster").map((n) => n.props.children)).toEqual([
+    "Sintel: /img/tmdb/w185/sintel.jpg?v=2", "Pepper & Carrot: /img/tmdb/w185/pepper.jpg?v=2",
+  ]);
+});
+
+test("from a bot that sends no posters, a request ticket carries its request's; a title one a drawn cover; a general one none", async () => {
+  mockMyTickets.mockResolvedValue(myTickets.map(({ poster: _, ...t }) => t) as AppMyTicket[]);
   mockMyRequests.mockResolvedValue([{ slot: 7, title: { id: "1", kind: "tv", title: "Pepper & Carrot", poster: "https://media.plexbie.com/posters/pepper.jpg" } }]);
   await show();
   await screen.findByRole("header", { name: "Your tickets" });

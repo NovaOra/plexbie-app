@@ -249,6 +249,10 @@ test("the member's own tickets: theirs only, waiting on them first, and one each
   // And Manage has every one of them, saying what each is about.
   const rows = (await answer(sampleApi.adminTickets())).rows;
   for (const t of mine) expect(rows.find((r) => r.id === t.id)?.subject).toBe(t.subject);
+  // A film's or show's carries the poster Manage shows for it, as the bot's do; a general one has none.
+  expect(mine.map((t) => t.poster ?? null)).toEqual([rows.find((r) => r.id === mine[0].id)?.poster, rows.find((r) => r.id === mine[1].id)?.poster, null]);
+  expect(mine[0].poster).toMatch(/^https:\/\//);
+  expect("poster" in mine[2]).toBe(false);
 });
 
 test("a title page says whether it's on Plex and, on a film the member has a ticket on, which", async () => {

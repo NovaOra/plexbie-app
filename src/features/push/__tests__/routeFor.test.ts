@@ -28,6 +28,17 @@ test("the website's desk address opens that request, stuck download or blocked i
   expect(routeFor("/manage?item=request:")).toBe("/manage");
 });
 
+test("the bot's request and blocked-import alerts open that request or import on the desk, as the bot words them", () => {
+  // A request by its card's Discord id (plugins/media_requests); a blocked import by its app and
+  // download id (core/blocked_imports): SABnzbd's, or a torrent's hash.
+  expect(routeFor("/manage?item=request:1428765432101234567")).toEqual({ pathname: "/manage", params: { item: "request:1428765432101234567" } });
+  expect(routeFor("/manage?item=import:sonarr:SABnzbd_nzo_abc123")).toEqual({ pathname: "/manage", params: { item: "import:sonarr:SABnzbd_nzo_abc123" } });
+  const hash = "6F1C0D2E9A8B7C6D5E4F3A2B1C0D9E8F7A6B5C4D";
+  expect(routeFor(`/manage?item=import:radarr:${hash}`)).toEqual({ pathname: "/manage", params: { item: `import:radarr:${hash}` } });
+  // A ticket's alert keeps its own address.
+  expect(routeFor("/manage?tab=tickets&ticket=0123456789ab")).toEqual({ pathname: "/manage", params: { item: "ticket:0123456789ab" } });
+});
+
 test("a member's own ticket (an alert about a title or general one) opens it as theirs", () => {
   expect(routeFor("/?ticket=0123456789ab")).toEqual({ pathname: "/ticket/[id]", params: { id: "0123456789ab" } });
   expect(routeFor("/app/?ticket=abcdef012345")).toEqual({ pathname: "/ticket/[id]", params: { id: "abcdef012345" } });

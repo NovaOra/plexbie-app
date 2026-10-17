@@ -108,10 +108,12 @@ export const myRequests: MediaRequest[] = [
 ];
 
 /** GET /api/tickets: the member's own, waiting on them first, then open, then solved. One
- *  about a film on Plex, one on their request, and a general one. */
+ *  about a film on Plex, one on their request, and a general one. The bot sends a film's or
+ *  show's poster as Manage's rows have it, and leaves it out when there's none. */
 export const myTickets: MyTicket[] = [
   {
     id: "0a1b2c3d4e5f", subject: "title", title: "Sintel", kind: "movie", tmdb: "900104", year: "2010", requestKey: null, slot: null, seasons: null,
+    poster: "/img/tmdb/w185/sintel.jpg?v=2",
     reason: "Picture looks wrong", status: "open", waiting: true, createdAt: "2026-10-08T20:00:00Z", updatedAt: "2026-10-09T08:30:00Z",
     thread: [
       { id: "e1", at: "2026-10-08T20:00:00Z", by: "You", kind: "member", text: "Picture looks wrong. It’s grey on the TV." },
@@ -120,6 +122,7 @@ export const myTickets: MyTicket[] = [
   },
   {
     id: "abcdef012345", subject: "request", title: "Pepper & Carrot", kind: "tv", tmdb: null, year: null, requestKey: "7", slot: 7, seasons: [2],
+    poster: "/img/tmdb/w185/pepper.jpg?v=2",
     reason: "Wrong or missing episodes", status: "open", waiting: false, createdAt: "2026-10-04T20:00:00Z", updatedAt: "2026-10-04T21:30:00Z",
     thread: [{ id: "e3", at: "2026-10-04T20:00:00Z", by: "You", kind: "member", text: "Episode 4 is missing." }],
   },

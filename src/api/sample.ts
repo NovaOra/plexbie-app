@@ -394,14 +394,17 @@ function memberTicket(help: { id: string; reason: string }): AppMemberTicket {
       .map(({ id, at, by, kind, text }) => ({ id, at, kind, text, by: kind === "member" ? "You" : by })),
   };
 }
-/** One of the member's own tickets, as their list has it. */
+/** One of the member's own tickets, as their list has it: with its film's or show's poster, as
+ *  the bot sends it (left out for a book or a general ticket). */
 function myRow(h: SampleHelp): AppMyTicket {
   const t = ticketOf(h.id);
   const subject = h.subject ?? "request";
   const seen = memberTicket(h);
+  const poster = h.kind === "movie" || h.kind === "tv" ? posterIn(house.titles, h.title) : null;
   return {
     id: h.id, subject, title: h.title || null, kind: h.kind || null, tmdb: h.tmdb ?? null, year: h.year ?? null,
     requestKey: subject === "request" ? t.requestKey : null, slot: subject === "request" && h.slot ? h.slot : null, seasons: h.seasons ?? null,
+    ...(poster ? { poster } : {}),
     reason: h.reason, status: h.status, waiting: !!seen.waiting, createdAt: h.created_at,
     updatedAt: t.thread[t.thread.length - 1]?.at ?? h.created_at, thread: seen.thread ?? [],
   };
