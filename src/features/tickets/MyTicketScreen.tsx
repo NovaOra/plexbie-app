@@ -10,7 +10,7 @@ import type { AppMyTicket } from "../../api/schemas";
 import { useApi, useServer } from "../../auth/session";
 import { useAnnounce, useFocusHere } from "../../ui/announce";
 import { Button } from "../../ui/Button";
-import { DetailFallback, DetailPage, detailStyles } from "../../ui/DetailPage";
+import { DetailFallback, DetailPage, TitleHead, detailStyles } from "../../ui/DetailPage";
 import { GlassFill, glass } from "../../ui/Glass";
 import * as haptic from "../../ui/haptics";
 import { useScrollToField } from "../../ui/keyboard";
@@ -19,14 +19,16 @@ import { useToast } from "../../ui/Toast";
 import { color, multilineInput, radius, replyRim, space } from "../../ui/theme";
 import { useDraftGuard } from "../../ui/useDraftGuard";
 import { since } from "../requests/stage";
+import { useRequests } from "../requests/useRequests";
 import { Thread, TicketPill } from "./Thread";
-import { headingFor, myState, useMyTickets } from "./mine";
+import { headingFor, myState, posterOf, useMyTickets } from "./mine";
 
 export function MyTicketScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const heading = useFocusHere();
   const { data, error, refetch, fetchStatus } = useMyTickets();
   const t = data?.find((x) => x.id === id);
+  const requests = useRequests().data;
   const field = useScrollToField();
 
   if (!t) {
@@ -37,13 +39,22 @@ export function MyTicketScreen() {
   }
 
   const state = myState(t);
+  const poster = posterOf(t, requests);
+  // A request's title isn't in its heading ("No. 0214"); a film or show's is.
+  const about = [t.subject === "request" ? t.title : null, t.reason].filter(Boolean).join(" · ");
   return (
     <DetailPage scroll={field.scroll}>
-      <View style={styles.headText}>
-        <Text ref={heading} style={detailStyles.name} accessibilityRole="header">{headingFor(t)}</Text>
-        {/* A request's title isn't in its heading ("No. 0214"); a film or show's is. */}
-        <Text variant="meta">{[t.subject === "request" ? t.title : null, t.reason].filter(Boolean).join(" · ")}</Text>
-      </View>
+      {poster !== undefined ? (
+        // About a film, show or request: its poster beside the heading, as a request's page has.
+        <TitleHead title={{ poster, title: t.title ?? "", id: t.id }} name={headingFor(t)} eyebrow="Ticket" heading={heading}>
+          <Text variant="meta">{about}</Text>
+        </TitleHead>
+      ) : (
+        <View style={styles.headText}>
+          <Text ref={heading} style={detailStyles.name} accessibilityRole="header">{headingFor(t)}</Text>
+          <Text variant="meta">{about}</Text>
+        </View>
+      )}
       <View style={styles.state}>
         <TicketPill label={state.label} tone={state.tone} />
         {t.updatedAt ? <Text variant="meta">Updated {since(t.updatedAt)}</Text> : null}

@@ -1,6 +1,8 @@
 // Need help? on Home: the member's own tickets, each saying what it's about, its reason and
 // where it is, opening it when tapped, and a general ticket to open; none of it on a Plexbie
 // from before members had tickets of their own (404), and a list that couldn't load says so.
+// A ticket about a film, show or request carries its poster (its request's, when the bot
+// sends none with the ticket), or a drawn cover; a general one has no picture.
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
@@ -11,8 +13,15 @@ import { NeedHelp } from "../NeedHelp";
 
 const mockMyTickets = jest.fn<() => Promise<AppMyTicket[]>>();
 const mockPush = jest.fn();
+const mockMyRequests = jest.fn<() => Promise<unknown[]>>(async () => []);
+// Each poster as what it was given: an address, or none (a drawn cover). Poster.test covers the drawing.
+jest.mock("../../../ui/Poster", () => {
+  const { Text } = jest.requireActual<typeof import("react-native")>("react-native");
+  return { Poster: ({ title, poster }: { title: string; poster?: string | null }) => <Text testID="poster">{`${title}: ${poster ?? "drawn"}`}</Text> };
+});
 jest.mock("../../../auth/session", () => ({
-  useApi: () => ({ myTickets: mockMyTickets }),
+  useApi: () => ({ myTickets: mockMyTickets, myRequests: mockMyRequests }),
+  useSession: () => ({ state: { phase: "signedIn", server: "https://plexbie.example", token: "t", sample: false } }),
   useServer: () => "https://plexbie.example",
 }));
 jest.mock("expo-router", () => ({ router: { push: (...to: unknown[]) => mockPush(...to) } }));
@@ -28,6 +37,7 @@ jest.mock("../../../ui/Glass", () => ({ GlassFill: () => null, glass: { surface:
 let qc: QueryClient;
 beforeEach(() => {
   jest.clearAllMocks();
+  mockMyRequests.mockImplementation(async () => []);
   qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 });
 afterEach(() => { qc.clear(); });
@@ -84,4 +94,17 @@ test("until the first answer there's no card; a list that couldn't load says so,
   await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
   await waitFor(() => expect(screen.queryByText("Couldn’t load your tickets. They’re still there.")).toBeNull());
   expect(mockMyTickets).toHaveBeenCalledTimes(2);
+});
+
+test("a request ticket carries its request's poster; a title one a drawn cover; a general one none", async () => {
+  mockMyTickets.mockResolvedValue(myTickets as AppMyTicket[]);
+  mockMyRequests.mockResolvedValue([{ slot: 7, title: { id: "1", kind: "tv", title: "Pepper & Carrot", poster: "https://media.plexbie.com/posters/pepper.jpg" } }]);
+  await show();
+  await screen.findByRole("header", { name: "Your tickets" });
+  await waitFor(() => expect(mockMyRequests).toHaveBeenCalled());
+  await settle();
+  // Sintel has no poster from the bot: its cover is drawn. General has no picture at all.
+  expect(screen.getAllByTestId("poster").map((n) => n.props.children)).toEqual([
+    "Sintel: drawn", "Pepper & Carrot: https://media.plexbie.com/posters/pepper.jpg",
+  ]);
 });

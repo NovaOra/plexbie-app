@@ -20,7 +20,8 @@ jest.mock("expo-router", () => ({
 const mockMyTickets = jest.fn<() => Promise<AppMyTicket[]>>();
 const mockReply = jest.fn<(id: string, text: string) => Promise<Ack>>();
 jest.mock("../../../auth/session", () => ({
-  useApi: () => ({ myTickets: mockMyTickets, replyTicket: mockReply }),
+  useApi: () => ({ myTickets: mockMyTickets, replyTicket: mockReply, myRequests: async () => [] }),
+  useSession: () => ({ state: { phase: "signedIn", server: "https://plexbie.example", token: "t", sample: false } }),
   useServer: () => "https://plexbie.example",
 }));
 jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));

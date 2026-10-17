@@ -2,7 +2,7 @@
 // website uses for one: what it's about, its heading, and where it is.
 import { useQuery } from "@tanstack/react-query";
 import { ApiError } from "../../api/client";
-import type { AppMyTicket } from "../../api/schemas";
+import type { AppMyTicket, AppRequest } from "../../api/schemas";
 import { useApi, useServer } from "../../auth/session";
 import { formatSlot } from "../requests/stage";
 
@@ -48,3 +48,10 @@ export function myState(t: { status: string; waiting?: boolean }) {
 /** A reason inside a sentence ("Your ticket: won’t play on Plex"): lower-cased, names kept. */
 export const inLine = (reason: string) =>
   reason.toLowerCase().replace(/\b(plex|plexbie|sonarr|radarr|audiobookshelf)\b/g, (w) => w[0].toUpperCase() + w.slice(1));
+
+/** A ticket's poster: the bot's, else (one on a request) its request's. A general ticket has
+ *  none (undefined: no picture at all); null draws a cover from its title. */
+export function posterOf(t: Pick<AppMyTicket, "subject" | "title" | "slot" | "poster">, requests?: Pick<AppRequest, "slot" | "title">[]) {
+  if (t.subject === "general" || !t.title) return undefined;
+  return t.poster ?? (t.slot ? requests?.find((r) => r.slot === t.slot)?.title.poster : null) ?? null;
+}

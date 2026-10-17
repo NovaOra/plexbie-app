@@ -186,6 +186,8 @@ const MyTicketSchema = z.looseObject({
   requestKey: z.string().nullable().catch(null),
   slot: z.number().nullable().catch(null),
   seasons: z.union([z.array(z.number()), z.literal("all"), z.literal("latest")]).nullable().optional().catch(null),
+  /** The film's or show's poster, from a bot that sends one with a member's tickets (as Manage's rows have). */
+  poster: z.string().nullable().optional().catch(null),
   reason: z.string().catch(""),
   status: z.string().catch("open"),       // "open" | "resolved" today
   waiting: z.boolean().catch(false),

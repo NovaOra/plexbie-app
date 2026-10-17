@@ -12,7 +12,7 @@ import type { Ack } from "../../api/schemas";
 import { useApi } from "../../auth/session";
 import { useFocusHere } from "../../ui/announce";
 import { Button } from "../../ui/Button";
-import { DetailFallback, DetailFrame, detailStyles } from "../../ui/DetailPage";
+import { DetailFallback, DetailFrame, TitleHead, detailStyles } from "../../ui/DetailPage";
 import { GlassFill, glass } from "../../ui/Glass";
 import { useScrollToField } from "../../ui/keyboard";
 import { Text } from "../../ui/Text";
@@ -90,11 +90,19 @@ export function AdminTicketBody({ id, embedded = false }: { id: string; embedded
 
   return (
     <DetailFrame embedded={embedded} scroll={field.scroll}>
-        <View style={styles.headText}>
-          <Text variant="eyebrow">{ticketKind(t)} · {t.reason}</Text>
-          <Text ref={heading} style={detailStyles.name} accessibilityRole="header">{ticketTitle(t)}{seasons ? ` · ${seasons}` : ""}</Text>
-          <Text variant="meta">{t.openedBy ? `Opened by ${t.openedBy}` : `Asked by ${t.who}`} {since(t.createdAt)}</Text>
-        </View>
+        {t.subject !== "general" && t.title ? (
+          // About a film, show or request: the bot's poster for it (or a drawn cover) beside the heading.
+          <TitleHead title={{ poster: t.poster, title: t.title, id: t.id }} name={`${ticketTitle(t)}${seasons ? ` · ${seasons}` : ""}`}
+            eyebrow={`${ticketKind(t)} · ${t.reason}`} heading={heading}>
+            <Text variant="meta">{t.openedBy ? `Opened by ${t.openedBy}` : `Asked by ${t.who}`} {since(t.createdAt)}</Text>
+          </TitleHead>
+        ) : (
+          <View style={styles.headText}>
+            <Text variant="eyebrow">{ticketKind(t)} · {t.reason}</Text>
+            <Text ref={heading} style={detailStyles.name} accessibilityRole="header">{ticketTitle(t)}{seasons ? ` · ${seasons}` : ""}</Text>
+            <Text variant="meta">{t.openedBy ? `Opened by ${t.openedBy}` : `Asked by ${t.who}`} {since(t.createdAt)}</Text>
+          </View>
+        )}
 
         <View style={styles.owner}>
           <View style={card.pills}>

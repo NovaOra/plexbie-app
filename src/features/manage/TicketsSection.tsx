@@ -1,6 +1,7 @@
 // Manage → Tickets: "Something wrong?" from members (on a request, a film or show, or
 // anything else), and tickets admins open from a request. The ones needing an admin first;
-// a ticket opens on its own screen, where it's talked through, fixed and solved.
+// a ticket opens on its own screen, where it's talked through, fixed and solved. A ticket
+// about a film, show or request carries the bot's poster for it, or a drawn cover.
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useState } from "react";
@@ -9,6 +10,8 @@ import type { AppAdminTicketRow } from "../../api/schemas";
 import { useApi } from "../../auth/session";
 import { GlassFill, glass } from "../../ui/Glass";
 import { PickerPill } from "../../ui/PickerSheet";
+import { Placeholder } from "../../ui/Placeholder";
+import { Poster } from "../../ui/Poster";
 import { PressableScale } from "../../ui/Pressable";
 import { Text } from "../../ui/Text";
 import { QueryGate } from "../../ui/QueryGate";
@@ -33,7 +36,7 @@ export function TicketsSection() {
   const me = useMe().data?.user.name;
   const [show, setShow] = useState<Show>("action");
   const list = tickets.data;
-  if (!list) return <QueryGate query={tickets} errorTitle="Couldn’t load tickets." height={120} />;
+  if (!list) return <QueryGate query={tickets} errorTitle="Couldn’t load tickets." skeleton={<TicketSkeletons />} />;
   const mine = list.rows.filter((t) => t.status === "open" && !!me && t.owner === me).length;
   const rows = list.rows.filter((t) =>
     show === "action" ? t.status === "open" && !t.waiting : show === "waiting" ? t.status === "open" && t.waiting
@@ -72,23 +75,47 @@ function TicketRow({ t }: { t: AppAdminTicketRow }) {
       accessibilityHint="Opens the ticket">
       <View style={[styles.card, glass.surface, state.tone === "hot" && styles.hot]}>
         <GlassFill radius={radius.m} />
-        <Text variant="eyebrow" numberOfLines={1}>{ticketKind(t)} · {asked} · {since(t.updatedAt)}</Text>
-        <Text variant="title" numberOfLines={2}>{title}{seasons ? ` · ${seasons}` : ""}</Text>
-        <Text variant="meta">{t.reason}</Text>
-        {t.last ? <Text variant="meta" numberOfLines={2}><Text variant="meta" style={styles.ink}>{t.last.by}:</Text> {t.last.text}</Text> : null}
-        <View style={styles.pills}>
-          <TicketPill label={state.label} tone={state.tone} />
-          <TicketPill label={t.owner ? `${t.owner} has it` : "Nobody has it yet"} tone="plain" />
+        {t.subject !== "general" && t.title ? <Poster poster={t.poster} title={t.title} id={t.id} style={styles.poster} /> : null}
+        <View style={styles.body}>
+          <Text variant="eyebrow" numberOfLines={1}>{ticketKind(t)} · {asked} · {since(t.updatedAt)}</Text>
+          <Text variant="title" numberOfLines={2}>{title}{seasons ? ` · ${seasons}` : ""}</Text>
+          <Text variant="meta">{t.reason}</Text>
+          {t.last ? <Text variant="meta" numberOfLines={2}><Text variant="meta" style={styles.ink}>{t.last.by}:</Text> {t.last.text}</Text> : null}
+          <View style={styles.pills}>
+            <TicketPill label={state.label} tone={state.tone} />
+            <TicketPill label={t.owner ? `${t.owner} has it` : "Nobody has it yet"} tone="plain" />
+          </View>
         </View>
       </View>
     </PressableScale>
   );
 }
 
+/** Ticket rows while they load: the same shape, so nothing jumps when they arrive. */
+function TicketSkeletons() {
+  return (
+    <View style={styles.section}>
+      {[0, 1, 2].map((i) => (
+        <View key={i} style={[styles.card, styles.skeleton]}>
+          <Placeholder width={52} height={78} round={radius.s} />
+          <View style={styles.body}>
+            <Placeholder height={12} width="55%" round={radius.s} />
+            <Placeholder height={18} width="80%" round={radius.s} />
+            <Placeholder height={12} width="40%" round={radius.s} />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   section: { gap: space.m },
   picker: { flexDirection: "row" },
-  card: { gap: space.xs, padding: space.m, borderRadius: radius.m, backgroundColor: color.panel, borderWidth: StyleSheet.hairlineWidth, borderColor: color.rule },
+  card: { flexDirection: "row", gap: space.m, padding: space.m, borderRadius: radius.m, backgroundColor: color.panel, borderWidth: StyleSheet.hairlineWidth, borderColor: color.rule },
+  skeleton: { backgroundColor: "transparent" },
+  poster: { width: 52, alignSelf: "flex-start" },
+  body: { flex: 1, gap: space.xs, minWidth: 0 },
   hot: { borderColor: "rgba(255, 92, 147, 0.6)" },
   pills: { flexDirection: "row", flexWrap: "wrap", gap: space.xs, marginTop: space.xs },
   ink: { color: color.ink },

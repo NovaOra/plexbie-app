@@ -62,16 +62,16 @@ export function DetailFallback({ error, errorTitle, onRetry, notFound, offline, 
 }
 
 /** A title's head: its poster, then the eyebrow, the title (the screen's heading, focused
- *  through `heading`) and any lines under it. */
-export function TitleHead({ title, eyebrow, heading, children }: {
-  title: { poster: string | null | undefined; title: string; id: string }; eyebrow: string; heading: Ref<RNText>; children?: ReactNode;
+ *  through `heading`, or `name` in its place) and any lines under it. */
+export function TitleHead({ title, eyebrow, heading, name, children }: {
+  title: { poster: string | null | undefined; title: string; id: string }; eyebrow: string; heading: Ref<RNText>; name?: string; children?: ReactNode;
 }) {
   return (
     <View style={styles.head}>
       <Poster poster={title.poster} title={title.title} id={title.id} size="w342" style={styles.poster} />
       <View style={styles.headText}>
         <Text variant="eyebrow">{eyebrow}</Text>
-        <Text ref={heading} style={detailStyles.name} accessibilityRole="header">{title.title}</Text>
+        <Text ref={heading} style={detailStyles.name} accessibilityRole="header">{name ?? title.title}</Text>
         {children}
       </View>
     </View>
