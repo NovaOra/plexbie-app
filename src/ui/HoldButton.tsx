@@ -4,6 +4,9 @@
 // disarms by itself. Letting go of a hold early cancels, with a word about it (`bail`).
 // A screen reader, a switch, voice or a keyboard press it the same way: twice.
 // The fill is a transform on the UI thread; the words change a handful of times a hold.
+// It's as wide as its resting words ("Hold to decline") need, and keeps that width whatever
+// it says next: longer words shrink a little to fit on their line (to 85%), and "Tap again
+// to decline" that still won't fit says "Again to decline". Words are never cut.
 import { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import Animated, {
@@ -16,6 +19,12 @@ import { useLargeText } from "./useColumns";
 
 /** What an armed hold says: the verb kept ("Tap again to decline"), on one line. */
 export const armedWords = (label: string) => `Tap again to ${label.toLowerCase()}`;
+/** The same, where the long words won't fit even shrunk: "Again to decline". */
+export const armedShort = (label: string) => `Again to ${label.toLowerCase()}`;
+/** How far words other than the resting ones may shrink before the short form is used. */
+export const MIN_FONT_SCALE = 0.85;
+/** The words' box: 18 each side (see labelBox), and a hair to spare so a line that only just fits isn't cut. */
+const INSET = 18 * 2 + 2;
 
 /** A press shorter than this is a tap: it arms, or confirms once armed. */
 const TAP_MS = 300;
@@ -49,6 +58,9 @@ export function HoldButton({ label, onConfirm, ms = 1000, stages = [], bail, dis
   const [armed, setArmed] = useState(false);
   const [stage, setStage] = useState(0);
   const [bailed, setBailed] = useState(false);
+  // Its width at rest, and how wide each of its other words are on one line, as the phone lays them out.
+  const [restWidth, setRestWidth] = useState(0);
+  const [natural, setNatural] = useState<Record<string, number>>({});
   const large = useLargeText();
   const reduced = useReducedMotion();
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -153,7 +165,15 @@ export function HoldButton({ label, onConfirm, ms = 1000, stages = [], bail, dis
     transform: [{ translateX: (fill.get() - 1) * width.get() }],
   }));
   const still = useAnimatedStyle(() => ({ transform: [{ translateX: (1 - fill.get()) * width.get() }] }));
-  const words = holding && stages.length ? stages[stage] : armed ? armedWords(label) : bailed && bail ? bail : `Hold to ${label.toLowerCase()}`;
+  const resting = `Hold to ${label.toLowerCase()}`;
+  const said = holding && stages.length ? stages[stage] : armed ? armedWords(label) : bailed && bail ? bail : resting;
+  const others = [...new Set([armedWords(label), armedShort(label), ...(bail ? [bail] : []), ...stages])].filter((w) => w !== resting);
+  // Fitted into the width it has at rest (with large text the words wrap instead).
+  const room = restWidth - INSET - (kind === "quiet" ? 2 : 0);
+  const fits = (w: string) => { const n = natural[w]; return large || !restWidth || n === undefined || n <= room ? 1 : room / n; };
+  const words = armed && !holding && fits(said) < MIN_FONT_SCALE ? armedShort(label) : said;
+  const scale = words === resting ? 1 : Math.min(1, fits(words));
+  const sized = scale < 1 ? { fontSize: Math.floor(16 * scale * 2) / 2 } : null;
 
   const quiet = kind === "quiet";
   const pink = kind === "primary";
@@ -206,20 +226,29 @@ export function HoldButton({ label, onConfirm, ms = 1000, stages = [], bail, dis
       accessibilityLabel={armed ? `Tap again to ${lower(what)}` : `Hold to ${lower(what)}`}
       accessibilityHint={`${confirmText ? `${confirmText} ` : ""}Press and hold, or press twice, to confirm.`}
       accessibilityState={{ disabled: off, busy }}
-      style={[styles.button, quiet ? styles.pill : styles.key, face, sunk && !reduced && styles.down, style]}
+      // Its width is taken at rest and kept while it says anything else, so a key sized by its words never grows.
+      onLayout={(e) => { if (words === resting) setRestWidth(e.nativeEvent.layout.width); }}
+      style={[styles.button, quiet ? styles.pill : styles.key, face, sunk && !reduced && styles.down, style, words !== resting && restWidth ? { width: restWidth } : null]}
     >
       <View style={styles.labelBox} pointerEvents="none">
-        <Text style={[quiet ? type.quiet : type.button, styles.label, { color: ink }]} numberOfLines={large ? undefined : 1}>{words}</Text>
+        <Text style={[quiet ? type.quiet : type.button, styles.label, { color: ink }, sized]} numberOfLines={large ? undefined : 1}>{words}</Text>
       </View>
       <Animated.View style={[styles.fill, bar]} pointerEvents="none" onLayout={(e) => width.set(e.nativeEvent.layout.width)}
         accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <Animated.View style={[styles.fillWords, still]}>
           <View style={styles.labelBox}>
-            <Text style={[quiet ? type.quiet : type.button, styles.label, styles.labelOn]} numberOfLines={large ? undefined : 1}>{words}</Text>
+            <Text style={[quiet ? type.quiet : type.button, styles.label, styles.labelOn, sized]} numberOfLines={large ? undefined : 1}>{words}</Text>
           </View>
         </Animated.View>
       </Animated.View>
       {lip ? <View testID="key-lip" pointerEvents="none" style={[styles.lip, { height: lip, backgroundColor: lipColor }]} /> : null}
+      {/* Its other words laid out unconstrained, off screen, to know their real widths. */}
+      <View style={styles.measure} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        {others.map((w) => (
+          <Text key={w} style={quiet ? type.quiet : type.button} testID="hold-measure"
+            onLayout={(e) => { const n = Math.ceil(e.nativeEvent.layout.width); setNatural((m) => (m[w] === n ? m : { ...m, [w]: n })); }}>{w}</Text>
+        ))}
+      </View>
     </Pressable>
   );
 }
@@ -242,4 +271,5 @@ const styles = StyleSheet.create({
   // Dark on the pink, as the website's --on-tally.
   labelOn: { color: color.onTally },
   lip: { position: "absolute", left: 0, right: 0, bottom: 0 },
+  measure: { position: "absolute", left: -10000, top: 0, width: 4000, alignItems: "flex-start", opacity: 0 },
 });

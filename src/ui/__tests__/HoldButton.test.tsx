@@ -89,6 +89,43 @@ test("a quick tap arms it and says so; a second confirms", async () => {
   expect(screen.getByRole("button", { name: "Hold to import it" })).toBeTruthy();
 });
 
+/** Lays the key out at `width`, and each of its other words at its own width. */
+const layOut = async (width: number, words: Record<string, number>) => {
+  await fireEvent(button(), "layout", { nativeEvent: { layout: { width, height: 48 } } });
+  for (const [w, n] of Object.entries(words)) {
+    const t = screen.getAllByTestId("hold-measure", { includeHiddenElements: true }).find((x) => x.props.children === w)!;
+    await fireEvent(t, "layout", { nativeEvent: { layout: { width: n, height: 20 } } });
+  }
+};
+const width = () => StyleSheet.flatten(button().props.style).width;
+
+test("armed, it keeps its width: the long words shrink a little to fit", async () => {
+  await show({ label: "Decline", stages: [] });
+  await answer(false);
+  // 160 wide leaves 122 for words: 140 of them fit at 87%.
+  await layOut(160, { "Tap again to decline": 140, "Again to decline": 110 });
+  await tap();
+  const words = screen.getByText("Tap again to decline");
+  expect(StyleSheet.flatten(words.props.style).fontSize).toBe(13.5);
+  expect(words.props.numberOfLines).toBe(1);
+  expect(width()).toBe(160);
+});
+
+test("armed, where the long words won't fit even shrunk, it says \"Again to decline\"", async () => {
+  await show({ label: "Decline", stages: [] });
+  await answer(false);
+  await layOut(150, { "Tap again to decline": 140, "Again to decline": 110 });
+  await tap();
+  expect(screen.getByText("Again to decline")).toBeTruthy();
+  expect(screen.queryByText("Tap again to decline")).toBeNull();
+  // Its name still says it in full, and so does the screen reader's announcement.
+  expect(screen.getByRole("button", { name: "Tap again to decline" })).toBeTruthy();
+  expect(width()).toBe(150);
+  await wait(4000);
+  expect(screen.getByText("Hold to decline")).toBeTruthy();
+  expect(width()).toBeUndefined();
+});
+
 test("a tap too quick for React Native to show the press (its press arrives before it lets go) still arms it", async () => {
   await show();
   await answer(false);
