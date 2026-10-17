@@ -34,13 +34,15 @@ export function KeyRow({ children, style }: { children: ReactNode; style?: Style
     return Math.max(0, ...wordsOf(k).map((w) =>
       (natural[`${quietOf(k) ? "q" : "k"}:${w.text}`] ?? keyWidth(w.text, fontScale, { padding: 0, em })) + padding + SAFE + (w.spinner ? 28 : 0)));
   };
-  // Until it's measured, side by side (most pairs fit).
-  const even = !width || keys.every((k) => widest(k) <= share);
-  const look = even ? styles.share : styles.full;
   const texts = [...new Map(keys.flatMap(({ props: k }) => wordsOf(k).map((w) => {
     const id = `${quietOf(k) ? "q" : "k"}:${w.text}`;
     return [id, { id, text: w.text, quiet: quietOf(k) }] as const;
   }))).values()];
+  // Side by side until the row and every label in it are measured (most pairs fit): a row
+  // only stacks on the phone's own widths, never on the estimate.
+  const measured = !!width && texts.every((t) => natural[t.id] !== undefined);
+  const even = !measured || keys.every((k) => widest(k) <= share);
+  const look = even ? styles.share : styles.full;
   return (
     <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={[even ? styles.row : styles.column, style]}>
       {keys.map((k) => cloneElement(k, { style: [k.props.style, look] }))}
