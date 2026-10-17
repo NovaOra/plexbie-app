@@ -25,6 +25,7 @@ import { NeedHelp } from "./NeedHelp";
 import { OnAirList } from "./OnAirList";
 import { useArrivals, useCommunity, useStatus } from "./useHome";
 import { Ambient, GlassFill, glass, TAB_BAR_CLEARANCE } from "../../ui/Glass";
+import { OffAir } from "../../ui/OffAir";
 import { Placeholder } from "../../ui/Placeholder";
 
 /** A title page exists for films and shows with a TMDB id; Plex-only items and shelf books have none. */
@@ -72,11 +73,11 @@ export function HomeScreen() {
         </View>
 
         <UpdateCard style={styles.pad} />
-        <Arrivals arrivals={arrivals.data} failed={!!arrivals.error} retry={() => void arrivals.refetch()} />
+        <Arrivals arrivals={arrivals.data} failed={!!arrivals.error} retrying={arrivals.isFetching} retry={() => void arrivals.refetch()} />
         <YourRequests />
         <NeedHelp />
         {/* The channel, folded into Home: who's watching (live), the board and your figures. */}
-        <OnAir community={community.data} failed={!!community.error} retry={() => void community.refetch()} />
+        <OnAir community={community.data} failed={!!community.error} retrying={community.isFetching} retry={() => void community.refetch()} />
         <View style={styles.pad}>
           <Text variant="eyebrow" accessibilityRole="header" style={styles.section}>Most watched</Text>
           <Board community={community.data} failed={!!community.error} retry={() => void community.refetch()} />
@@ -131,16 +132,18 @@ function SectionHead({ title, action, onAction }: { title: string; action?: stri
   );
 }
 
-function Arrivals({ arrivals, failed, retry }: { arrivals?: AppArrival[]; failed: boolean; retry: () => void }) {
+/** The channel: what just arrived. It loads (or fails) on its own; the rest of Home doesn't wait for it. */
+export function Arrivals({ arrivals, failed, retrying, retry }: { arrivals?: AppArrival[]; failed: boolean; retrying?: boolean; retry: () => void }) {
   // Wider columns as the system text grows, so titles wrap between words, not inside them.
   const { fontScale } = useWindowDimensions();
   const itemWidth = Math.round(112 * Math.min(Math.max(fontScale, 1), 1.8));
   if (failed && !arrivals) {
     return (
-      <View style={styles.pad}>
+      <View>
         <SectionHead title="Just arrived" />
-        <Text variant="body">Couldn’t get what’s new on Plex. Nothing is lost.</Text>
-        <Button kind="secondary" label="Try again" onPress={retry} style={styles.start} />
+        <OffAir tab="Channel" onRetry={retry} retrying={retrying} style={styles.pad}>
+          Couldn’t get what’s new on Plex just now. Nothing is lost.
+        </OffAir>
       </View>
     );
   }
@@ -154,7 +157,11 @@ function Arrivals({ arrivals, failed, retry }: { arrivals?: AppArrival[]; failed
         keyExtractor={(a) => `${a.title.kind}:${a.title.id}:${a.addedAt}`}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.rail}
-        ListEmptyComponent={<View style={styles.row}>{[0, 1, 2].map((i) => <Placeholder key={i} width={itemWidth} height={168} />)}</View>}
+        ListEmptyComponent={
+          <View style={styles.row} accessible accessibilityLabel="Loading" accessibilityState={{ busy: true }}>
+            {[0, 1, 2].map((i) => <Placeholder key={i} width={itemWidth} height={168} round={radius.s} />)}
+          </View>
+        }
         renderItem={({ item: a }) => {
           const go = openable(a.title);
           const body = (
@@ -202,12 +209,12 @@ function YourRequests() {
   );
 }
 
-function OnAir({ community, failed, retry }: { community?: AppCommunity; failed: boolean; retry: () => void }) {
+function OnAir({ community, failed, retrying, retry }: { community?: AppCommunity; failed: boolean; retrying: boolean; retry: () => void }) {
   return (
     <View>
       <SectionHead title="On air now" />
       <View style={[styles.pad, styles.stack]}>
-        <OnAirList community={community} failed={failed} retry={retry} />
+        <OnAirList community={community} failed={failed} retrying={retrying} retry={retry} />
       </View>
     </View>
   );

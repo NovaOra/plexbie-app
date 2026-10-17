@@ -1,25 +1,20 @@
 // Who's watching right now: poster, who and on what, the title, and how far in.
 import { StyleSheet, View } from "react-native";
 import type { AppCommunity } from "../../api/schemas";
-import { Button } from "../../ui/Button";
 import { Poster } from "../../ui/Poster";
 import { Text } from "../../ui/Text";
 import { useLargeText } from "../../ui/useColumns";
 import { color, radius, space } from "../../ui/theme";
 import { GlassFill, glass } from "../../ui/Glass";
+import { OffAir } from "../../ui/OffAir";
 import { Placeholder } from "../../ui/Placeholder";
 
-export function OnAirList({ community, failed, retry, limit }: {
-  community?: AppCommunity; failed: boolean; retry: () => void; limit?: number;
+export function OnAirList({ community, failed, retry, retrying, limit }: {
+  community?: AppCommunity; failed: boolean; retry: () => void; retrying?: boolean; limit?: number;
 }) {
   const large = useLargeText();
   if (failed && !community) {
-    return (
-      <>
-        <Text variant="body">Couldn’t see who’s watching right now.</Text>
-        <Button kind="secondary" label="Try again" onPress={retry} style={styles.start} />
-      </>
-    );
+    return <OffAir tab="Watching" onRetry={retry} retrying={retrying}>Couldn’t see who’s watching right now. Nothing is lost.</OffAir>;
   }
   if (!community) return <Placeholder height={96} />;
   const rows = community.onAir.slice(0, limit);
@@ -47,7 +42,6 @@ export function OnAirList({ community, failed, retry, limit }: {
 }
 
 const styles = StyleSheet.create({
-  start: { alignSelf: "flex-start" },
   row: { flexDirection: "row", gap: space.m, padding: space.m, borderRadius: radius.m, backgroundColor: color.panel },
   poster: { width: 52 },
   body: { flex: 1, gap: 2, justifyContent: "center", minWidth: 0 },
