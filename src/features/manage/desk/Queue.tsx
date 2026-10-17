@@ -64,7 +64,7 @@ export function Queue({ desk, view, onView, filter, onFilter, onOpen, a, me, ful
                   {GROUP_HEAD[g].label} · {rows.length}{GROUP_HEAD[g].rule ? <Text variant="eyebrow" style={styles.rule}>  {GROUP_HEAD[g].rule}</Text> : null}
                 </Text>
                 {rows.map((item) => <QueueRow key={item.key} item={item} onOpen={() => onOpen(item)}
-                  actions={<RowActions item={item} a={a} me={me} open={() => onOpen(item)} full={full} />} />)}
+                  actions={rowActions({ item, a, me, open: () => onOpen(item), full })} />)}
               </View>
             );
           })}
@@ -114,8 +114,9 @@ function QueueRow({ item, onOpen, actions }: { item: Item; onOpen: () => void; a
 }
 
 /** A row's two keys, as the website's: raised for what you'd most likely do, a quiet pill
- *  for the next thing, and a hold for anything you have to mean (Decline, Deny, Cancel). */
-function RowActions({ item, a, me, open, full }: { item: Item; a: DeskActions; me: string | null; open: () => void; full: OpenFull }) {
+ *  for the next thing, and a hold for anything you have to mean (Decline, Deny, Cancel).
+ *  The keys themselves, not a component around them, so the row's KeyRow can share its width out. */
+function rowActions({ item, a, me, open, full }: { item: Item; a: DeskActions; me: string | null; open: () => void; full: OpenFull }) {
   const busy = a.busy(item.key);
   const key = (label: string, onPress: () => unknown, quiet = false, guarded = true, name?: string) => (
     <Button key={label} kind={quiet ? "quiet" : "secondary"} label={label} busy={guarded && busy} blocked={false}

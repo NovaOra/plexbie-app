@@ -11,14 +11,24 @@ appId: com.plexbie.app
 - assertVisible: "Requests \\(Asks\\): 3, 3.waiting.*"
 - tapOn: "Requests \\(Asks\\).*"
 - assertVisible: "Showing Requests only"
+- scrollUntilVisible:
+    element: "Approve Zombies of the Stratosphere for Sam"
+    direction: DOWN
+    centerElement: true
 - tapOn: "Approve Zombies of the Stratosphere for Sam"
 - extendedWaitUntil:
     notVisible: "Approve Zombies of the Stratosphere for Sam"
     timeout: 10000
+- scrollUntilVisible:
+    element: "8 things need you.*"
+    direction: UP
 - assertVisible: "Requests \\(Asks\\): 2, 2.waiting.*"
-- assertVisible: "8 things need you.*"
 - tapOn: "Show all"
 # A ticket: taken from its row, then let go from its sheet.
+- scrollUntilVisible:
+    element: "Take it: Elephants Dream"
+    direction: DOWN
+    centerElement: true
 - tapOn: "Take it: Elephants Dream"
 - extendedWaitUntil:
     notVisible: "Take it: Elephants Dream"
@@ -34,6 +44,9 @@ appId: com.plexbie.app
     timeout: 10000
 - back
 - waitForAnimationToEnd
+- scrollUntilVisible:
+    element: "Everything else"
+    direction: UP
 # Everything else: every full view, and back to the desk.
 - tapOn: "Everything else"
 - waitForAnimationToEnd
