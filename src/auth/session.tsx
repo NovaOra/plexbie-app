@@ -82,9 +82,13 @@ type State =
 
 export type Via = "discord" | "plex";
 
+/** The website's sign-in outcomes (its ?login= values), each with its own words on the sign-in screen. */
+export type LoginReason = "failed" | "expired" | "cancelled" | "busy" | "unavailable";
+
 export class SignInError extends Error {
-  /** `invite`: how the invite went, when the server already used it before this sign-in failed. */
-  constructor(message: string, readonly quiet = false, readonly invite?: string) { super(message); this.name = "SignInError"; }
+  /** `invite`: how the invite went, when the server already used it before this sign-in failed.
+   *  `reason`: which of the website's sign-in messages fits, when one does (the screen shows that). */
+  constructor(message: string, readonly quiet = false, readonly invite?: string, readonly reason?: LoginReason) { super(message); this.name = "SignInError"; }
 }
 
 const octet = "(25[0-5]|2[0-4]\\d|1?\\d?\\d)";
@@ -350,7 +354,9 @@ function useSessionState() {
       const server = normalizeServer(rawServer);
       try {
         const info = await pub.mobileInfo(server);
-        if (!info.auth.includes(via)) throw new SignInError(`This server doesn't offer ${via === "plex" ? "Plex" : "Discord"} sign-in.`);
+        if (!info.auth.includes(via)) {
+          throw new SignInError(`This server doesn't offer ${via === "plex" ? "Plex" : "Discord"} sign-in.`, false, undefined, via === "discord" ? "unavailable" : undefined);
+        }
       } catch (e) {
         if (e instanceof SignInError) throw e;
         if (e instanceof ApiError && e.status === 404) {
@@ -375,8 +381,11 @@ function useSessionState() {
       // The invite is used during the Plex sign-in, before the app's own sign-in finishes: its
       // answer comes back even when that doesn't finish, and travels with the error.
       const invite = typeof back.invite === "string" ? back.invite : undefined;
-      if (typeof back.error === "string") throw new SignInError(back.error === "denied" ? "Sign-in was turned down." : "Sign-in didn't work. Try again.", false, invite);
-      if (typeof back.code !== "string") throw new SignInError("Sign-in didn't work. Try again.", false, invite);
+      if (typeof back.error === "string") {
+        const reason: LoginReason = back.error === "denied" ? "cancelled" : back.error === "expired" || back.error === "busy" ? back.error : "failed";
+        throw new SignInError(back.error === "denied" ? "Sign-in was turned down." : "Sign-in didn't work. Try again.", false, invite, reason);
+      }
+      if (typeof back.code !== "string") throw new SignInError("Sign-in didn't work. Try again.", false, invite, "failed");
       let token: string, expiresAt: number;
       try {
         ({ token, expiresAt } = await pub.exchange(server, back.code, verifier));

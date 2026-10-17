@@ -162,12 +162,19 @@ test("an answer with no state at all is refused", async () => {
 
 test("a refusal says so, and nothing is exchanged", async () => {
   sheetAnswers((state) => ({ error: "denied", state }));
-  expect((await signInFails()).message).toBe("Sign-in was turned down.");
+  const error = await signInFails();
+  expect(error.message).toBe("Sign-in was turned down.");
+  // The sign-in screen says it in the website's words: cancelled, nothing changed.
+  expect(error.reason).toBe("cancelled");
 });
 
 test("any other error from the bot is a plain try-again", async () => {
   sheetAnswers((state) => ({ error: "expired", state }));
-  expect((await signInFails()).message).toBe("Sign-in didn't work. Try again.");
+  const error = await signInFails();
+  expect(error.message).toBe("Sign-in didn't work. Try again.");
+  expect(error.reason).toBe("expired");
+  sheetAnswers((state) => ({ error: "something-new", state }));
+  expect((await signInFails()).reason).toBe("failed");
 });
 
 test("an answer without a code is a plain try-again", async () => {
@@ -185,7 +192,9 @@ test("closing the sheet ends it quietly", async () => {
 test("a server that doesn't offer that sign-in is caught before the browser opens", async () => {
   bot({ version: "1", auth: ["plex"], push: [], home: null });
   sheetAnswers((state) => ({ code: "c", state }));
-  expect((await signInFails("plexbie.example", "discord")).message).toBe("This server doesn't offer Discord sign-in.");
+  const error = await signInFails("plexbie.example", "discord");
+  expect(error.message).toBe("This server doesn't offer Discord sign-in.");
+  expect(error.reason).toBe("unavailable");
   expect(openSheet).not.toHaveBeenCalled();
 });
 
