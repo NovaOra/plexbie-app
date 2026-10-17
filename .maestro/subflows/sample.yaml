@@ -3,9 +3,10 @@ appId: com.plexbie.app
 ---
 - launchApp:
     clearState: true
-# The sign-in set's screen, at the top.
+# The sign-in set: its tally, or its keys if the page opened further down (a keyboard left
+# up by the last app can scroll it as it opens).
 - extendedWaitUntil:
-    visible: "Standby"
+    visible: "Standby|Sign in with Discord|How to get in"
     timeout: 20000
 # The set fills the first screen; the other ways in are under it.
 - scrollUntilVisible:
