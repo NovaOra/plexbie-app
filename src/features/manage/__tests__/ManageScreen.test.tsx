@@ -170,7 +170,7 @@ test("Everything else lists every full view with the monitors' counts, and ‹ D
   expect(drawer.getByRole("header", { name: /^Services · 1.of 6.down/ })).toBeTruthy();
   // One badge style: the count, and a tally dot when some of it is urgent; the row's line says the same numbers.
   expect(drawer.getByRole("header", { name: /^Help · 2.tickets · 1.chat/ })).toBeTruthy();
-  expect(drawer.getByRole("button", { name: /^All tickets, 2, urgent\. 2.need you · 1.urgent · 2.more waiting on a reply$/ })).toBeTruthy();
+  expect(drawer.getByRole("button", { name: /^All tickets, 2, urgent\. 2.need you · 1.urgent · 2.waiting for a reply$/ })).toBeTruthy();
   expect(drawer.getByRole("button", { name: /^All requests, 3\. 3.waiting · 2.stuck under Help$/ })).toBeTruthy();
   expect(drawer.getByRole("button", { name: /^Blocked imports, urgent\. Radar Men from the Moon under All tickets$/ })).toBeTruthy();
   expect(drawer.getByRole("button", { name: /^Services, 1, urgent\. Discord Public Bot down · 6.checks$/ })).toBeTruthy();
