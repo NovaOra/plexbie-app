@@ -85,6 +85,8 @@ export function AdminRequestBody({ id, embedded = false }: { id: string; embedde
 
   // Only an approved request can be searched for (not one waiting for a decision, or declined).
   const video = (r.title.kind === "tv" || r.title.kind === "movie") && !["requested", "declined", "closed"].includes(r.stage);
+  // In the desk's sheet, its own key at the top (Approve, Search again) is the one pink key.
+  const raised = embedded ? "secondary" : "primary";
   const history = [
     ...r.tickets.map((t) => ({ at: t.created_at, text: ticketLine(t) })),
     ...r.activity.map((a) => ({ at: a.at, text: `${a.by}: ${a.did}` })),
@@ -110,7 +112,7 @@ export function AdminRequestBody({ id, embedded = false }: { id: string; embedde
           <View style={[detailStyles.box, glass.surface]} accessibilityRole="summary">
             <GlassFill radius={radius.m} />
             <Text variant="label">There’s an open ticket on this: {openTicket.reason}.</Text>
-            <Button label="Open the ticket" style={detailStyles.start}
+            <Button kind={raised} label="Open the ticket" style={detailStyles.start}
               onPress={() => router.push({ pathname: "/manage-ticket/[id]", params: { id: openTicket.id } })} />
           </View>
         ) : writing ? (
@@ -136,12 +138,12 @@ export function AdminRequestBody({ id, embedded = false }: { id: string; embedde
             ) : null}
             <KeyRow>
               <Button kind="secondary" label="Back" onPress={() => { setWriting(false); setNote(""); }} style={card.grow} />
-              <Button label="Open the ticket" busy={isBusy("ticket")} busyLabel="Opening…" disabled={!note.trim()}
+              <Button kind={raised} label="Open the ticket" busy={isBusy("ticket")} busyLabel="Opening…" disabled={!note.trim()}
                 onPress={() => void ticket()} style={card.grow} />
             </KeyRow>
           </View>
         ) : (
-          <Button label="Open a ticket" onPress={() => setWriting(true)} />
+          <Button kind={raised} label="Open a ticket" onPress={() => setWriting(true)} />
         )}
 
         {history.length ? (
