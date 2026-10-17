@@ -42,9 +42,11 @@ appId: com.plexbie.app
     timeout: 10000
 - back
 - waitForAnimationToEnd
+# The menu key at the top: wait for the list to settle, or the tap lands mid-fling.
 - scrollUntilVisible:
     element: "Everything else"
     direction: UP
+- waitForAnimationToEnd
 # Everything else: every full view, and back to the desk.
 - tapOn: "Everything else"
 - waitForAnimationToEnd
