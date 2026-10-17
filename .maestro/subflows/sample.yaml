@@ -3,10 +3,11 @@ appId: com.plexbie.app
 ---
 - launchApp:
     clearState: true
+# The sign-in set's screen, at the top.
 - extendedWaitUntil:
-    visible: "Sign in with Discord"
+    visible: "Standby"
     timeout: 20000
-# The TV set fills the first screen; the other ways in are under it.
+# The set fills the first screen; the other ways in are under it.
 - scrollUntilVisible:
     element:
       text: "Look around with sample data"

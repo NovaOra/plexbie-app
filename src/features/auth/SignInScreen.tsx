@@ -322,8 +322,9 @@ const styles = StyleSheet.create({
   // Laid over the first, so the row is as tall as the taller channel.
   channelSecond: { marginLeft: "-100%" },
   channelOff: { opacity: 0 },
-  mascot: { width: 76, height: 76, borderRadius: 18 },
-  title: { fontSize: 28, lineHeight: 30, color: color.ink },
+  mascot: { width: 64, height: 64, borderRadius: 16 },
+  // Sized for a 360dp phone's screen-in-a-screen: the longest word still fits its line.
+  title: { fontSize: 24, lineHeight: 26, color: color.ink },
   lede: { color: color.slateInk },
   notice: { gap: 2, paddingTop: space.s, borderTopWidth: 1, borderColor: tint(color.screen, 0.2) },
   noticeAlert: { borderColor: tint(color.screen, 0.45) },

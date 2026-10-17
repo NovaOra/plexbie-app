@@ -4,11 +4,17 @@ tags: [smoke]
 ---
 - launchApp:
     clearState: true
+# The set's screen is at the top: its tally waits on Standby.
 - extendedWaitUntil:
-    visible: "Sign in with Discord"
+    visible: "Standby"
     timeout: 20000
-- assertVisible: "Standby"
-# The keys are on the set's deck; the sample is below the set.
+- assertVisible: "CH 1.*Sign in"
+# The keys are on the set's deck, under the screen; the sample is below the set.
+- scrollUntilVisible:
+    element:
+      text: "Sign in with Discord"
+    direction: DOWN
+- assertVisible: "Sign in with Discord"
 - scrollUntilVisible:
     element:
       text: "Sign in with Plex"
