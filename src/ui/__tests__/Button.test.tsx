@@ -3,7 +3,7 @@
 // Reduce Motion); a busy key stays down; a blocked one waits, flat, and takes no press.
 import { beforeEach, expect, jest, test } from "@jest/globals";
 import { fireEvent, render, screen, within } from "@testing-library/react-native";
-import { StyleSheet } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { Button } from "../Button";
 import { color, depth, radius } from "../theme";
 
@@ -78,4 +78,13 @@ test("blocked: flat and slate, no spinner, no press", async () => {
   expect(spinners()).toHaveLength(0);
   await fireEvent.press(screen.getByRole("button", { name: "Approve" }));
   expect(onPress).not.toHaveBeenCalled();
+});
+
+test("a key's mark sits before its label, and the spinner takes its place while busy", async () => {
+  const mark = <View testID="mark" />;
+  const { rerender } = await render(<Button kind="secondary" label="Sign in with Plex" icon={mark} onPress={() => undefined} />);
+  expect(within(screen.getByRole("button", { name: "Sign in with Plex" })).getByTestId("mark")).toBeTruthy();
+  await rerender(<Button kind="secondary" label="Sign in with Plex" icon={mark} busy onPress={() => undefined} />);
+  expect(screen.queryByTestId("mark")).toBeNull();
+  expect(spinners()).toHaveLength(1);
 });

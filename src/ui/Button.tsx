@@ -9,7 +9,7 @@
 //   (tally is for what's live).
 // `blocked`: another action on the same thing is running, so it waits, flat and slate.
 // All are PressableScale (haptic, 48dp to hit).
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { ActivityIndicator, StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from "react-native";
 import Animated from "react-native-reanimated";
 import { PressableScale } from "./Pressable";
@@ -18,7 +18,7 @@ import { color, depth, EASE_OUT_CSS, radius, space, TOUCH, type } from "./theme"
 
 export type ButtonKind = "primary" | "secondary" | "quiet" | "danger";
 
-export function Button({ label, onPress, kind = "primary", busy, busyLabel, blocked, disabled, style, accessibilityLabel, haptic }: {
+export function Button({ label, onPress, kind = "primary", busy, busyLabel, blocked, disabled, style, accessibilityLabel, haptic, icon }: {
   label: string;
   onPress: () => void;
   kind?: ButtonKind;
@@ -31,6 +31,8 @@ export function Button({ label, onPress, kind = "primary", busy, busyLabel, bloc
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
   haptic?: "light" | "none";
+  /** A small mark before the label (the Plex key's play icon); the spinner takes its place while busy. */
+  icon?: ReactNode;
 }) {
   const [down, setDown] = useState(false);
   const large = useWindowDimensions().fontScale >= 1.3;
@@ -64,7 +66,7 @@ export function Button({ label, onPress, kind = "primary", busy, busyLabel, bloc
         }]} />
       ) : null}
       {!flat && !quiet ? <View pointerEvents="none" style={styles.highlight} /> : null}
-      {busy ? <ActivityIndicator testID="key-spinner" color={tint} size="small" /> : null}
+      {busy ? <ActivityIndicator testID="key-spinner" color={tint} size="small" /> : icon ?? null}
       <Text variant="label" numberOfLines={large ? undefined : 1} style={[quiet ? type.quiet : type.button, styles.label, { color: tint }]}>{busy && busyLabel ? busyLabel : label}</Text>
     </PressableScale>
   );
