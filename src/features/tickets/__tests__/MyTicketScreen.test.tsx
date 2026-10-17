@@ -87,6 +87,20 @@ test("a ticket on a film an admin asked about: its heading, its reason, and an a
   expect(screen.getAllByText("It does, it's only the TV.")).toHaveLength(1);
 });
 
+test("one Plexbie opened on their request: its first message is Plexbie's, not theirs", async () => {
+  mockId = request.id;
+  const plexbies = { ...request, byPlexbie: true, thread: [
+    { id: "p1", at: "2026-10-04T20:00:00Z", by: "Plexbie", kind: "member", plexbie: true, text: "Season 2 finished downloading, but Sonarr won’t import it by itself. An admin will check it." },
+    { id: "p2", at: "2026-10-04T21:00:00Z", by: "You", kind: "member", text: "Thanks!" },
+  ] };
+  mockMyTickets.mockResolvedValue([film, plexbies, general]);
+  await show("Your ticket on Pepper & Carrot");
+  expect(screen.getByText("Plexbie")).toBeTruthy();
+  expect(screen.getByText("Season 2 finished downloading, but Sonarr won’t import it by itself. An admin will check it.")).toBeTruthy();
+  expect(screen.getAllByText("You")).toHaveLength(1);
+  expect(screen.getByLabelText(/^Plexbie, .*: Season 2 finished downloading/)).toBeTruthy();
+});
+
 test("open and not waiting: the member can still add to it", async () => {
   mockId = request.id;
   await show("Your ticket on Pepper & Carrot");

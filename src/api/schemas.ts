@@ -43,6 +43,9 @@ const TicketEntrySchema = z.looseObject({
   kind: z.string().catch("note"),   // "member" | "note" | "reply" | "action" | "status" today
   text: z.string().catch(""),
   missed: opt(z.boolean()),
+  /** Plexbie's own first message on a ticket it opened itself, for the member (a "member" entry
+   *  by "Plexbie"). Older bots leave it out. */
+  plexbie: opt(z.boolean()),
 });
 export type AppTicketEntry = z.infer<typeof TicketEntrySchema>;
 const timeline = z.array(z.unknown()).transform((rows) =>
@@ -60,6 +63,8 @@ const MemberTicketSchema = z.looseObject({
   status: opt(z.string()),
   /** An admin asked something and waits on the member's answer. */
   waiting: opt(z.boolean()),
+  /** Plexbie opened it itself, on their request: its first message is Plexbie's. */
+  byPlexbie: opt(z.boolean()),
   thread: opt(timeline),
 });
 export type AppMemberTicket = z.infer<typeof MemberTicketSchema>;
@@ -191,6 +196,8 @@ const MyTicketSchema = z.looseObject({
   reason: z.string().catch(""),
   status: z.string().catch("open"),       // "open" | "resolved" today
   waiting: z.boolean().catch(false),
+  /** Plexbie opened it itself, on their request: its first message is Plexbie's. */
+  byPlexbie: opt(z.boolean()),
   createdAt: z.string().catch(""),
   updatedAt: z.string().catch(""),
   thread: timeline.catch([]),
@@ -289,6 +296,9 @@ const AdminTicketRowSchema = z.looseObject({
   owner: z.string().nullable().optional().catch(null), openedBy: z.string().nullable().optional().catch(null),
   /** "name": Plexbie's search by ID found nothing; it asks whether to search by name. */
   offer: z.string().nullable().optional().catch(null),
+  /** Plexbie opened it itself, on `who`'s request: its first message is Plexbie's, for them.
+   *  An older bot sends none (openedByPlexbie works it out). */
+  byPlexbie: opt(z.boolean()),
   createdAt: z.string().catch(""), updatedAt: z.string().catch(""),
   last: z.looseObject({ by: z.string().nullable().catch(null), kind: z.string().nullable().catch(null), text: z.string().catch("") }).nullable().optional().catch(null),
   count: z.number().catch(0),

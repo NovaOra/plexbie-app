@@ -197,6 +197,30 @@ test("one Plexbie opened: its first message is Plexbie's, for the member, and no
   expect(screen.queryByText("⚠︎ Help asked: Can’t be found")).toBeNull();
 });
 
+test("one Plexbie opened, from a bot that says so: Plexbie's first message, for the member, whatever it saw", async () => {
+  mockClient.adminTicket.mockResolvedValue({
+    ...ticket, reason: "Downloaded, but won’t import", byPlexbie: true, statusThen: "Downloaded, import blocked",
+    thread: [{ id: "e1", kind: "member", by: "Plexbie", plexbie: true, at: now,
+      text: "Big Buck Bunny finished downloading, but Radarr won’t import it by itself. An admin will check it." }],
+  } as AppAdminTicketDetail);
+  await show();
+  expect(screen.getByText("Opened by Plexbie for Sam Rivers just now")).toBeTruthy();
+  expect(screen.getByText("Plexbie, for Sam Rivers")).toBeTruthy();
+  expect(screen.getByText("Big Buck Bunny finished downloading, but Radarr won’t import it by itself. An admin will check it.")).toBeTruthy();
+  expect(screen.queryByText("Sam Rivers")).toBeNull();
+});
+
+test("a bot that says the member opened it is believed, even when what Plexbie saw reads like its own words", async () => {
+  mockClient.adminTicket.mockResolvedValue({
+    ...ticket, reason: "Can’t be found", byPlexbie: false, statusThen: "Nothing found",
+    thread: [{ id: "e1", kind: "member", by: "Sam Rivers", text: "Can’t be found. Nothing turned up for me.", at: now }],
+  } as AppAdminTicketDetail);
+  await show();
+  expect(screen.getByText("Asked by Sam Rivers just now")).toBeTruthy();
+  expect(screen.getByText("Sam Rivers")).toBeTruthy();
+  expect(screen.queryByText("Plexbie, for Sam Rivers")).toBeNull();
+});
+
 test("a member's own: their name on their message, and what Plexbie saw when it adds something", async () => {
   mockClient.adminTicket.mockResolvedValue({
     ...ticket, reason: "Stuck downloading", statusThen: "Downloading, 62%",

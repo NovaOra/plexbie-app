@@ -28,22 +28,29 @@ export function ticketTitle(t: { subject: string; title: string; year?: string |
 /** What Plexbie writes as "what it saw" when it opens a ticket itself (the bot's season_search.open_help callers). */
 const PLEXBIE_SAW = /^(Nothing found|Downloaded, import blocked|On Plex, as another film|Adding to Plex|Approved, not in (Sonarr|Radarr))$/;
 
-/** Plexbie opened it, on its own (a search that found nothing, an import it won't take): the bot
- *  files it under the member who asked, with Plexbie's words as their first message. */
-export function openedByPlexbie(t: { openedBy?: string | null; offer?: string | null; reasonCode?: string | null; statusThen?: string | null }) {
+/** Plexbie opened it, on its own (a search that found nothing, an import it won't take), filed
+ *  under the member who asked. The bot says so (`byPlexbie`); an older one filed Plexbie's words
+ *  as the member's first message, and it's worked out from what only Plexbie puts on a ticket. */
+export function openedByPlexbie(t: { openedBy?: string | null; byPlexbie?: boolean; offer?: string | null; reasonCode?: string | null; statusThen?: string | null }) {
   if (t.openedBy) return t.openedBy === "Plexbie";
+  if (t.byPlexbie !== undefined) return t.byPlexbie;
   return t.offer === "name" || t.reasonCode === "blocked" || t.reasonCode === "notreached" || PLEXBIE_SAW.test((t.statusThen ?? "").trim());
 }
 
-/** Its first message when Plexbie wrote it for the member: said to be Plexbie's, for them, and
- *  without the reason in front, which the ticket's eyebrow already says. */
+/** Its first message when Plexbie wrote it for the member, marked as Plexbie's (`plexbie`). An
+ *  older bot filed it under the member, with the reason in front (the ticket's eyebrow says it). */
 export function plexbieFirst(entries: AppTicketEntry[], t: { who: string; reason: string }): AppTicketEntry[] {
   return entries.map((e, i) => {
-    if (i || e.kind !== "member" || e.by !== t.who) return e;
+    if (e.plexbie || i || e.kind !== "member" || e.by !== t.who) return e;
     const lead = `${t.reason}. `;
-    return { ...e, by: `Plexbie, for ${t.who}`, text: t.reason && e.text.startsWith(lead) ? e.text.slice(lead.length) : e.text };
+    return { ...e, by: "Plexbie", plexbie: true, text: t.reason && e.text.startsWith(lead) ? e.text.slice(lead.length) : e.text };
   });
 }
+
+/** Who wrote an entry: Plexbie's first message on a ticket it opened itself is "Plexbie, for
+ *  {who}" to the admins and "Plexbie" to the member, never the member's own. */
+export const entryBy = (e: AppTicketEntry, who: string, admin: boolean) =>
+  e.plexbie ? (admin ? `Plexbie, for ${who}` : "Plexbie") : e.by;
 
 export function TicketPill({ label, tone }: { label: string; tone: "hot" | "wait" | "done" | "plain" }) {
   return <Text style={[styles.pill, pill[tone]]}>{label}</Text>;
@@ -58,9 +65,9 @@ export function Thread({ entries, who, admin }: { entries: AppTicketEntry[]; who
         <Text key={e.id} variant="meta" style={styles.status}>{e.by}: {e.text} · {since(e.at)}</Text>
       ) : (
         <View key={e.id} style={[styles.entry, e.kind === "note" && styles.note, e.kind === "reply" && styles.reply, e.kind === "action" && styles.action]}
-          accessible accessibilityLabel={`${e.by}${admin && e.kind === "note" ? ", admins only" : admin && e.kind === "reply" ? (e.missed ? ", not delivered" : `, sent to ${who}`) : ""}, ${since(e.at)}: ${e.text}`}>
+          accessible accessibilityLabel={`${entryBy(e, who, admin)}${admin && e.kind === "note" ? ", admins only" : admin && e.kind === "reply" ? (e.missed ? ", not delivered" : `, sent to ${who}`) : ""}, ${since(e.at)}: ${e.text}`}>
           <View style={styles.head}>
-            <Text variant="label" style={styles.by}>{e.by}</Text>
+            <Text variant="label" style={styles.by}>{entryBy(e, who, admin)}</Text>
             {admin && e.kind === "note" ? <Text style={[styles.tag, styles.tagNote]}>Admins only</Text> : null}
             {admin && e.kind === "reply" ? (e.missed ? <Text style={[styles.tag, styles.tagMissed]}>Not delivered</Text>
               : <Text style={[styles.tag, styles.tagReply]}>Sent to {who}</Text>) : null}
