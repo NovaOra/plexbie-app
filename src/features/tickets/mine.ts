@@ -32,12 +32,15 @@ export function aboutLine(t: About) {
   return t.year ? `${t.title} (${t.year})` : t.title;
 }
 
-/** "Your ticket on Sintel", "Your ticket on No. 0214", or (a general one) "Your ticket". */
+/** "Your ticket on Sintel", or (a general one) "Your ticket". A request's number is its eyebrow's (eyebrowFor). */
 export function headingFor(t: About) {
-  if (t.subject === "request" && t.slot) return `Your ticket on No. ${formatSlot(t.slot)}`;
+  if (t.subject === "request" && !t.title && t.slot) return `Your ticket on No. ${formatSlot(t.slot)}`;
   if (t.subject === "general" || !t.title) return "Your ticket";
   return `Your ticket on ${t.title}`;
 }
+
+/** Its caps eyebrow, as a request card's: "No. 0214 · Ticket" on a request, else "Ticket". */
+export const eyebrowFor = (t: About) => (t.subject === "request" && t.slot ? `No. ${formatSlot(t.slot)} · Ticket` : "Ticket");
 
 /** Where it is, for the member, in Manage's colours: their move (hot), the admins' (wait), or done. */
 export function myState(t: { status: string; waiting?: boolean }) {

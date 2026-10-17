@@ -89,9 +89,10 @@ test("a ticket on a film an admin asked about: its heading, its reason, and an a
 
 test("open and not waiting: the member can still add to it", async () => {
   mockId = request.id;
-  await show("Your ticket on No. 0007");
-  // A request's ticket names its title beside the reason; its heading has the number.
-  expect(screen.getByText("Pepper & Carrot · Wrong or missing episodes")).toBeTruthy();
+  await show("Your ticket on Pepper & Carrot");
+  // A request's ticket has its number in the eyebrow, as its card does, and its title in the heading.
+  expect(screen.getByText("No. 0007 · Ticket")).toBeTruthy();
+  expect(screen.getByText("Wrong or missing episodes")).toBeTruthy();
   expect(screen.getByText("The admins have it. You’ll hear back here, and by Discord or an alert.")).toBeTruthy();
   expect(screen.getByLabelText("Add to your ticket")).toBeTruthy();
   expect(screen.queryByLabelText("Your answer")).toBeNull();

@@ -21,7 +21,7 @@ import { useDraftGuard } from "../../ui/useDraftGuard";
 import { since } from "../requests/stage";
 import { useRequests } from "../requests/useRequests";
 import { Thread, TicketPill } from "./Thread";
-import { headingFor, myState, posterOf, useMyTickets } from "./mine";
+import { eyebrowFor, headingFor, myState, posterOf, useMyTickets } from "./mine";
 
 export function MyTicketScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -40,17 +40,18 @@ export function MyTicketScreen() {
 
   const state = myState(t);
   const poster = posterOf(t, requests);
-  // A request's title isn't in its heading ("No. 0214"); a film or show's is.
-  const about = [t.subject === "request" ? t.title : null, t.reason].filter(Boolean).join(" · ");
+  // A request's number is in the eyebrow, as on its card, and its title in the heading.
+  const about = t.reason;
   return (
     <DetailPage scroll={field.scroll}>
       {poster !== undefined ? (
         // About a film, show or request: its poster beside the heading, as a request's page has.
-        <TitleHead title={{ poster, title: t.title ?? "", id: t.id }} name={headingFor(t)} eyebrow="Ticket" heading={heading}>
+        <TitleHead title={{ poster, title: t.title ?? "", id: t.id }} name={headingFor(t)} eyebrow={eyebrowFor(t)} heading={heading}>
           <Text variant="meta">{about}</Text>
         </TitleHead>
       ) : (
         <View style={styles.headText}>
+          <Text variant="eyebrow">{eyebrowFor(t)}</Text>
           <Text ref={heading} style={detailStyles.name} accessibilityRole="header">{headingFor(t)}</Text>
           <Text variant="meta">{about}</Text>
         </View>
