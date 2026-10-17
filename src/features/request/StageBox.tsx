@@ -6,7 +6,7 @@ import type { AppRequest } from "../../api/schemas";
 import { Text } from "../../ui/Text";
 import { color, EASE_OUT_CSS, font, radius, space } from "../../ui/theme";
 import { GlassFill, glass } from "../../ui/Glass";
-import { home, isLive, stageHelp, stageLabel } from "../requests/stage";
+import { home, isLive, since, stageHelp, stageLabel } from "../requests/stage";
 
 /** Where each stage sits on the way: asked, approved, on its way, being added, there. */
 const STEP: Record<string, number> = {
@@ -22,12 +22,17 @@ export function StageBox({ r }: { r: AppRequest }) {
   const place = home(r.title.kind);
   // The website's words for the same steps (its downloading and unpacking are one step here).
   const steps = ["Requested", "Approved", "Downloading", `Adding to ${place}`, `On ${place}`];
+  // The step it's on says how long it's been there: when it was asked, approved or reached
+  // this stage (an admin's view knows the last two), else just "now".
+  const extra = r as AppRequest & { stageSince?: string | null; approvedAt?: string | null };
+  const at = step === 0 ? r.requestedAt : extra.stageSince ?? (step === 1 ? extra.approvedAt : null);
+  const when = at ? since(at) : "now";
   return (
     <View style={[styles.box, glass.surface, live && styles.boxLive]} accessible accessibilityLabel={[
       `${stageLabel(r.stage, r.title.kind)}. ${r.progress?.detail || stageHelp(r.stage, r.title.kind, r.format)}`,
       live && percent !== null ? `${percent} percent` : null,
       r.progress?.problem || null,
-      step !== undefined ? `Step ${step + 1} of ${steps.length}: ${steps[step]}` : null,
+      step !== undefined ? `Step ${step + 1} of ${steps.length}: ${steps[step]}${at ? `, ${when}` : ""}` : null,
     ].filter(Boolean).join(". ")}>
       <GlassFill radius={radius.m} />
       <View style={styles.strap}>
@@ -45,14 +50,14 @@ export function StageBox({ r }: { r: AppRequest }) {
         <View style={styles.journey}>
           {steps.map((label, i) => (
             <View key={label} style={styles.stepRow}>
-              {/* Not colour alone: done steps carry a tick, the current one says "now". */}
+              {/* Not colour alone: done steps carry a tick, the current one says when it got there. */}
               <View style={[styles.stepDot, i < step && styles.stepPast, i === step && styles.stepNow, i === step && live && styles.stepLive]}>
                 {i < step ? <Text style={styles.tick} maxFontSizeMultiplier={1.2}>✓</Text> : null}
               </View>
-              {/* Two texts, not one: Android measured the bold label short and cut "now" off. */}
+              {/* Two texts, not one: Android measured the bold label short and cut the time off. */}
               <View style={styles.stepText}>
                 <Text variant="meta" style={[styles.stepLabel, i === step && styles.now, i > step && styles.later]}>{label}</Text>
-                {i === step ? <Text variant="meta" style={[styles.stepLabel, styles.now]}>· now</Text> : null}
+                {i === step ? <Text variant="meta" style={[styles.stepLabel, styles.now]}>· {when}</Text> : null}
               </View>
             </View>
           ))}

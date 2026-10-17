@@ -86,3 +86,11 @@ test("a ticket opened during a search leaves the spinner on that search", async 
   await settle();
   expect(screen.getByRole("button", { name: "Search again" }).props.accessibilityState?.disabled).toBe(false);
 });
+
+test("how long it's been at its stage is the stepper's to say, not a row's", async () => {
+  const ago = (min: number) => new Date(Date.now() - min * 60_000).toISOString();
+  mockClient.adminRequest.mockResolvedValue({ ...request, stage: "downloading", stageSince: ago(36) });
+  await render(<QueryClientProvider client={qc}><AdminRequestScreen /></QueryClientProvider>);
+  await screen.findByText("Big Buck Bunny");
+  expect(screen.queryByText("since 36 min ago")).toBeNull();
+});

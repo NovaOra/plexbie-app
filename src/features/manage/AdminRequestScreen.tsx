@@ -18,7 +18,7 @@ import { Text } from "../../ui/Text";
 import { color, multilineInput, radius, replyRim, space } from "../../ui/theme";
 import { useDraftGuard } from "../../ui/useDraftGuard";
 import { SeasonsBox, StageBox } from "../request/StageBox";
-import { KIND_LABEL, formatSlot, seasonsLabel, since, stageLabel } from "../requests/stage";
+import { KIND_LABEL, formatSlot, seasonsLabel, since } from "../requests/stage";
 import { SEARCH_DONE, SearchFixes, StuckBox, card } from "./bits";
 import { useAct, useAdminKey } from "./useAdmin";
 import { KeyRow } from "../../ui/KeyRow";
@@ -162,8 +162,6 @@ export function AdminRequestBody({ id, embedded = false }: { id: string; embedde
 function Facts({ r }: { r: AppAdminRequestDetail }) {
   const rows = [
     r.approvedAt ? ["Approved", `${since(r.approvedAt)}${r.approvedBy ? ` by ${r.approvedBy}` : ""}`] : null,
-    // How long it's been at its stage; at "approved" that's the row above, so it's left out.
-    r.stageSince && !["available", "approved"].includes(r.stage) ? [stageLabel(r.stage, r.title.kind), `since ${since(r.stageSince)}`] : null,
     r.finishedAt ? ["On Plex", `since ${since(r.finishedAt)}`] : null,
     r.seerrId ? ["Seerr", `request #${r.seerrId}`] : null,
   ].filter(Boolean) as [string, string][];
